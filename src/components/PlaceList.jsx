@@ -33,37 +33,45 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
       <p className="mb-3 text-sm text-slate-500">가까운 순서로 추천 장소를 보여드려요.</p>
 
       {places.length ? (
-        <ul className="space-y-2">
+        <ul className="space-y-2.5">
           {places.map((place) => (
-            <li key={place.id} className="rounded-2xl border border-slate-100 p-3">
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-black text-[#3182F6]">
-                  {getPlaceIcon(place.categoryLabel)}
+            <li
+              key={place.id}
+              className="group rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.03)] transition hover:border-blue-100 hover:shadow-[0_14px_30px_rgba(49,130,246,0.09)]"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`relative flex h-16 w-16 shrink-0 overflow-hidden rounded-2xl ${getPlaceVisualClass(
+                    place.categoryLabel,
+                  )}`}
+                >
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.65),transparent_42%)]" />
+                  <div className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-lg shadow-sm">
+                    {getPlaceIcon(place.categoryLabel)}
+                  </div>
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-black text-slate-950">{place.name}</p>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">{place.address}</p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
                       {place.categoryLabel || '장소'}
                     </span>
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#3182F6]">
+                      {formatDistance(place.distance)}
+                    </span>
                   </div>
-
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <span className="text-xs font-medium text-slate-500">{formatDistance(place.distance)}</span>
-                    <a
-                      href={createKakaoPlaceSearchUrl(place)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-900 transition active:scale-[0.98]"
-                    >
-                      상세보기
-                    </a>
-                  </div>
+                  <p className="mt-1.5 truncate text-base font-black text-slate-950">{place.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">{place.address}</p>
                 </div>
+
+                <a
+                  href={createNaverPlaceSearchUrl(place)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:border-[#3182F6] hover:text-[#3182F6] active:scale-[0.98]"
+                >
+                  지도보기
+                </a>
               </div>
             </li>
           ))}
@@ -79,13 +87,27 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
 
 function getPlaceIcon(categoryLabel) {
   if (categoryLabel === '카페') return '☕'
-  if (categoryLabel === '음식점') return '🍽'
+  if (categoryLabel === '밥집') return '🍽'
+  if (categoryLabel === '술집') return '🍺'
+  if (categoryLabel === '놀거리') return '🎟'
 
   return '📍'
 }
 
-function createKakaoPlaceSearchUrl(place) {
-  return `https://map.kakao.com/link/search/${encodeURIComponent(place.name)}`
+function getPlaceVisualClass(categoryLabel) {
+  if (categoryLabel === '카페') return 'bg-gradient-to-br from-amber-50 via-orange-100 to-stone-200'
+  if (categoryLabel === '밥집') return 'bg-gradient-to-br from-rose-50 via-orange-100 to-amber-200'
+  if (categoryLabel === '술집') return 'bg-gradient-to-br from-indigo-100 via-violet-100 to-slate-200'
+  if (categoryLabel === '놀거리') return 'bg-gradient-to-br from-blue-100 via-cyan-100 to-violet-100'
+
+  return 'bg-gradient-to-br from-blue-50 via-slate-100 to-cyan-100'
+}
+
+function createNaverPlaceSearchUrl(place) {
+  const query = encodeURIComponent(place.name)
+  const center = place.lng && place.lat ? `?c=${place.lng},${place.lat},16,0,0,0,dh` : ''
+
+  return `https://map.naver.com/p/search/${query}${center}`
 }
 
 function formatDistance(distance) {

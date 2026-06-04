@@ -1,6 +1,8 @@
 import {
   MEETING_HUB_STATIONS,
+  getContextualHubStationKeywords,
   getDistanceFromCenter,
+  getRouteStationSearchAreas,
   getStationSearchAreas,
   isSeoulMetroArea,
   rankMeetingStations,
@@ -9,15 +11,30 @@ import {
 
 const KAKAO_SCRIPT_ID = 'kakao-map-sdk-script'
 const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services'
+const KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
+const STATION_COUNTS_CACHE_KEY = 'meetmiddle:station-counts-cache'
+const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 
 const PLACE_CATEGORIES = {
   cafe: {
     code: 'CE7',
     errorMessage: '근처 카페 검색에 실패했습니다.',
+    type: 'category',
   },
   restaurant: {
     code: 'FD6',
     errorMessage: '근처 맛집 검색에 실패했습니다.',
+    type: 'category',
+  },
+  bar: {
+    keyword: '술집',
+    errorMessage: '근처 술집 검색에 실패했습니다.',
+    type: 'keyword',
+  },
+  activity: {
+    code: 'CT1',
+    errorMessage: '근처 놀거리 검색에 실패했습니다.',
+    type: 'category',
   },
 }
 
@@ -154,11 +171,53 @@ export async function searchNearbyPlaces(center, category = 'cafe') {
   const kakao = await loadKakaoMapSdk()
   const placeCategory = PLACE_CATEGORIES[category] || PLACE_CATEGORIES.cafe
 
+  if (placeCategory.type === 'keyword') {
+    return searchNearbyPlacesByKeyword(kakao, center, placeCategory)
+  }
+
   return new Promise((resolve, reject) => {
     const places = new kakao.maps.services.Places()
 
     places.categorySearch(
       placeCategory.code,
+      (result, status) => {
+        if (status === kakao.maps.services.Status.ZERO_RESULT) {
+          resolve([])
+          return
+        }
+
+        if (status !== kakao.maps.services.Status.OK) {
+          reject(new Error(placeCategory.errorMessage))
+          return
+        }
+
+        resolve(
+          result.slice(0, 5).map((place) => ({
+            id: place.id,
+            name: place.place_name,
+            address: place.road_address_name || place.address_name,
+            distance: Number(place.distance),
+            lat: Number(place.y),
+            lng: Number(place.x),
+          })),
+        )
+      },
+      {
+        x: center.lng,
+        y: center.lat,
+        radius: 1000,
+        sort: kakao.maps.services.SortBy.DISTANCE,
+      },
+    )
+  })
+}
+
+function searchNearbyPlacesByKeyword(kakao, center, placeCategory) {
+  return new Promise((resolve, reject) => {
+    const places = new kakao.maps.services.Places()
+
+    places.keywordSearch(
+      placeCategory.keyword,
       (result, status) => {
         if (status === kakao.maps.services.Status.ZERO_RESULT) {
           resolve([])
@@ -200,7 +259,17 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
   const candidateMap = new Map()
 
   for (const searchArea of getStationSearchAreas(center)) {
-    const candidates = await searchStationCandidates(kakao, searchArea.center, searchArea.radius, center)
+    const candidates = await searchStationCandidates(kakao, searchArea.center, searchArea.radius, center, 'center')
+
+    candidates.forEach((station) => {
+      if (!candidateMap.has(station.id)) {
+        candidateMap.set(station.id, station)
+      }
+    })
+  }
+
+  for (const searchArea of getRouteStationSearchAreas(origins)) {
+    const candidates = await searchStationCandidates(kakao, searchArea.center, searchArea.radius, center, 'route')
 
     candidates.forEach((station) => {
       if (!candidateMap.has(station.id)) {
@@ -221,17 +290,81 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
       })
   }
 
+  const contextualHubCandidates = await searchContextualHubStations(kakao, center, origins)
+
+  contextualHubCandidates.forEach((station) => {
+    const existingStation = candidateMap.get(station.id)
+
+    candidateMap.set(station.id, {
+      ...existingStation,
+      ...station,
+      isContextualCandidate: true,
+    })
+  })
+
   const allCandidates = [...candidateMap.values()].sort((a, b) => a.distanceFromCenter - b.distanceFromCenter)
-  const nearbyCandidates = allCandidates.filter((station) => !station.isHubCandidate).slice(0, 18)
+  const nearbyCandidates = allCandidates
+    .filter((station) => !station.isHubCandidate && !station.isRouteCandidate && !station.isContextualCandidate)
+    .slice(0, 18)
+  const routeCandidates = allCandidates.filter((station) => station.isRouteCandidate).slice(0, 24)
   const hubCandidates = allCandidates.filter((station) => station.isHubCandidate).slice(0, 18)
-  const candidates = [...new Map([...nearbyCandidates, ...hubCandidates].map((station) => [station.id, station])).values()]
+  const contextualCandidates = allCandidates.filter((station) => station.isContextualCandidate).slice(0, 8)
+  const candidates = [
+    ...new Map(
+      [...nearbyCandidates, ...routeCandidates, ...hubCandidates, ...contextualCandidates].map((station) => [
+        station.id,
+        station,
+      ]),
+    ).values(),
+  ]
 
   const scoredStations = await Promise.all(candidates.map((station) => addStationCounts(kakao, station)))
 
   return rankMeetingStations(scoredStations, origins, limit)
 }
 
-function searchStationCandidates(kakao, searchCenter, radius, originalCenter) {
+export async function getRoadRoutePath(origin, destination) {
+  const restApiKey = import.meta.env.VITE_KAKAO_REST_API_KEY || import.meta.env.VITE_KAKAO_MOBILITY_KEY
+
+  if (!restApiKey) return null
+
+  const params = new URLSearchParams({
+    destination: `${destination.lng},${destination.lat}`,
+    origin: `${origin.lng},${origin.lat}`,
+    priority: 'RECOMMEND',
+  })
+
+  const response = await fetch(`${KAKAO_DIRECTIONS_URL}?${params.toString()}`, {
+    headers: {
+      Authorization: `KakaoAK ${restApiKey}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('Route search failed')
+  }
+
+  const data = await response.json()
+  const roads = data.routes?.[0]?.sections?.flatMap((section) => section.roads || []) || []
+  const coordinates = roads.flatMap((road) => {
+    const vertexes = road.vertexes || []
+    const points = []
+
+    for (let index = 0; index < vertexes.length; index += 2) {
+      points.push({
+        lng: Number(vertexes[index]),
+        lat: Number(vertexes[index + 1]),
+      })
+    }
+
+    return points
+  })
+
+  return coordinates.length ? coordinates : null
+}
+
+function searchStationCandidates(kakao, searchCenter, radius, originalCenter, source = 'center') {
   return new Promise((resolve, reject) => {
     const places = new kakao.maps.services.Places()
 
@@ -254,6 +387,7 @@ function searchStationCandidates(kakao, searchCenter, radius, originalCenter) {
             name: station.place_name,
             address: station.road_address_name || station.address_name,
             distanceFromCenter: getDistanceFromCenter(originalCenter, station),
+            isRouteCandidate: source === 'route',
             lat: Number(station.y),
             lng: Number(station.x),
           })),
@@ -270,19 +404,81 @@ function searchStationCandidates(kakao, searchCenter, radius, originalCenter) {
 }
 
 async function addStationCounts(kakao, station) {
+  const cachedCounts = getCachedStationCounts(station)
+
+  if (cachedCounts) {
+    return {
+      ...station,
+      ...cachedCounts,
+    }
+  }
+
   const [cafeCount, restaurantCount, commercialCount] = await Promise.all([
     countNearbyCategory(kakao, station, PLACE_CATEGORIES.cafe.code),
     countNearbyCategory(kakao, station, PLACE_CATEGORIES.restaurant.code),
     countNearbyCommercialFacilities(kakao, station),
   ])
 
-  return {
-    ...station,
+  const counts = {
     cafeCount,
     restaurantCount,
     commercialCount,
     hotPlaceCount: cafeCount + restaurantCount + commercialCount,
+    hotPlaceSignal: cafeCount * 1.2 + restaurantCount * 1.35 + commercialCount * 0.35,
   }
+
+  setCachedStationCounts(station, counts)
+
+  return {
+    ...station,
+    ...counts,
+  }
+}
+
+function getCachedStationCounts(station) {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const cache = JSON.parse(window.localStorage.getItem(STATION_COUNTS_CACHE_KEY) || '{}')
+    const cached = cache[getStationCountsCacheKey(station)]
+
+    if (!cached || Date.now() - cached.cachedAt > STATION_COUNTS_CACHE_TTL) {
+      return null
+    }
+
+    return cached.counts
+  } catch {
+    return null
+  }
+}
+
+function setCachedStationCounts(station, counts) {
+  if (typeof window === 'undefined') return
+
+  try {
+    const cache = JSON.parse(window.localStorage.getItem(STATION_COUNTS_CACHE_KEY) || '{}')
+    cache[getStationCountsCacheKey(station)] = {
+      cachedAt: Date.now(),
+      counts,
+    }
+
+    window.localStorage.setItem(STATION_COUNTS_CACHE_KEY, JSON.stringify(pruneStationCountsCache(cache)))
+  } catch {
+    // 캐시 저장 실패는 추천 계산 자체를 막지 않습니다.
+  }
+}
+
+function pruneStationCountsCache(cache) {
+  const entries = Object.entries(cache)
+    .filter(([, value]) => Date.now() - value.cachedAt <= STATION_COUNTS_CACHE_TTL)
+    .sort((a, b) => b[1].cachedAt - a[1].cachedAt)
+    .slice(0, 180)
+
+  return Object.fromEntries(entries)
+}
+
+function getStationCountsCacheKey(station) {
+  return `${station.id || station.name}:${Number(station.lat).toFixed(5)},${Number(station.lng).toFixed(5)}`
 }
 
 async function countNearbyCommercialFacilities(kakao, station) {
@@ -324,6 +520,19 @@ function countNearbyCategory(kakao, center, categoryCode) {
 function searchMeetingHubStations(kakao, center) {
   return Promise.all(MEETING_HUB_STATIONS.map((keyword) => searchStationByKeyword(kakao, keyword, center))).then(
     (stations) => stations.filter(Boolean),
+  )
+}
+
+function searchContextualHubStations(kakao, center, origins) {
+  const keywords = getContextualHubStationKeywords(origins)
+
+  if (!keywords.length) return Promise.resolve([])
+
+  return Promise.all(keywords.map((keyword) => searchStationByKeyword(kakao, keyword, center))).then((stations) =>
+    stations.filter(Boolean).map((station) => ({
+      ...station,
+      isContextualCandidate: true,
+    })),
   )
 }
 

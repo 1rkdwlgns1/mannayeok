@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { loadKakaoMapSdk } from '../services/kakaoApi'
+import { getRoadRoutePath, loadKakaoMapSdk } from '../services/kakaoApi'
 
-const ORIGIN_COLORS = ['#3182F6', '#00A84D']
+const ORIGIN_COLORS = ['#3182F6', '#00A84D', '#EAB308', '#8B5CF6']
 const STATION_COLORS = ['#F97316', '#8B5CF6', '#06B6D4']
 
 function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
@@ -14,7 +14,7 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
     let overlays = []
 
     loadKakaoMapSdk()
-      .then((kakao) => {
+      .then(async (kakao) => {
         map = new kakao.maps.Map(mapRef.current, {
           center: new kakao.maps.LatLng(meetingPoint.lat, meetingPoint.lng),
           level: 6,
@@ -22,28 +22,19 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
 
         const bounds = new kakao.maps.LatLngBounds()
         const meetingPosition = new kakao.maps.LatLng(meetingPoint.lat, meetingPoint.lng)
+        const routePaths = await Promise.all(
+          origins.map((origin) => getRoadRoutePath(origin, meetingPoint).catch(() => null)),
+        )
+
+        if (!map) return
 
         origins.forEach((origin, index) => {
           const originPosition = new kakao.maps.LatLng(origin.lat, origin.lng)
           const color = ORIGIN_COLORS[index % ORIGIN_COLORS.length]
+          const roadPath = routePaths[index]?.map((point) => new kakao.maps.LatLng(point.lat, point.lng))
+          const path = roadPath?.length ? roadPath : [originPosition, meetingPosition]
 
-          new kakao.maps.Polyline({
-            map,
-            path: [originPosition, meetingPosition],
-            strokeWeight: 7,
-            strokeColor: '#0F172A',
-            strokeOpacity: 0.28,
-            strokeStyle: 'solid',
-          })
-
-          new kakao.maps.Polyline({
-            map,
-            path: [originPosition, meetingPosition],
-            strokeWeight: 4,
-            strokeColor: color,
-            strokeOpacity: 0.82,
-            strokeStyle: 'solid',
-          })
+          overlays.push(...drawRouteLine(kakao, map, path, color))
 
           const originOverlay = createLabelOverlay(kakao, originPosition, `출발 ${index + 1}`, color)
           originOverlay.setMap(map)
@@ -57,16 +48,17 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
           const stationPosition = new kakao.maps.LatLng(station.lat, station.lng)
           const isSelected = station.id === meetingPoint.id
           const color = isSelected ? '#F97316' : STATION_COLORS[index % STATION_COLORS.length]
+          const label = station.mapLabel || `#${station.rank || index + 1}`
 
           const stationOverlay = createMarkerOverlay(kakao, stationPosition, {
-              color,
-              label: isSelected ? '추천' : `#${station.rank || index + 1}`,
-              name: station.name,
-              selected: isSelected,
-            })
+            color,
+            label,
+            name: station.name,
+            selected: isSelected,
+          })
+
           stationOverlay.setMap(map)
           overlays.push(stationOverlay)
-
           bounds.extend(stationPosition)
         })
 
@@ -87,12 +79,35 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
     <div className="overflow-hidden rounded-2xl border border-slate-100">
       <div ref={mapRef} className="h-[300px] w-full md:h-[360px]" />
       <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-white px-3 py-2 text-xs font-bold text-slate-500">
-        <LegendDot color="#3182F6" label="출발지 1 경로" />
-        <LegendDot color="#00A84D" label="출발지 2 경로" />
-        <LegendDot color="#F97316" label="선택 추천역" />
+        {origins.map((_, index) => (
+          <LegendDot key={index} color={ORIGIN_COLORS[index % ORIGIN_COLORS.length]} label={`출발지 ${index + 1} 경로`} />
+        ))}
+        <LegendDot color="#F97316" label="선택한 후보" />
       </div>
     </div>
   )
+}
+
+function drawRouteLine(kakao, map, path, color) {
+  const shadowLine = new kakao.maps.Polyline({
+    map,
+    path,
+    strokeWeight: 7,
+    strokeColor: '#0F172A',
+    strokeOpacity: 0.28,
+    strokeStyle: 'solid',
+  })
+
+  const routeLine = new kakao.maps.Polyline({
+    map,
+    path,
+    strokeWeight: 4,
+    strokeColor: color,
+    strokeOpacity: 0.82,
+    strokeStyle: 'solid',
+  })
+
+  return [shadowLine, routeLine]
 }
 
 function createLabelOverlay(kakao, position, label, color) {
