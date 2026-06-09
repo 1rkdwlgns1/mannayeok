@@ -3,6 +3,7 @@ import AddressInput from './components/AddressInput'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
 import PlaceList from './components/PlaceList'
+import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
 import { calculateMidpoint } from './services/midpointCalculator'
 
@@ -331,8 +332,8 @@ function App() {
 
   return (
     <main className="min-h-screen bg-[#F7F8FA] px-3 py-4 md:px-6 md:py-8">
-      <div data-reveal-root className="mx-auto w-full max-w-3xl space-y-4 pb-8 md:space-y-5">
-        <div className="mx-auto w-full max-w-3xl space-y-4 md:space-y-5">
+      <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
+        <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
           <header className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm">
             <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-5">
               <div className="flex items-center gap-2.5">
@@ -400,7 +401,7 @@ function App() {
         {showResults ? (
           <>
             {primaryStation ? (
-              <section className={`relative grid gap-3 md:grid-cols-[1.35fr_0.85fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
+              <section className={`relative grid items-start gap-3 lg:grid-cols-[1.2fr_0.8fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
                 <ResultTypeCard
                   eyebrow="가장 만나기 좋은 장소"
                   eyebrowIcon="trophy"
@@ -425,11 +426,11 @@ function App() {
             ) : null}
 
             {alternativeStations.length ? (
-              <section className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
-                <div className="mb-5 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
+              <section className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-4">
+                <div className="mb-4 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
                   <div>
-                    <h2 className="flex items-center gap-2 text-base font-black text-slate-950 md:text-lg">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-50">
+                    <h2 className="flex items-center gap-2 text-base font-black text-slate-950">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-50">
                         <Icon name="trophy" className="h-3.5 w-3.5" style={{ filter: ICON_TONES.amber.filter }} />
                       </span>
                       다른 추천 후보 TOP3
@@ -446,7 +447,7 @@ function App() {
                     <Icon name="arrowRight" className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-3">
                   {alternativeStations.map((station, index) => (
                     <StationCard
                       key={station.id}
@@ -607,6 +608,54 @@ function HeroPreview() {
   )
 }
 
+function StationLineChips({ station, className = '' }) {
+  const lines = getStationLineLabels(station)
+
+  if (!lines.length) return null
+
+  return (
+    <div className={`flex flex-wrap gap-2 ${className}`}>
+      {lines.map((line) => (
+        <span
+          key={line}
+          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-black ${getLineChipClass(line)}`}
+        >
+          {line}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function MeetingScoreBlock({ score, tone = 'blue', compact = false }) {
+  const scoreColor = tone === 'green' ? 'text-[#4DA463]' : 'text-[#5A45E8]'
+
+  return (
+    <div className={compact ? '' : 'max-w-sm'}>
+      <p className="text-xs font-bold text-slate-500">만남 장소 적합도</p>
+      <p className="mt-1.5 flex items-end gap-1">
+        <strong className={`${compact ? 'text-3xl' : 'text-4xl'} font-black leading-none ${scoreColor}`}>{score}</strong>
+        <span className="pb-0.5 text-sm font-black text-slate-500">/100점</span>
+      </p>
+      <ScoreProgress score={score} tone={tone} />
+      <p className="mt-2 text-[11px] leading-5 text-slate-500">
+        별점은 거리 균형, 주변 상권, 노선 접근성을 함께 반영한 종합 추천 점수예요.
+      </p>
+    </div>
+  )
+}
+
+function ScoreProgress({ score, tone = 'blue' }) {
+  const width = `${Math.max(0, Math.min(100, Math.round(score || 0)))}%`
+  const fillClass = tone === 'green' ? 'bg-[#4DA463]' : 'bg-[#5A45E8]'
+
+  return (
+    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+      <div className={`h-full rounded-full ${fillClass}`} style={{ width }} />
+    </div>
+  )
+}
+
 function ResultTypeCard({
   eyebrow,
   eyebrowMeta,
@@ -620,43 +669,86 @@ function ResultTypeCard({
   if (!station) return null
 
   const Component = onClick ? 'button' : 'div'
+  const score = Math.round(station.meetingPlaceScore || 0)
+  const scores = getStationDisplayScores(station)
+
+  if (primary) {
+    return (
+      <Component
+        type={onClick ? 'button' : undefined}
+        onClick={onClick}
+        className={`w-full rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-sm transition active:scale-[0.99] md:p-6 ${
+          selected ? 'ring-2 ring-blue-200' : ''
+        } ${onClick ? 'cursor-pointer hover:border-blue-200' : ''}`}
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5A45E8] px-3 py-1.5 text-xs font-black text-white shadow-sm">
+                <Icon name="trophy" className="h-3.5 w-3.5" style={{ filter: 'brightness(0) invert(1)' }} />
+                최적 추천역
+              </span>
+              <StationLineChips station={station} />
+            </div>
+
+            <h2 className="mt-5 break-keep text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+              {station.name}
+            </h2>
+            <StarRating score={score} compact />
+          </div>
+
+          <div className="w-full rounded-2xl bg-[#F1F0FA] px-4 py-3 text-center sm:w-36">
+            <p className="text-xs font-black text-slate-400">만남 적합도</p>
+            <p className="mt-1 leading-none">
+              <strong className="text-4xl font-black text-[#5A45E8]">{score}</strong>
+            </p>
+            <p className="mt-0.5 text-sm font-black text-slate-400">/100점</p>
+          </div>
+        </div>
+
+        <p className="mt-5 text-sm leading-6 text-slate-600">
+          {description}
+        </p>
+        <ScoreProgress score={score} />
+
+        <div className="mt-5 grid grid-cols-3 border-t border-slate-100 pt-4">
+          <MetricSummaryItem icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+          <MetricSummaryItem icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
+          <MetricSummaryItem icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+        </div>
+      </Component>
+    )
+  }
 
   return (
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`flex w-full flex-col overflow-hidden rounded-2xl border p-4 text-left shadow-sm transition active:scale-[0.99] md:p-5 ${
-        primary
-          ? 'border-blue-200 bg-[linear-gradient(135deg,#FFFFFF_0%,#F7FBFF_62%,#F1FEFF_100%)] shadow-[0_12px_30px_rgba(49,130,246,0.08)]'
-          : 'border-slate-100 bg-white'
-      } ${selected ? 'ring-2 ring-blue-200' : ''} ${onClick ? 'cursor-pointer hover:border-blue-200' : ''}`}
+      className={`w-full rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-sm transition active:scale-[0.99] md:p-6 ${
+        selected ? 'ring-2 ring-emerald-100' : ''
+      } ${onClick ? 'cursor-pointer hover:border-emerald-200' : ''}`}
     >
-      <div className="flex-1">
-        <div>
-          <p className="inline-flex flex-wrap items-center gap-1.5 text-sm font-bold leading-5 text-[#3182F6]">
-            {eyebrowIcon ? (
-              <Icon
-                name={eyebrowIcon}
-                className="h-4 w-4"
-                style={{ filter: (primary ? ICON_TONES.amber : ICON_TONES.blue).filter }}
-              />
-            ) : null}
-            {eyebrow}
-            {eyebrowMeta ? <span className="font-bold text-slate-500">({eyebrowMeta})</span> : null}
-          </p>
-          <div className="mt-2 flex items-center gap-2 md:gap-3">
-            <h2 className={`min-w-0 break-keep font-black tracking-tight text-slate-950 ${primary ? 'text-3xl md:text-4xl' : 'text-2xl md:text-3xl'}`}>
-              {station.name}
-            </h2>
-            {primary ? (
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-8 sm:w-8">
-                <Icon name="star" className="h-4 w-4" style={{ filter: ICON_TONES.amber.filter }} />
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-2.5 max-w-xl text-sm leading-6 text-slate-600 md:mt-3">{description}</p>
-        </div>
-        {primary ? <PrimaryScoreReport station={station} /> : <FairScoreReport station={station} />}
+      <p className="inline-flex items-center gap-2 text-sm font-black text-slate-400">
+        <Icon name={eyebrowIcon || 'scales'} className="h-4 w-4" style={{ filter: ICON_TONES.green.filter }} />
+        거리 기준 참고역
+      </p>
+      <h2 className="mt-6 break-keep text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+        {station.name}
+      </h2>
+      <p className="mt-1 text-3xl font-black leading-none text-slate-300">
+        {score}<span className="ml-1 text-base text-slate-300">/100</span>
+      </p>
+      <StationLineChips station={station} className="mt-5" />
+
+      <div className="mt-5 border-t border-slate-100 pt-4">
+        <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-slate-500">
+        이동 거리 균형만 보면 가장 중간에 가까운 역이에요.
+      </p>
+      <div className="mt-4 rounded-2xl bg-[#F6F3FF] px-4 py-3 text-sm font-bold leading-6 text-[#8A7BD8]">
+        점수가 낮아도 이동 공평성을 비교할 때 참고하기 좋아요.
       </div>
     </Component>
   )
@@ -664,56 +756,68 @@ function ResultTypeCard({
 
 function PrimaryScoreReport({ station }) {
   const meetingScore = Math.round(station.meetingPlaceScore || 0)
-  const scores = getStationDisplayScores(station)
 
   return (
-    <div className="mt-4 grid gap-3 md:grid-cols-[140px_1fr]">
-      <div className="px-1 py-1">
-        <p className="text-xs font-bold text-slate-500">만남 장소 적합도</p>
-        <StarRating score={meetingScore} />
-      </div>
-      <MetricStatusList scores={scores} />
+    <div className="mt-4">
+      <MeetingScoreBlock score={meetingScore} />
+      <StarRating score={meetingScore} />
     </div>
   )
 }
 
-function FairScoreReport({ station }) {
-  const meetingScore = Math.round(station.meetingPlaceScore || 0)
-  const scores = getStationDisplayScores(station)
-
+function FairScoreReport({ score, scores }) {
   return (
-    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-      <div className="px-1 py-1">
-        <p className="text-xs font-bold text-slate-500">만남 장소 적합도</p>
-        <StarRating score={meetingScore} compact />
+    <div className="mt-4 flex flex-1 flex-col">
+      <MeetingScoreBlock score={score} tone="green" compact />
+      <StarRating score={score} compact />
+      <div className="mt-4 border-t border-slate-100 pt-3">
+        <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
       </div>
-      <StatusMetricCard icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
     </div>
   )
 }
 
 function MetricStatusList({ scores }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white/80 p-3 shadow-sm">
-      <StatusMetricRow icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
-      <StatusMetricRow icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
-      <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+    <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
+      <StatusMetricRow icon="people" label="거리 균형" description="출발지 간 거리 차이가 작아요" value={getMetricStatus(scores.fairness)} tone="blue" />
+      <StatusMetricRow icon="store" label="주변 상권" description="맛집, 카페, 편의시설이 많아요" value={getMetricStatus(scores.commercial)} tone="purple" />
+      <StatusMetricRow icon="subway" label="노선 접근성" description="다양한 노선 이용이 편리해요" value={getMetricStatus(scores.transit)} tone="green" />
     </div>
   )
 }
 
-function StatusMetricRow({ icon, label, value, tone = 'blue' }) {
+function MetricSummaryItem({ icon, label, value, tone = 'blue' }) {
   const iconTone = ICON_TONES[tone] || ICON_TONES.blue
 
   return (
-    <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 last:mb-0">
-      <span className="inline-flex min-w-0 items-center gap-2 text-xs font-bold text-slate-600">
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${iconTone.bg}`}>
+    <div className="min-w-0 border-r border-slate-100 px-3 last:border-r-0">
+      <p className="flex items-center gap-1.5 truncate text-xs font-bold text-slate-400">
+        <Icon name={icon} className="h-4 w-4 shrink-0" style={{ filter: iconTone.filter }} />
+        {label}
+      </p>
+      <p className={`mt-1 text-base font-black ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function StatusMetricRow({ icon, label, description, value, tone = 'blue', simple = false }) {
+  const iconTone = ICON_TONES[tone] || ICON_TONES.blue
+
+  return (
+    <div className={`${simple ? 'flex items-center justify-between gap-3' : 'flex items-center justify-between gap-3 border-b border-slate-100 py-2.5 first:pt-0 last:border-b-0 last:pb-0'}`}>
+      <span className="inline-flex min-w-0 items-center gap-2.5 text-left">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconTone.bg}`}>
           <Icon name={icon} className="h-4 w-4" style={{ filter: iconTone.filter }} />
         </span>
-        <span className="truncate">{label}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-xs font-black text-slate-700">{label}</span>
+          {description ? <span className="mt-0.5 block truncate text-xs font-bold text-slate-400">{description}</span> : null}
+        </span>
       </span>
-      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${iconTone.badge}`}>
+      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-black ${iconTone.badge}`}>
         {value}
       </span>
     </div>
@@ -746,7 +850,7 @@ function StationCard({ station, selected, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`min-w-0 rounded-2xl border p-2.5 text-left transition active:scale-[0.98] ${
+      className={`min-w-0 rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
         selected
           ? 'border-blue-300 bg-blue-50 shadow-sm'
           : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'
@@ -754,21 +858,26 @@ function StationCard({ station, selected, onClick }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2">
-          <span className="flex h-7 w-6 shrink-0 items-center justify-center rounded-t-md bg-[#3658F5] text-xs font-black text-white shadow-sm">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#5A45E8] text-sm font-black text-white shadow-sm">
             {station.rank}
           </span>
           <div className="min-w-0">
-            <strong className="block min-w-0 break-keep text-base font-black tracking-tight text-slate-950 sm:text-lg">{station.name}</strong>
-            <div className="mt-1.5 space-y-0.5 text-[11px] leading-4 text-slate-500 sm:text-xs">
-              <p>중간점에서 {formatDistance(station.distanceFromCenter)}</p>
-              <p>상권 약 {station.hotPlaceCount}곳</p>
-            </div>
+            <strong className="block min-w-0 break-keep text-xl font-black tracking-tight text-slate-950">{station.name}</strong>
           </div>
         </div>
-        <StarRating score={meetingScore} tiny />
+        <div className="shrink-0 text-right">
+          <StarRating score={meetingScore} tiny />
+          <p className="mt-1 text-xs font-black text-slate-500">{meetingScore}점</p>
+        </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
+      <StationLineChips station={station} className="mt-3" />
+
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        중간점에서 {formatDistance(station.distanceFromCenter)} · 상권 약 {station.hotPlaceCount}곳
+      </p>
+
+      <div className="mt-3 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
         <MiniMetric icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
         <MiniMetric icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
         <MiniMetric icon="subway" label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
@@ -781,12 +890,14 @@ function MiniMetric({ icon, label, value, tone = 'blue' }) {
   const iconTone = ICON_TONES[tone] || ICON_TONES.blue
 
   return (
-    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/50 px-2 py-2">
-      <p className="flex items-center gap-1 truncate text-[10px] font-bold text-slate-500">
-        <Icon name={icon} className="h-3.5 w-3.5 shrink-0" style={{ filter: iconTone.filter }} />
+    <div className="min-w-0 border-r border-slate-100 bg-white/50 px-1.5 py-2 text-center last:border-r-0">
+      <p className="flex items-center justify-center gap-1 truncate text-[10px] font-bold text-slate-500">
+        <Icon name={icon} className="h-3 w-3 shrink-0" style={{ filter: iconTone.filter }} />
         {label}
       </p>
-      <p className="mt-0.5 text-xs font-black text-slate-950 sm:text-sm">{value}</p>
+      <p className={`mt-1 text-xs font-black sm:text-sm ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>
+        {value}
+      </p>
     </div>
   )
 }
@@ -797,14 +908,14 @@ function StarRating({ score, compact = false, tiny = false }) {
   if (tiny) {
     return (
       <span className="w-fit shrink-0 text-right">
-        <span className="block text-sm leading-none tracking-normal text-amber-400">{stars}</span>
+        <span className="block text-xs leading-none tracking-normal text-amber-400">{stars}</span>
       </span>
     )
   }
 
   return (
     <div className="mt-2">
-      <p className={`${compact ? 'text-xl' : 'text-2xl'} tracking-normal text-amber-400`}>{stars}</p>
+      <p className={`${compact ? 'text-lg' : 'text-xl'} tracking-normal text-amber-400`}>{stars}</p>
     </div>
   )
 }
@@ -831,6 +942,23 @@ function getStationDisplayScores(station) {
     fairness: Math.round(getDistanceBalanceDisplayScore(station)),
     transit: Math.round(getTransitAccessDisplayScore(station)),
   }
+}
+
+function getStationLineLabels(station) {
+  if (!station?.name) return []
+
+  return getStationLines(station.name).slice(0, 3)
+}
+
+function getLineChipClass(line) {
+  if (line.includes('1호선')) return 'border-blue-200 bg-blue-50 text-[#3658F5]'
+  if (line.includes('2호선') || line.includes('7호선')) return 'border-emerald-200 bg-emerald-50 text-[#4DA463]'
+  if (line.includes('3호선') || line.includes('분당')) return 'border-amber-200 bg-amber-50 text-amber-600'
+  if (line.includes('4호선')) return 'border-sky-200 bg-sky-50 text-sky-600'
+  if (line.includes('5호선') || line.includes('6호선')) return 'border-violet-200 bg-violet-50 text-[#8A4FF5]'
+  if (line.includes('9호선')) return 'border-yellow-200 bg-yellow-50 text-yellow-700'
+
+  return 'border-slate-200 bg-slate-50 text-slate-600'
 }
 
 function getDistanceBalanceDisplayScore(station) {
