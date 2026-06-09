@@ -12,16 +12,26 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
 
   return (
     <div>
-      <div className="mb-4 flex items-end justify-between gap-3">
+      <div className="mb-3 flex items-start justify-between gap-3 sm:items-end sm:mb-3.5">
         <div>
-          <h2 className="text-lg font-black text-slate-950">출발지 입력</h2>
-          <p className="mt-1 text-sm text-slate-500">각자의 출발지를 검색해서 선택해주세요.</p>
+          <h2 className="text-lg font-black text-slate-950 sm:text-lg">출발지 입력</h2>
+          <p className="mt-1 hidden text-sm text-slate-500 sm:block">각자의 출발지를 검색해서 선택해주세요.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {canAddOrigin ? (
+            <button
+              type="button"
+              onClick={onAddOrigin}
+              className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-[#3182F6] ring-1 ring-blue-100 transition hover:bg-blue-100 active:scale-[0.98] sm:px-3 sm:text-xs"
+            >
+              <span className="sm:hidden">인원 +</span>
+              <span className="hidden sm:inline">+ 인원 추가</span>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onReset}
-            className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-500 ring-1 ring-rose-100 transition hover:bg-rose-100 active:scale-[0.98]"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-500 ring-1 ring-rose-100 transition hover:bg-rose-100 active:scale-[0.98] sm:px-3 sm:text-xs"
           >
             <span aria-hidden="true">↻</span>
             초기화
@@ -32,7 +42,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
         {origins.map((origin, index) => (
           <AddressField
             key={origin.id}
@@ -46,16 +56,6 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
           />
         ))}
       </div>
-
-      {canAddOrigin ? (
-        <button
-          type="button"
-          onClick={onAddOrigin}
-          className="mt-3 rounded-2xl border border-dashed border-blue-200 bg-blue-50/70 px-4 py-2.5 text-sm font-bold text-[#3182F6] transition hover:bg-blue-100 active:scale-[0.98]"
-        >
-          + 인원 추가
-        </button>
-      ) : null}
     </div>
   )
 }
@@ -65,14 +65,18 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
   const [recentOrigins, setRecentOrigins] = useState(() => getRecentOrigins())
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [searchError, setSearchError] = useState('')
   const fieldRef = useRef(null)
   const theme = getOriginTheme(index)
   const query = origin.query.trim()
   const showRecentOrigins = open && !query && recentOrigins.length > 0
-  const showSuggestions = open && (loading || suggestions.length > 0)
+  const showSuggestions = open && query.length >= 2 && (loading || hasSearched || suggestions.length > 0)
 
   useEffect(() => {
     if (query.length < 2 || origin.selected?.address === query) {
+      setHasSearched(false)
+      setSearchError('')
       return undefined
     }
 
@@ -81,11 +85,15 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
       searchAddressSuggestions(query)
         .then((items) => {
           setSuggestions(items)
+          setHasSearched(true)
+          setSearchError('')
           setOpen(true)
         })
         .catch(() => {
           setSuggestions([])
-          setOpen(false)
+          setHasSearched(true)
+          setSearchError('검색에 실패했어요. 잠시 후 다시 입력해보세요.')
+          setOpen(true)
         })
         .finally(() => setLoading(false))
     }, 250)
@@ -125,12 +133,17 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
   return (
     <div ref={fieldRef} className="relative">
       <div
-        className={`block rounded-2xl border bg-slate-50 p-3 transition ${
+        className={`block rounded-2xl border bg-slate-50 px-3 py-2 transition sm:py-2.5 ${
           origin.selected ? `${theme.selectedBorder} ${theme.selectedBg} shadow-sm` : 'border-slate-100'
         }`}
       >
-        <span className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xs font-bold text-slate-500">{label}</span>
+        <span className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500">
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${origin.selected ? theme.solidBg : 'bg-slate-300'}`}
+            />
+            {label}
+          </span>
           <span className="flex items-center gap-1.5">
             {origin.selected ? (
               <span className={`rounded-full bg-white px-2 py-0.5 text-xs font-bold ${theme.text}`}>선택됨</span>
@@ -151,15 +164,14 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
         </span>
 
         <div className="flex items-center gap-2">
-          <span
-            className={`h-2.5 w-2.5 shrink-0 rounded-full ${origin.selected ? theme.solidBg : 'bg-slate-300'}`}
-          />
           <input
             type="text"
             value={origin.query}
             onChange={(event) => {
               onChange(index, event.target.value)
               setSuggestions([])
+              setHasSearched(false)
+              setSearchError('')
               setOpen(true)
             }}
             onFocus={() => {
@@ -167,7 +179,7 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
               if (!origin.selected) setOpen(true)
             }}
             placeholder={`${label} 검색`}
-            className="min-w-0 flex-1 bg-transparent py-1 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400"
+            className="min-w-0 flex-1 bg-transparent py-0.5 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400"
           />
         </div>
       </div>
@@ -200,7 +212,7 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
                 </button>
               ))}
             </>
-          ) : (
+          ) : suggestions.length ? (
             <>
               {suggestions.map((suggestion) => (
                 <button
@@ -226,6 +238,13 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
                 </div>
               ) : null}
             </>
+          ) : (
+            <div className="px-4 py-3 text-sm leading-5 text-slate-500">
+              <p className="font-semibold text-slate-700">
+                {searchError || '검색 결과가 없어요.'}
+              </p>
+              <p className="mt-1 text-xs">역 이름이나 장소명을 조금 더 구체적으로 입력해보세요.</p>
+            </div>
           )}
         </div>
       ) : null}
@@ -268,7 +287,7 @@ function shouldShowBroadKeywordHint(query, suggestions) {
 function getOriginTheme(index) {
   if (index === 1) {
     return {
-      selectedBg: 'bg-green-50/80',
+      selectedBg: 'bg-slate-50',
       selectedBorder: 'border-green-200',
       solidBg: 'bg-[#00A84D]',
       text: 'text-[#00A84D]',
@@ -277,7 +296,7 @@ function getOriginTheme(index) {
 
   if (index === 2) {
     return {
-      selectedBg: 'bg-yellow-50/80',
+      selectedBg: 'bg-slate-50',
       selectedBorder: 'border-yellow-200',
       solidBg: 'bg-yellow-400',
       text: 'text-yellow-600',
@@ -286,7 +305,7 @@ function getOriginTheme(index) {
 
   if (index === 3) {
     return {
-      selectedBg: 'bg-purple-50/80',
+      selectedBg: 'bg-slate-50',
       selectedBorder: 'border-purple-200',
       solidBg: 'bg-purple-500',
       text: 'text-purple-600',
@@ -294,7 +313,7 @@ function getOriginTheme(index) {
   }
 
   return {
-    selectedBg: 'bg-blue-50/70',
+    selectedBg: 'bg-slate-50',
     selectedBorder: 'border-blue-200',
     solidBg: 'bg-[#3182F6]',
     text: 'text-[#3182F6]',

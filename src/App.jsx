@@ -3,7 +3,7 @@ import AddressInput from './components/AddressInput'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
 import PlaceList from './components/PlaceList'
-import { searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
+import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
 import { calculateMidpoint } from './services/midpointCalculator'
 
 const PLACE_CATEGORY_LABELS = {
@@ -15,6 +15,40 @@ const PLACE_CATEGORY_LABELS = {
 }
 
 const PLACE_CATEGORY_KEYS = ['all', 'cafe', 'restaurant', 'bar', 'activity']
+
+const ICONS = {
+  trophy: '/phosphor-icons/trophy-fill.svg',
+  scales: '/phosphor-icons/scales-fill.svg',
+  warning: '/phosphor-icons/warning-fill.svg',
+  people: '/phosphor-icons/users-three-fill.svg',
+  store: '/phosphor-icons/storefront-fill.svg',
+  subway: '/phosphor-icons/subway-fill.svg',
+  star: '/phosphor-icons/star-fill.svg',
+  arrowRight: '/phosphor-icons/arrow-right.svg',
+}
+
+const ICON_TONES = {
+  blue: {
+    bg: 'bg-blue-50',
+    badge: 'bg-blue-50 text-[#3658F5]',
+    filter: 'invert(40%) sepia(92%) saturate(1711%) hue-rotate(214deg) brightness(100%) contrast(93%)',
+  },
+  purple: {
+    bg: 'bg-violet-50',
+    badge: 'bg-violet-50 text-[#8A4FF5]',
+    filter: 'invert(44%) sepia(93%) saturate(1437%) hue-rotate(236deg) brightness(97%) contrast(96%)',
+  },
+  green: {
+    bg: 'bg-emerald-50',
+    badge: 'bg-emerald-50 text-[#16A765]',
+    filter: 'invert(49%) sepia(88%) saturate(472%) hue-rotate(105deg) brightness(91%) contrast(88%)',
+  },
+  amber: {
+    bg: 'bg-amber-50',
+    badge: 'bg-amber-50 text-amber-600',
+    filter: 'invert(73%) sepia(76%) saturate(1474%) hue-rotate(359deg) brightness(96%) contrast(95%)',
+  },
+}
 
 const MIN_ORIGIN_COUNT = 2
 const MAX_ORIGIN_COUNT = 4
@@ -57,9 +91,7 @@ function App() {
     const stationMap = new Map()
 
     recommendedStations.forEach((station, index) => {
-      const stationKey = getStationMapKey(station)
-
-      stationMap.set(stationKey, {
+      stationMap.set(getStationMapKey(station), {
         ...station,
         mapLabel: index === 0 ? '추천' : `#${index}`,
       })
@@ -84,9 +116,6 @@ function App() {
   const hasDuplicateOrigins = hasRequiredSelections && hasSameOrigins(selectedOrigins)
   const showResults = Boolean(selectedStation)
   const primaryStation = recommendedStations[0] || null
-  const hasSamePrimaryAndFairStation = primaryStation && fairStation && isSameStation(primaryStation, fairStation)
-  const fairStationNeedsContext = fairStation && isWeakMeetingArea(fairStation)
-  const showMeetingTradeoffNotice = fairStationNeedsContext
   const alternativeStations = recommendedStations
     .slice(1)
     .filter((station) => station.hotPlaceCount >= MIN_RECOMMENDATION_HOT_PLACE_COUNT)
@@ -186,6 +215,7 @@ function App() {
                 id: suggestion.id,
                 lat: suggestion.lat,
                 lng: suggestion.lng,
+                routeName: suggestion.routeName || address,
               },
             }
           : origin,
@@ -198,30 +228,23 @@ function App() {
     if (originInputs.length >= MAX_ORIGIN_COUNT) return
 
     setOriginInputs((prev) => [...prev, createEmptyOrigin()])
-    setOrigins([])
-    setRecommendedStations([])
-    setFairStations([])
-    setSelectedStationId(null)
-    setPlaces([])
-    setSelectedPlaceCategory(null)
-    setError('')
+    clearSearchResults()
   }
 
   const handleRemoveOrigin = (index) => {
     if (originInputs.length <= MIN_ORIGIN_COUNT) return
 
     setOriginInputs((prev) => prev.filter((_, idx) => idx !== index))
-    setOrigins([])
-    setRecommendedStations([])
-    setFairStations([])
-    setSelectedStationId(null)
-    setPlaces([])
-    setSelectedPlaceCategory(null)
-    setError('')
+    clearSearchResults()
   }
 
   const handleResetSearch = () => {
     setOriginInputs(Array.from({ length: MIN_ORIGIN_COUNT }, createEmptyOrigin))
+    clearSearchResults()
+    setPlaceError('')
+  }
+
+  const clearSearchResults = () => {
     setOrigins([])
     setRecommendedStations([])
     setFairStations([])
@@ -229,7 +252,6 @@ function App() {
     setPlaces([])
     setSelectedPlaceCategory(null)
     setError('')
-    setPlaceError('')
   }
 
   const handleCalculate = async () => {
@@ -248,8 +270,9 @@ function App() {
     setPlaceError('')
 
     try {
-      const center = calculateMidpoint(selectedOrigins)
-      const recommendation = await searchRecommendedStations(center, selectedOrigins, 4)
+      const enrichedOrigins = await enrichOriginsWithNearbyStations(selectedOrigins)
+      const center = calculateMidpoint(enrichedOrigins)
+      const recommendation = await searchRecommendedStations(center, enrichedOrigins, 4)
       const stations = Array.isArray(recommendation) ? recommendation : recommendation.meetingStations
       const fairResults = Array.isArray(recommendation) ? [] : recommendation.fairStations
 
@@ -257,7 +280,7 @@ function App() {
         throw new Error('계산된 중간 지점 주변에서 추천역을 찾지 못했습니다.')
       }
 
-      setOrigins(selectedOrigins)
+      setOrigins(enrichedOrigins)
       setRecommendedStations(stations)
       setFairStations(fairResults)
       setSelectedStationId(stations[0].id)
@@ -307,93 +330,129 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F8FA] px-4 py-5 md:px-6 md:py-8">
-      <div data-reveal-root className="mx-auto w-full max-w-3xl space-y-4 pb-8">
-        <header className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-5 shadow-sm">
-          <div className="absolute right-[-36px] top-[-48px] h-36 w-36 rounded-full bg-blue-200/45" />
-          <div className="absolute bottom-[-44px] right-16 h-24 w-24 rounded-full bg-cyan-200/45" />
-          <div className="relative">
-            <div className="mb-5 flex items-center justify-between">
-              <p className="text-sm font-bold text-[#3182F6]">MeetMiddle</p>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#3182F6] shadow-sm">
-                약속역 추천
-              </span>
+    <main className="min-h-screen bg-[#F7F8FA] px-3 py-4 md:px-6 md:py-8">
+      <div data-reveal-root className="mx-auto w-full max-w-3xl space-y-4 pb-8 md:space-y-5">
+        <div className="mx-auto w-full max-w-3xl space-y-4 md:space-y-5">
+          <header className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm">
+            <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-5">
+              <div className="flex items-center gap-2.5">
+                <MeetMiddleLogo />
+                <p className="text-base font-black tracking-tight text-slate-950">MeetMiddle</p>
+              </div>
+              <div className="hidden items-center gap-3 text-xs font-bold text-slate-500 sm:flex">
+                <span>사용법</span>
+                <span>즐겨찾기</span>
+              </div>
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-950">우리 모두의 약속역 찾기</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              출발지를 입력하면 거리 균형과 주변 상권을 함께 보고, 실제로 만나기 좋은 역을 추천해드려요.
-            </p>
-          </div>
-        </header>
 
-        <section className="relative z-[80] rounded-3xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <AddressInput
-            origins={originInputs}
-            maxOrigins={MAX_ORIGIN_COUNT}
-            minOrigins={MIN_ORIGIN_COUNT}
-            onAddOrigin={handleAddOrigin}
-            onChange={handleAddressChange}
-            onRemoveOrigin={handleRemoveOrigin}
-            onReset={handleResetSearch}
-            onSelect={handleAddressSelect}
-          />
+            <div className="relative isolate bg-[linear-gradient(135deg,#F8FBFF_0%,#EDF6FF_52%,#F8FEFF_100%)] px-4 py-5 md:px-6 md:py-7">
+              <div className="absolute -right-12 -top-14 h-36 w-36 rounded-full bg-blue-200/40 blur-sm" />
+              <div className="absolute bottom-0 right-20 h-24 w-24 rounded-full bg-cyan-200/35" />
+              <div className="relative grid items-center gap-5 md:grid-cols-[1.1fr_0.9fr]">
+                <div className="min-w-0">
+                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-black text-[#3182F6] shadow-sm ring-1 ring-blue-100">
+                    약속역 추천
+                  </span>
+                  <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-slate-950 md:text-4xl">
+                    모두가 납득하는
+                    <span className="block text-[#3182F6]">중간 약속 장소 추천</span>
+                  </h1>
+                  <p className="mt-3 max-w-md text-sm leading-6 text-slate-500 md:text-base md:leading-7">
+                    거리 균형, 노선 접근성, 주변 상권을 함께 보고 실제로 만나기 좋은 역을 추천해드려요.
+                  </p>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <HeroStat label="거리 균형" value="공평하게" />
+                    <HeroStat label="노선 접근" value="덜 돌아가게" />
+                    <HeroStat label="주변 상권" value="만나기 좋게" />
+                  </div>
+                </div>
 
-          <button
-            type="button"
-            onClick={handleCalculate}
-            disabled={loading}
-            className="mt-5 w-full rounded-2xl bg-[#3182F6] px-4 py-4 text-base font-bold text-white shadow-[0_12px_28px_rgba(49,130,246,0.28)] transition hover:bg-blue-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-blue-200 disabled:shadow-none"
-          >
-            {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
-          </button>
+                <HeroPreview />
+              </div>
+            </div>
+          </header>
 
-          {error ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p> : null}
-        </section>
+          <section className="relative z-[80] rounded-3xl border border-slate-100 bg-white p-3 shadow-sm md:p-4">
+            <AddressInput
+              origins={originInputs}
+              maxOrigins={MAX_ORIGIN_COUNT}
+              minOrigins={MIN_ORIGIN_COUNT}
+              onAddOrigin={handleAddOrigin}
+              onChange={handleAddressChange}
+              onRemoveOrigin={handleRemoveOrigin}
+              onReset={handleResetSearch}
+              onSelect={handleAddressSelect}
+            />
+
+            <button
+              type="button"
+              onClick={handleCalculate}
+              disabled={loading}
+              className="mt-3.5 w-full rounded-2xl bg-[#3182F6] px-4 py-3.5 text-base font-bold text-white shadow-[0_12px_28px_rgba(49,130,246,0.28)] transition hover:bg-blue-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-blue-200 disabled:shadow-none sm:py-4"
+            >
+              {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
+            </button>
+
+            {error ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p> : null}
+          </section>
+        </div>
 
         {showResults ? (
           <>
-            {showMeetingTradeoffNotice ? (
-              <MeetingTradeoffNotice practicalStation={primaryStation} fairStation={fairStation} />
-            ) : null}
-
-            {fairStation ? (
-              <section className={`relative grid gap-3 md:grid-cols-[3fr_2fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
+            {primaryStation ? (
+              <section className={`relative grid gap-3 md:grid-cols-[1.35fr_0.85fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
                 <ResultTypeCard
                   eyebrow="가장 만나기 좋은 장소"
-                  eyebrowIcon="♕"
+                  eyebrowIcon="trophy"
                   station={primaryStation}
-                  description="상권과 거리 균형을 함께 보고 고른 대표 추천역이에요."
-                  selected={recommendedStations[0]?.id === selectedStation.id}
-                  onClick={() => handleStationSelect(recommendedStations[0].id)}
+                  description="상권, 노선 접근성, 거리 균형을 함께 보고 고른 대표 추천역이에요."
+                  selected={primaryStation.id === selectedStation.id}
+                  onClick={() => handleStationSelect(primaryStation.id)}
                   primary
                 />
-                <ResultTypeCard
-                  eyebrow="🚇 거리 기준 중간역"
-                  station={fairStation}
-                  description="출발지들의 이동 거리가 가장 비슷한 역이에요."
-                  selected={fairStation.id === selectedStation.id}
-                  onClick={() => handleStationSelect(fairStation.id)}
-                />
+                {fairStation ? (
+                  <ResultTypeCard
+                    eyebrow="가장 공평한 역"
+                    eyebrowMeta="거리 기준 중간역"
+                    eyebrowIcon="scales"
+                    station={fairStation}
+                    description="상권보다 이동 거리 균형을 우선해서 선정된 기준역이에요."
+                    selected={fairStation.id === selectedStation.id}
+                    onClick={() => handleStationSelect(fairStation.id)}
+                  />
+                ) : null}
               </section>
             ) : null}
 
             {alternativeStations.length ? (
-              <section className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-                <div className="mb-4 flex items-center justify-between gap-3">
+              <section className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
+                <div className="mb-5 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-950">다른 추천 후보 TOP3</h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                      상권이 어느 정도 있는 후보만 보여드려요. 탭하면 지도와 길찾기 기준역이 바뀌어요.
+                    <h2 className="flex items-center gap-2 text-base font-black text-slate-950 md:text-lg">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-50">
+                        <Icon name="trophy" className="h-3.5 w-3.5" style={{ filter: ICON_TONES.amber.filter }} />
+                      </span>
+                      다른 추천 후보 TOP3
+                    </h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      탭하면 지도와 길찾기 기준역이 바뀌어요. 각 역의 특성을 비교해보세요.
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    className="hidden items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-[#2457F5] shadow-sm transition hover:border-blue-200 hover:bg-blue-50 md:inline-flex"
+                  >
+                    전체 후보 비교 보기
+                    <Icon name="arrowRight" className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-3">
                   {alternativeStations.map((station, index) => (
                     <StationCard
                       key={station.id}
                       station={{
                         ...station,
-                        rank: index + 1,
+                        rank: index + 2,
                       }}
                       selected={station.id === selectedStation.id}
                       onClick={() => handleStationSelect(station.id)}
@@ -403,18 +462,18 @@ function App() {
               </section>
             ) : null}
 
-            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-lg font-bold text-slate-950">지도에서 보기</h2>
+            <section className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
+              <h2 className="mb-3 text-base font-bold text-slate-950 md:text-lg">지도에서 보기</h2>
               <KakaoMap origins={origins} meetingPoint={selectedStation} meetingPoints={mapStations} />
             </section>
 
             <MapDirections origins={origins} station={selectedStation} />
 
-            <section id="places" className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="space-y-4">
+            <section id="places" className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
+              <div className="space-y-3.5 md:space-y-4">
                 <div>
                   <p className="text-sm font-bold text-[#3182F6]">추천 만남 장소</p>
-                  <h2 className="mt-1 text-2xl font-black text-slate-950">
+                  <h2 className="mt-1 text-xl font-black text-slate-950 md:text-2xl">
                     {selectedStation.name} 근처 장소 추천
                   </h2>
                 </div>
@@ -426,7 +485,7 @@ function App() {
                       type="button"
                       onClick={() => handlePlaceRecommendation(category)}
                       disabled={placeLoading}
-                      className={`rounded-xl px-3 py-2.5 text-sm font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+                      className={`rounded-xl px-1.5 py-2 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-2.5 sm:text-sm ${
                         selectedPlaceCategory === category
                           ? 'bg-white text-slate-950 shadow-sm'
                           : 'text-slate-500'
@@ -438,7 +497,7 @@ function App() {
                 </div>
 
                 {!selectedPlaceCategory ? (
-                  <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                  <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-500 sm:py-4">
                     카페, 밥집, 술집, 놀거리 중에서 {selectedStation.name} 근처 장소를 추천받아보세요.
                   </p>
                 ) : null}
@@ -461,11 +520,14 @@ function App() {
             ) : null}
           </>
         ) : (
-          <section className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-              <div className="h-6 w-6 rounded-full border-4 border-[#3182F6] bg-white shadow-sm" />
+          <section className="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+              <div className="h-5 w-5 rounded-full border-4 border-[#3182F6] bg-white shadow-sm" />
             </div>
-            출발지를 선택하면 만나기 좋은 역과 거리 기준 중간역이 표시됩니다.
+            <h2 className="text-base font-black text-slate-950">어디서 만날까요?</h2>
+            <p className="mx-auto mt-1.5 max-w-md text-sm leading-6 text-slate-500">
+              출발지 사이의 거리 균형과 주변 상권을 함께 보고, 만나기 좋은 역을 추천해드려요.
+            </p>
           </section>
         )}
       </div>
@@ -473,32 +535,88 @@ function App() {
   )
 }
 
-function MeetingTradeoffNotice({ practicalStation, fairStation }) {
-  const hasSeparatePracticalStation = practicalStation && !isSameStation(practicalStation, fairStation)
+function Icon({ name, className = 'h-5 w-5', alt = '', style }) {
+  return <img src={ICONS[name]} alt={alt} aria-hidden={alt ? undefined : true} className={className} style={style} />
+}
 
+function MeetMiddleLogo() {
   return (
-    <section className="rounded-2xl border border-amber-100 bg-amber-50 px-3.5 py-3 text-sm shadow-sm md:px-4">
-      <p className="text-sm font-black text-amber-700">
-        {hasSeparatePracticalStation ? '⚠️ 공평한 중간역은 약속 장소로 아쉬워요' : '⚠️ 주변 상권이 부족할 수 있습니다'}
-      </p>
-      <p className="mt-1.5 text-sm leading-5 text-amber-900">
-        {hasSeparatePracticalStation ? (
-          <>
-            가장 공평한 중간역은 <strong>{fairStation.name}</strong>이지만, 주변 상권이 부족할 수 있어요.{' '}
-            실제로 만나기엔 <strong>{practicalStation.name}</strong> 쪽을 함께 비교해보세요.
-          </>
-        ) : (
-          <>
-            <strong>{fairStation.name}</strong>은 거리 균형 기준으로 좋은 후보지만, 실제 약속 장소로는 근처
-            카페나 식당이 적을 수 있어요.
-          </>
-        )}
-      </p>
-    </section>
+    <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[#3182F6] shadow-sm ring-1 ring-blue-200">
+      <span className="absolute h-4 w-4 rounded-full bg-white/95" />
+      <span className="absolute left-1.5 h-2 w-2 rounded-full bg-[#3182F6]" />
+      <span className="absolute right-1.5 h-2 w-2 rounded-full bg-[#00A84D] ring-1 ring-white" />
+      <span className="absolute h-px w-5 bg-blue-100" />
+    </span>
   )
 }
 
-function ResultTypeCard({ eyebrow, station, description, selected = false, onClick, primary = false, eyebrowIcon = null }) {
+function HeroStat({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-white/80 px-2.5 py-2 shadow-sm ring-1 ring-blue-50">
+      <p className="text-[11px] font-bold text-slate-400">{label}</p>
+      <p className="mt-0.5 truncate text-xs font-black text-slate-800">{value}</p>
+    </div>
+  )
+}
+
+function HeroPreview() {
+  return (
+    <div className="relative hidden min-h-[220px] md:block">
+      <div className="absolute inset-x-3 top-3 h-44 rounded-[2rem] bg-white/55 shadow-inner ring-1 ring-white/70">
+        <div className="absolute left-6 top-10 h-24 w-24 rounded-full border-8 border-blue-100" />
+        <div className="absolute right-8 top-8 h-28 w-28 rounded-full border-8 border-cyan-100" />
+        <div className="absolute left-20 top-20 h-1 w-44 rotate-[-18deg] rounded-full bg-[#3182F6]/45" />
+        <div className="absolute left-32 top-8 h-1 w-36 rotate-[38deg] rounded-full bg-[#00A84D]/35" />
+        <div className="absolute right-16 top-20 h-1 w-32 rotate-[62deg] rounded-full bg-amber-300/60" />
+      </div>
+
+      <div className="absolute left-3 top-8 w-64 rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-xl backdrop-blur">
+        <p className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-[#3182F6]">
+          오늘의 추천 예시
+        </p>
+        <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">왕십리역</h2>
+        <div className="mt-3 space-y-2 text-xs font-bold text-slate-600">
+          <div className="flex items-center justify-between">
+            <span>거리 균형</span>
+            <span className="text-[#3182F6]">상위권</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>노선 접근성</span>
+            <span className="text-[#00A84D]">좋음</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>주변 상권</span>
+            <span className="text-amber-500">충분</span>
+          </div>
+        </div>
+        <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-3">
+          <span className="text-xs font-bold text-slate-500">만남 적합도</span>
+          <strong className="text-2xl font-black text-[#3182F6]">★★★★★</strong>
+        </div>
+      </div>
+
+      <div className="absolute bottom-4 right-3 flex h-20 w-36 items-center justify-center rounded-[1.25rem] bg-slate-900 shadow-xl">
+        <div className="relative h-12 w-24 rounded-xl bg-white">
+          <div className="absolute left-2 top-2 h-5 w-8 rounded-md bg-blue-100" />
+          <div className="absolute right-2 top-2 h-5 w-8 rounded-md bg-blue-100" />
+          <div className="absolute bottom-2 left-3 h-2 w-2 rounded-full bg-slate-900" />
+          <div className="absolute bottom-2 right-3 h-2 w-2 rounded-full bg-slate-900" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ResultTypeCard({
+  eyebrow,
+  eyebrowMeta,
+  station,
+  description,
+  selected = false,
+  onClick,
+  primary = false,
+  eyebrowIcon = null,
+}) {
   if (!station) return null
 
   const Component = onClick ? 'button' : 'div'
@@ -507,116 +625,247 @@ function ResultTypeCard({ eyebrow, station, description, selected = false, onCli
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`flex min-h-[220px] w-full flex-col rounded-2xl border p-5 text-left shadow-sm transition active:scale-[0.99] ${
+      className={`flex w-full flex-col overflow-hidden rounded-2xl border p-4 text-left shadow-sm transition active:scale-[0.99] md:p-5 ${
         primary
-          ? 'border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50'
+          ? 'border-blue-200 bg-[linear-gradient(135deg,#FFFFFF_0%,#F7FBFF_62%,#F1FEFF_100%)] shadow-[0_12px_30px_rgba(49,130,246,0.08)]'
           : 'border-slate-100 bg-white'
       } ${selected ? 'ring-2 ring-blue-200' : ''} ${onClick ? 'cursor-pointer hover:border-blue-200' : ''}`}
     >
       <div className="flex-1">
-        <p className="inline-flex items-center gap-1 text-sm font-bold text-[#3182F6]">
-          {eyebrowIcon ? <span className="text-amber-400">{eyebrowIcon}</span> : null}
-          {eyebrow}
-        </p>
-        <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{station.name}</h2>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">{description}</p>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Metric
-          label="약속 적합도"
-          value={`${Math.round(station.meetingPlaceScore || 0)}점`}
-          help={{
-            title: '약속 적합도',
-            body: '실제로 만나기 좋은 장소인지 보는 점수예요. 카페·맛집·놀거리, 주변 상권, 사람들이 자주 만나는 역인지 등을 함께 봅니다.',
-            levels: ['80점 이상: 매우 추천', '60~79점: 무난함', '40~59점: 간단한 만남 가능', '39점 이하: 상권이 적어 아쉬움'],
-          }}
-        />
-        <Metric
-          label="중간 허브도"
-          value={`${Math.round(station.middleHubScore || 0)}점`}
-          help={{
-            title: '중간 허브도',
-            body: '여러 출발지에서 접근하기 쉬운 정도예요. 환승 편의성, 노선 연결성, 수도권 중심 접근성을 함께 봅니다.',
-            levels: ['80점 이상: 주요 허브역', '60~79점: 접근성 좋음', '40~59점: 일반 역', '39점 이하: 외곽/접근성 낮음'],
-          }}
-        />
+        <div>
+          <p className="inline-flex flex-wrap items-center gap-1.5 text-sm font-bold leading-5 text-[#3182F6]">
+            {eyebrowIcon ? (
+              <Icon
+                name={eyebrowIcon}
+                className="h-4 w-4"
+                style={{ filter: (primary ? ICON_TONES.amber : ICON_TONES.blue).filter }}
+              />
+            ) : null}
+            {eyebrow}
+            {eyebrowMeta ? <span className="font-bold text-slate-500">({eyebrowMeta})</span> : null}
+          </p>
+          <div className="mt-2 flex items-center gap-2 md:gap-3">
+            <h2 className={`min-w-0 break-keep font-black tracking-tight text-slate-950 ${primary ? 'text-3xl md:text-4xl' : 'text-2xl md:text-3xl'}`}>
+              {station.name}
+            </h2>
+            {primary ? (
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-8 sm:w-8">
+                <Icon name="star" className="h-4 w-4" style={{ filter: ICON_TONES.amber.filter }} />
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-2.5 max-w-xl text-sm leading-6 text-slate-600 md:mt-3">{description}</p>
+        </div>
+        {primary ? <PrimaryScoreReport station={station} /> : <FairScoreReport station={station} />}
       </div>
     </Component>
   )
 }
 
-function Metric({ label, value, help }) {
+function PrimaryScoreReport({ station }) {
+  const meetingScore = Math.round(station.meetingPlaceScore || 0)
+  const scores = getStationDisplayScores(station)
+
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 shadow-sm ring-1 ring-slate-100">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="text-sm font-black text-slate-950">{value}</p>
-      {help ? <HelpTooltip {...help} /> : null}
+    <div className="mt-4 grid gap-3 md:grid-cols-[140px_1fr]">
+      <div className="px-1 py-1">
+        <p className="text-xs font-bold text-slate-500">만남 장소 적합도</p>
+        <StarRating score={meetingScore} />
+      </div>
+      <MetricStatusList scores={scores} />
     </div>
   )
 }
 
-function HelpTooltip({ title, body, levels }) {
-  const openTooltip = () => {
-    window.dispatchEvent(new Event('meetmiddle:close-address-dropdowns'))
-    window.dispatchEvent(new Event('meetmiddle:help-tooltip-open'))
-  }
-
-  const closeTooltip = () => {
-    window.dispatchEvent(new Event('meetmiddle:help-tooltip-close'))
-  }
+function FairScoreReport({ station }) {
+  const meetingScore = Math.round(station.meetingPlaceScore || 0)
+  const scores = getStationDisplayScores(station)
 
   return (
-    <span className="group relative inline-flex" onMouseEnter={openTooltip} onMouseLeave={closeTooltip}>
-      <button
-        type="button"
-        aria-label={`${title} 설명`}
-        onBlur={closeTooltip}
-        onFocus={openTooltip}
-        className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500 ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-[#3182F6] focus:bg-blue-50 focus:text-[#3182F6] focus:outline-none"
-      >
-        ?
-      </button>
-      <span className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] right-0 z-[300] hidden w-64 rounded-2xl bg-slate-950 p-3 text-left text-xs leading-5 text-white shadow-2xl group-hover:block group-focus-within:block">
-        <strong className="mb-1 block text-sm">{title}</strong>
-        <span className="block text-slate-200">{body}</span>
-        <span className="mt-2 block space-y-0.5 text-slate-300">
-          {levels.map((level) => (
-            <span key={level} className="block">
-              {level}
-            </span>
-          ))}
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="px-1 py-1">
+        <p className="text-xs font-bold text-slate-500">만남 장소 적합도</p>
+        <StarRating score={meetingScore} compact />
+      </div>
+      <StatusMetricCard icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+    </div>
+  )
+}
+
+function MetricStatusList({ scores }) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white/80 p-3 shadow-sm">
+      <StatusMetricRow icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+      <StatusMetricRow icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
+      <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+    </div>
+  )
+}
+
+function StatusMetricRow({ icon, label, value, tone = 'blue' }) {
+  const iconTone = ICON_TONES[tone] || ICON_TONES.blue
+
+  return (
+    <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 last:mb-0">
+      <span className="inline-flex min-w-0 items-center gap-2 text-xs font-bold text-slate-600">
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${iconTone.bg}`}>
+          <Icon name={icon} className="h-4 w-4" style={{ filter: iconTone.filter }} />
         </span>
+        <span className="truncate">{label}</span>
       </span>
-    </span>
+      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${iconTone.badge}`}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function StatusMetricCard({ icon, label, value, tone = 'blue' }) {
+  const iconTone = ICON_TONES[tone] || ICON_TONES.blue
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+      <p className="flex items-center gap-2 text-xs font-bold text-slate-500">
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${iconTone.bg}`}>
+          <Icon name={icon} className="h-4 w-4" style={{ filter: iconTone.filter }} />
+        </span>
+        {label}
+      </p>
+      <p className={`mt-2 text-xl font-black ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>
+        {value}
+      </p>
+    </div>
   )
 }
 
 function StationCard({ station, selected, onClick }) {
+  const scores = getStationDisplayScores(station)
+  const meetingScore = Math.round(station.meetingPlaceScore || 0)
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border p-2.5 text-left transition active:scale-[0.98] ${
+      className={`min-w-0 rounded-2xl border p-2.5 text-left transition active:scale-[0.98] ${
         selected
-          ? 'border-blue-200 bg-blue-50 shadow-sm'
-          : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50'
+          ? 'border-blue-300 bg-blue-50 shadow-sm'
+          : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-[#3182F6] shadow-sm">
-          #{station.rank}
-        </span>
-        <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-500">
-          {Math.round(station.meetingPlaceScore || 0)}점
-        </span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-2">
+          <span className="flex h-7 w-6 shrink-0 items-center justify-center rounded-t-md bg-[#3658F5] text-xs font-black text-white shadow-sm">
+            {station.rank}
+          </span>
+          <div className="min-w-0">
+            <strong className="block min-w-0 break-keep text-base font-black tracking-tight text-slate-950 sm:text-lg">{station.name}</strong>
+            <div className="mt-1.5 space-y-0.5 text-[11px] leading-4 text-slate-500 sm:text-xs">
+              <p>중간점에서 {formatDistance(station.distanceFromCenter)}</p>
+              <p>상권 약 {station.hotPlaceCount}곳</p>
+            </div>
+          </div>
+        </div>
+        <StarRating score={meetingScore} tiny />
       </div>
-      <strong className="mt-2 block text-lg text-slate-950">{station.name}</strong>
-      <div className="mt-2 space-y-0.5 text-xs text-slate-500">
-        <p>중간점에서 {formatDistance(station.distanceFromCenter)}</p>
-        <p>상권 약 {station.hotPlaceCount}곳</p>
+
+      <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
+        <MiniMetric icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+        <MiniMetric icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
+        <MiniMetric icon="subway" label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
       </div>
     </button>
   )
+}
+
+function MiniMetric({ icon, label, value, tone = 'blue' }) {
+  const iconTone = ICON_TONES[tone] || ICON_TONES.blue
+
+  return (
+    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/50 px-2 py-2">
+      <p className="flex items-center gap-1 truncate text-[10px] font-bold text-slate-500">
+        <Icon name={icon} className="h-3.5 w-3.5 shrink-0" style={{ filter: iconTone.filter }} />
+        {label}
+      </p>
+      <p className="mt-0.5 text-xs font-black text-slate-950 sm:text-sm">{value}</p>
+    </div>
+  )
+}
+
+function StarRating({ score, compact = false, tiny = false }) {
+  const stars = getStarRating(score)
+
+  if (tiny) {
+    return (
+      <span className="w-fit shrink-0 text-right">
+        <span className="block text-sm leading-none tracking-normal text-amber-400">{stars}</span>
+      </span>
+    )
+  }
+
+  return (
+    <div className="mt-2">
+      <p className={`${compact ? 'text-xl' : 'text-2xl'} tracking-normal text-amber-400`}>{stars}</p>
+    </div>
+  )
+}
+
+function getStarRating(score) {
+  if (score >= 88) return '★★★★★'
+  if (score >= 80) return '★★★★☆'
+  if (score >= 70) return '★★★☆☆'
+  if (score >= 60) return '★★☆☆☆'
+  return '★☆☆☆☆'
+}
+
+function getMetricStatus(score) {
+  if (score >= 85) return '매우 우수'
+  if (score >= 70) return '우수'
+  if (score >= 55) return '보통'
+  if (score >= 40) return '아쉬움'
+  return '낮음'
+}
+
+function getStationDisplayScores(station) {
+  return {
+    commercial: Math.round(getStationCommercialScore(station)),
+    fairness: Math.round(getDistanceBalanceDisplayScore(station)),
+    transit: Math.round(getTransitAccessDisplayScore(station)),
+  }
+}
+
+function getDistanceBalanceDisplayScore(station) {
+  const score = Number.isFinite(station.fairnessScore)
+    ? station.fairnessScore
+    : getNumericScore(station.middleHubScore, 0)
+
+  if (score <= 0) return 12
+  return Math.round(10 + score * 0.9)
+}
+
+function getTransitAccessDisplayScore(station) {
+  const hubScore = getNumericScore(station.middleHubScore, 0)
+  const compatibilityScore = Number.isFinite(station.transitCompatibilityScore)
+    ? station.transitCompatibilityScore
+    : 0
+  const lineEaseScore = 20 + ((Math.max(-24, Math.min(compatibilityScore, 20)) + 24) / 44) * 66
+
+  return Math.max(20, Math.min(96, Math.round(lineEaseScore * 0.65 + hubScore * 0.35)))
+}
+
+function getStationCommercialScore(station) {
+  if (!station) return 0
+
+  return getCommercialDisplayScore(station.hotPlaceCount || 0)
+}
+
+function getCommercialDisplayScore(hotPlaceCount) {
+  if (hotPlaceCount <= 0) return 0
+
+  return Math.round(Math.min(100, 20 + Math.sqrt(Math.min(hotPlaceCount, 220) / 220) * 70))
+}
+
+function getNumericScore(value, fallback) {
+  return Number.isFinite(value) ? value : fallback
 }
 
 function getStationMapKey(station) {
@@ -632,14 +881,6 @@ function isSameOrigin(a, b) {
 
 function hasSameOrigins(origins) {
   return origins.some((origin, index) => origins.slice(index + 1).some((nextOrigin) => isSameOrigin(origin, nextOrigin)))
-}
-
-function isSameStation(a, b) {
-  return getStationMapKey(a) === getStationMapKey(b)
-}
-
-function isWeakMeetingArea(station) {
-  return (station.meetingPlaceScore || 0) < 50 || (station.hotPlaceCount || 0) < 10
 }
 
 async function searchPlacesWithCategory(station, category) {

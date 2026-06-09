@@ -8,6 +8,7 @@ import {
   rankMeetingStations,
   shouldIncludeHubStation,
 } from './meetingRecommender'
+import { getStationLines } from '../data/subwayStationLines'
 
 const KAKAO_SCRIPT_ID = 'kakao-map-sdk-script'
 const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services'
@@ -109,6 +110,52 @@ export async function geocodeAddress(address) {
   })
 }
 
+export async function enrichOriginsWithNearbyStations(origins) {
+  const kakao = await loadKakaoMapSdk()
+
+  return Promise.all(origins.map((origin) => enrichOriginWithNearbyStation(kakao, origin)))
+}
+
+function enrichOriginWithNearbyStation(kakao, origin) {
+  const existingLines = getStationLines(origin.routeName || origin.address)
+
+  if (existingLines.length) {
+    return Promise.resolve({
+      ...origin,
+      transitLines: existingLines,
+    })
+  }
+
+  return new Promise((resolve) => {
+    const places = new kakao.maps.services.Places()
+
+    places.categorySearch(
+      'SW8',
+      (result, status) => {
+        if (status !== kakao.maps.services.Status.OK || !result[0]) {
+          resolve(origin)
+          return
+        }
+
+        const nearestStation = result[0]
+        const transitLines = getStationLines(nearestStation.place_name)
+
+        resolve({
+          ...origin,
+          nearbyStationName: nearestStation.place_name,
+          transitLines,
+        })
+      },
+      {
+        x: origin.lng,
+        y: origin.lat,
+        radius: 1800,
+        sort: kakao.maps.services.SortBy.DISTANCE,
+      },
+    )
+  })
+}
+
 export async function searchAddressSuggestions(query) {
   const keyword = query.trim()
   if (!keyword) return []
@@ -136,6 +183,7 @@ export async function searchAddressSuggestions(query) {
             id: item.id,
             address: item.road_address_name || item.address_name || item.place_name,
             roadAddress: item.place_name,
+            routeName: item.place_name,
             lat: Number(item.y),
             lng: Number(item.x),
           })),
@@ -159,6 +207,7 @@ export async function searchAddressSuggestions(query) {
           id: `${item.x}-${item.y}-${item.address_name}`,
           address: item.address_name,
           roadAddress: item.road_address?.address_name || '',
+          routeName: item.road_address?.address_name || item.address_name,
           lat: Number(item.y),
           lng: Number(item.x),
         })),
@@ -385,6 +434,7 @@ function searchStationCandidates(kakao, searchCenter, radius, originalCenter, so
           result.map((station) => ({
             id: station.id,
             name: station.place_name,
+            routeName: station.place_name,
             address: station.road_address_name || station.address_name,
             distanceFromCenter: getDistanceFromCenter(originalCenter, station),
             isRouteCandidate: source === 'route',
@@ -563,6 +613,7 @@ function searchStationByKeyword(kakao, keyword, center) {
       resolve({
         id: station.id,
         name: station.place_name,
+        routeName: station.place_name,
         address: station.road_address_name || station.address_name,
         distanceFromCenter: getDistanceFromCenter(center, station),
         isHubCandidate: true,

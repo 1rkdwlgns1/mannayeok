@@ -1,4 +1,5 @@
 import { calculateDistanceInMeters } from './midpointCalculator'
+import { getTransitCompatibilityScore } from './transitCompatibility'
 
 export const STATION_SCORE_DB = {
   성수역: { meetingPlaceScore: 100, middleHubScore: 72 },
@@ -192,6 +193,7 @@ function rankMultiPersonStations(stations, origins, limit) {
     const avgDistance = originDistances.reduce((sum, distance) => sum + distance, 0) / originDistances.length
     const centerScore = getCenterDistanceScore(station.distanceFromCenter)
     const commercialScore = getCommercialScore(station)
+    const transitCompatibilityScore = getTransitCompatibilityScore(origins, normalizedName)
     const minDistance = Math.min(...originDistances)
     const maxDistance = Math.max(...originDistances)
 
@@ -213,7 +215,8 @@ function rankMultiPersonStations(stations, origins, limit) {
     }
     const hasStationScore = Boolean(STATION_SCORE_DB[normalizedName])
     const unknownStationPenalty = hasStationScore ? 0 : 12
-    const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceCount || 0)
+    const farMeetingPenalty = getFarMeetingPenalty(station.distanceFromCenter)
+    const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceSignal || 0)
     const lowMeetingPlacePenalty = getLowMeetingPlacePenalty(stationScores.meetingPlaceScore)
     const affinityBonus = pairAffinity[normalizedName] || 0
 
@@ -222,10 +225,12 @@ function rankMultiPersonStations(stations, origins, limit) {
       travelScore * 0.20 +
       stationScores.meetingPlaceScore * 0.35 +
       commercialScore * 0.25 -
+      farMeetingPenalty -
       unknownStationPenalty -
       lowCommercialPenalty -
       lowMeetingPlacePenalty +
-      affinityBonus
+      affinityBonus +
+      transitCompatibilityScore
 
     const fairScore =
       fairnessScore * 0.45 +
@@ -237,6 +242,7 @@ function rankMultiPersonStations(stations, origins, limit) {
       ...station,
       centerScore,
       commercialScore,
+      farMeetingPenalty,
       fairScore,
       fairnessScore,
       lowCommercialPenalty,
@@ -248,6 +254,7 @@ function rankMultiPersonStations(stations, origins, limit) {
       middleHubScore: stationScores.middleHubScore,
       name: normalizedName,
       originDistances,
+      transitCompatibilityScore,
       travelScore,
     }
 
@@ -294,12 +301,13 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
   const fairnessScore = getFairnessScore(originDistances)
   const travelScore = getTravelScore(originDistances)
   const commercialScore = getCommercialScore(station)
+  const transitCompatibilityScore = getTransitCompatibilityScore(origins, normalizedName)
   const localRailPenalty = LOCAL_LIGHT_RAIL_KEYWORDS.some((keyword) => normalizedName.includes(keyword)) ? 28 : 0
   const farMeetingPenalty = getFarMeetingPenalty(station.distanceFromCenter)
   const unknownStationPenalty = hasStationScore ? 0 : 14
   const affinityBonus = pairAffinity[normalizedName] || 0
 
-  const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceCount || 0)
+  const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceSignal || 0)
   const lowMeetingPlacePenalty = getLowMeetingPlacePenalty(stationScores.meetingPlaceScore)
   const meetingWeights = getMeetingScoreWeights(routeDistance)
 
@@ -321,7 +329,8 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
     unknownStationPenalty -
     lowCommercialPenalty -
     lowMeetingPlacePenalty +
-    affinityBonus
+    affinityBonus +
+    transitCompatibilityScore
 
   return {
     centerScore,
@@ -335,6 +344,7 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
     lowCommercialPenalty,
     lowMeetingPlacePenalty,
     originDistances,
+    transitCompatibilityScore,
     travelScore,
   }
 }
@@ -342,6 +352,10 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
 function getPairAffinity(origins) {
   const originText = origins.map((origin) => origin.address || origin.query || '').join(' ')
   const genericAffinity = getGenericPairAffinity(origins, originText)
+
+  if (origins.length >= 3) {
+    return genericAffinity
+  }
 
   if (includesAny(originText, NORTHERN_REMOTE_KEYWORDS)) {
     const northernCoreBonus = {
@@ -624,11 +638,11 @@ function getCommercialScore(station) {
   return clamp(rawScore / 2.6, 0, 100)
 }
 
-function getLowCommercialPenalty(hotPlaceCount) {
-  if (hotPlaceCount >= 150) return 0
-  if (hotPlaceCount >= 100) return 5
-  if (hotPlaceCount >= 50) return 15
-  if (hotPlaceCount >= 20) return 30
+function getLowCommercialPenalty(hotPlaceSignal) {
+  if (hotPlaceSignal >= 220) return 0
+  if (hotPlaceSignal >= 150) return 5
+  if (hotPlaceSignal >= 75) return 15
+  if (hotPlaceSignal >= 30) return 30
 
   return 40
 }
