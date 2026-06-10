@@ -79,6 +79,7 @@ function App() {
   const [error, setError] = useState('')
   const [placeError, setPlaceError] = useState('')
   const [helpTooltipActive, setHelpTooltipActive] = useState(false)
+  const [mapCollapsed, setMapCollapsed] = useState(false)
 
   const selectableStations = useMemo(
     () => [...recommendedStations, ...fairStations],
@@ -331,14 +332,14 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F8FA] px-3 py-4 md:px-6 md:py-8">
+    <main className="min-h-screen bg-[#F7F8FA] px-2.5 py-3 md:px-6 md:py-8">
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
-          <header className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm">
-            <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-5">
+          <header className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="flex items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
               <div className="flex items-center gap-2.5">
                 <MeetMiddleLogo />
-                <p className="text-base font-black tracking-tight text-slate-950">MeetMiddle</p>
+                <p className="text-lg font-black tracking-tight text-slate-950">MeetMiddle</p>
               </div>
               <div className="hidden items-center gap-3 text-xs font-bold text-slate-500 sm:flex">
                 <span>사용법</span>
@@ -346,34 +347,28 @@ function App() {
               </div>
             </div>
 
-            <div className="relative isolate bg-[linear-gradient(135deg,#F8FBFF_0%,#EDF6FF_52%,#F8FEFF_100%)] px-4 py-5 md:px-6 md:py-7">
-              <div className="absolute -right-12 -top-14 h-36 w-36 rounded-full bg-blue-200/40 blur-sm" />
-              <div className="absolute bottom-0 right-20 h-24 w-24 rounded-full bg-cyan-200/35" />
-              <div className="relative grid items-center gap-5 md:grid-cols-[1.1fr_0.9fr]">
+            <div className="relative isolate overflow-hidden bg-[linear-gradient(135deg,#F9FBFF_0%,#EEF4FF_58%,#F8FBFF_100%)] px-4 py-5 md:px-8 md:py-8">
+              <div className="absolute right-8 top-4 hidden h-px w-56 rotate-[-38deg] bg-blue-100 md:block" />
+              <div className="relative grid items-center gap-5 lg:grid-cols-[1fr_1.05fr]">
                 <div className="min-w-0">
-                  <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-black text-[#3182F6] shadow-sm ring-1 ring-blue-100">
+                  <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-black text-[#5A45E8] shadow-sm ring-1 ring-indigo-100">
                     약속역 추천
                   </span>
-                  <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-slate-950 md:text-4xl">
-                    모두가 납득하는
-                    <span className="block text-[#3182F6]">중간 약속 장소 추천</span>
+                  <h1 className="mt-4 text-[26px] font-black leading-tight tracking-tight text-slate-950 md:text-4xl">
+                    어디서 만날지 고민 끝,
+                    <span className="block text-[#5A45E8]">만나기 좋은 역을 찾아드려요</span>
                   </h1>
-                  <p className="mt-3 max-w-md text-sm leading-6 text-slate-500 md:text-base md:leading-7">
-                    거리 균형, 노선 접근성, 주변 상권을 함께 보고 실제로 만나기 좋은 역을 추천해드려요.
+                  <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
+                    거리 균형, 주변 상권, 노선 접근성까지 고려해 모두에게 부담 적은 약속역을 추천해드려요.
                   </p>
-                  <div className="mt-4 grid grid-cols-3 gap-2">
-                    <HeroStat label="거리 균형" value="공평하게" />
-                    <HeroStat label="노선 접근" value="덜 돌아가게" />
-                    <HeroStat label="주변 상권" value="만나기 좋게" />
-                  </div>
                 </div>
 
-                <HeroPreview />
+                <HeroFeatureGrid />
               </div>
             </div>
           </header>
 
-          <section className="relative z-[80] rounded-3xl border border-slate-100 bg-white p-3 shadow-sm md:p-4">
+          <section id="origin-input" className="relative z-[80] scroll-mt-6 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:-mt-4 md:p-5">
             <AddressInput
               origins={originInputs}
               maxOrigins={MAX_ORIGIN_COUNT}
@@ -439,13 +434,6 @@ function App() {
                       탭하면 지도와 길찾기 기준역이 바뀌어요. 각 역의 특성을 비교해보세요.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="hidden items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-[#2457F5] shadow-sm transition hover:border-blue-200 hover:bg-blue-50 md:inline-flex"
-                  >
-                    전체 후보 비교 보기
-                    <Icon name="arrowRight" className="h-4 w-4" />
-                  </button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   {alternativeStations.map((station, index) => (
@@ -463,14 +451,26 @@ function App() {
               </section>
             ) : null}
 
-            <section className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
-              <h2 className="mb-3 text-base font-bold text-slate-950 md:text-lg">지도에서 보기</h2>
-              <KakaoMap origins={origins} meetingPoint={selectedStation} meetingPoints={mapStations} />
+            <section className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-base font-bold text-slate-950 md:text-lg">지도에서 보기</h2>
+                <button
+                  type="button"
+                  onClick={() => setMapCollapsed((collapsed) => !collapsed)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#3182F6]"
+                  aria-expanded={!mapCollapsed}
+                >
+                  {mapCollapsed ? '지도 열기' : '지도 접기'}
+                </button>
+              </div>
+              {!mapCollapsed ? (
+                <KakaoMap origins={origins} meetingPoint={selectedStation} meetingPoints={mapStations} />
+              ) : null}
             </section>
 
             <MapDirections origins={origins} station={selectedStation} />
 
-            <section id="places" className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
+            <section id="places" className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
               <div className="space-y-3.5 md:space-y-4">
                 <div>
                   <p className="text-sm font-bold text-[#3182F6]">추천 만남 장소</p>
@@ -521,7 +521,7 @@ function App() {
             ) : null}
           </>
         ) : (
-          <section className="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
+          <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
               <div className="h-5 w-5 rounded-full border-4 border-[#3182F6] bg-white shadow-sm" />
             </div>
@@ -556,6 +556,52 @@ function HeroStat({ label, value }) {
     <div className="rounded-2xl bg-white/80 px-2.5 py-2 shadow-sm ring-1 ring-blue-50">
       <p className="text-[11px] font-bold text-slate-400">{label}</p>
       <p className="mt-0.5 truncate text-xs font-black text-slate-800">{value}</p>
+    </div>
+  )
+}
+
+function HeroFeatureGrid() {
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <HeroFeatureCard
+        icon="subway"
+        tone="blue"
+        title="거리 균형"
+        description="모두의 이동 거리가 비슷한 역 추천"
+      />
+      <HeroFeatureCard
+        icon="store"
+        tone="green"
+        title="주변 상권"
+        description="카페, 맛집, 즐길거리가 많은 역 추천"
+      />
+      <HeroFeatureCard
+        icon="arrowRight"
+        tone="purple"
+        title="노선 접근성"
+        description="환승 부담이 적은 노선 기준으로 추천"
+      />
+    </div>
+  )
+}
+
+function HeroFeatureCard({ icon, tone = 'blue', title, description }) {
+  const toneMap = {
+    blue: ICON_TONES.blue,
+    green: ICON_TONES.green,
+    purple: ICON_TONES.purple,
+  }
+  const iconTone = toneMap[tone] || ICON_TONES.blue
+
+  return (
+    <div className="rounded-xl border border-white/80 bg-white/86 p-2.5 text-center shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur sm:rounded-2xl sm:p-4">
+      <span className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full ${iconTone.bg} sm:h-11 sm:w-11`}>
+        <Icon name={icon} className="h-4 w-4 sm:h-5 sm:w-5" style={{ filter: iconTone.filter }} />
+      </span>
+      <h2 className="mt-2 text-xs font-black text-slate-950 sm:mt-3 sm:text-sm">{title}</h2>
+      <p className="mx-auto mt-1 hidden max-w-32 text-[11px] font-bold leading-5 text-slate-500 sm:block">
+        {description}
+      </p>
     </div>
   )
 }
@@ -677,11 +723,11 @@ function ResultTypeCard({
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-        className={`w-full rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-sm transition active:scale-[0.99] md:p-6 ${
+        className={`w-full rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-6 ${
           selected ? 'ring-2 ring-blue-200' : ''
         } ${onClick ? 'cursor-pointer hover:border-blue-200' : ''}`}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5A45E8] px-3 py-1.5 text-xs font-black text-white shadow-sm">
@@ -691,27 +737,26 @@ function ResultTypeCard({
               <StationLineChips station={station} />
             </div>
 
-            <h2 className="mt-5 break-keep text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+            <h2 className="mt-4 break-keep text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
               {station.name}
             </h2>
             <StarRating score={score} compact />
           </div>
 
-          <div className="w-full rounded-2xl bg-[#F1F0FA] px-4 py-3 text-center sm:w-36">
+          <div className="w-24 shrink-0 rounded-xl bg-[#F1F0FA] px-2.5 py-2 text-center sm:w-36 sm:rounded-2xl sm:px-4 sm:py-3">
             <p className="text-xs font-black text-slate-400">만남 적합도</p>
             <p className="mt-1 leading-none">
-              <strong className="text-4xl font-black text-[#5A45E8]">{score}</strong>
+              <strong className="text-3xl font-black text-[#5A45E8] sm:text-4xl">{score}</strong>
             </p>
-            <p className="mt-0.5 text-sm font-black text-slate-400">/100점</p>
+            <p className="mt-0.5 text-xs font-black text-slate-400 sm:text-sm">/100점</p>
           </div>
         </div>
 
-        <p className="mt-5 text-sm leading-6 text-slate-600">
+        <p className="mt-4 text-sm leading-6 text-slate-600 sm:mt-5">
           {description}
         </p>
-        <ScoreProgress score={score} />
 
-        <div className="mt-5 grid grid-cols-3 border-t border-slate-100 pt-4">
+        <div className="mt-4 grid grid-cols-3 border-t border-slate-100 pt-3 sm:mt-5 sm:pt-4">
           <MetricSummaryItem icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
           <MetricSummaryItem icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
           <MetricSummaryItem icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
@@ -724,31 +769,31 @@ function ResultTypeCard({
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`w-full rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-sm transition active:scale-[0.99] md:p-6 ${
+      className={`w-full rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-5 ${
         selected ? 'ring-2 ring-emerald-100' : ''
       } ${onClick ? 'cursor-pointer hover:border-emerald-200' : ''}`}
     >
-      <p className="inline-flex items-center gap-2 text-sm font-black text-slate-400">
+      <p className="inline-flex items-center gap-2 text-xs font-black text-slate-400">
         <Icon name={eyebrowIcon || 'scales'} className="h-4 w-4" style={{ filter: ICON_TONES.green.filter }} />
         거리 기준 참고역
       </p>
-      <h2 className="mt-6 break-keep text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+      <h2 className="mt-4 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
         {station.name}
       </h2>
-      <p className="mt-1 text-3xl font-black leading-none text-slate-300">
-        {score}<span className="ml-1 text-base text-slate-300">/100</span>
+      <p className="mt-1 text-2xl font-black leading-none text-slate-300">
+        {score}<span className="ml-1 text-sm text-slate-300">/100</span>
       </p>
-      <StationLineChips station={station} className="mt-5" />
+      <StationLineChips station={station} className="mt-4" />
 
-      <div className="mt-5 border-t border-slate-100 pt-4">
+      <div className="mt-4 border-t border-slate-100 pt-3">
         <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-500">
+      <p className="mt-3 text-xs leading-5 text-slate-500">
         이동 거리 균형만 보면 가장 중간에 가까운 역이에요.
       </p>
-      <div className="mt-4 rounded-2xl bg-[#F6F3FF] px-4 py-3 text-sm font-bold leading-6 text-[#8A7BD8]">
-        점수가 낮아도 이동 공평성을 비교할 때 참고하기 좋아요.
+      <div className="mt-3 rounded-2xl bg-[#F6F3FF] px-3 py-2 text-xs font-bold leading-5 text-[#8A7BD8]">
+        이동 공평성을 비교할 때 참고해보세요.
       </div>
     </Component>
   )
@@ -782,7 +827,7 @@ function MetricStatusList({ scores }) {
     <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
       <StatusMetricRow icon="people" label="거리 균형" description="출발지 간 거리 차이가 작아요" value={getMetricStatus(scores.fairness)} tone="blue" />
       <StatusMetricRow icon="store" label="주변 상권" description="맛집, 카페, 편의시설이 많아요" value={getMetricStatus(scores.commercial)} tone="purple" />
-      <StatusMetricRow icon="subway" label="노선 접근성" description="다양한 노선 이용이 편리해요" value={getMetricStatus(scores.transit)} tone="green" />
+      <StatusMetricRow icon="subway" label="노선 접근성" description="환승 부담이 적은 편이에요" value={getMetricStatus(scores.transit)} tone="green" />
     </div>
   )
 }
@@ -791,12 +836,12 @@ function MetricSummaryItem({ icon, label, value, tone = 'blue' }) {
   const iconTone = ICON_TONES[tone] || ICON_TONES.blue
 
   return (
-    <div className="min-w-0 border-r border-slate-100 px-3 last:border-r-0">
-      <p className="flex items-center gap-1.5 truncate text-xs font-bold text-slate-400">
-        <Icon name={icon} className="h-4 w-4 shrink-0" style={{ filter: iconTone.filter }} />
+    <div className="min-w-0 border-r border-slate-100 px-1.5 last:border-r-0 sm:px-3">
+      <p className="flex items-center gap-1 truncate text-[11px] font-bold text-slate-400 sm:gap-1.5 sm:text-xs">
+        <Icon name={icon} className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" style={{ filter: iconTone.filter }} />
         {label}
       </p>
-      <p className={`mt-1 text-base font-black ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>
+      <p className={`mt-1 text-sm font-black sm:text-base ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>
         {value}
       </p>
     </div>
@@ -850,7 +895,7 @@ function StationCard({ station, selected, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`min-w-0 rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
+      className={`min-w-0 rounded-xl border p-3 text-left transition active:scale-[0.98] ${
         selected
           ? 'border-blue-300 bg-blue-50 shadow-sm'
           : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'
@@ -862,7 +907,7 @@ function StationCard({ station, selected, onClick }) {
             {station.rank}
           </span>
           <div className="min-w-0">
-            <strong className="block min-w-0 break-keep text-xl font-black tracking-tight text-slate-950">{station.name}</strong>
+            <strong className="block min-w-0 break-keep text-lg font-black tracking-tight text-slate-950 sm:text-xl">{station.name}</strong>
           </div>
         </div>
         <div className="shrink-0 text-right">
