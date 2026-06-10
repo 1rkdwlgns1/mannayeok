@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import AddressInput from './components/AddressInput'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
+import OnboardingScreen from './components/OnboardingScreen'
 import PlaceList from './components/PlaceList'
 import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
@@ -80,6 +81,9 @@ function App() {
   const [placeError, setPlaceError] = useState('')
   const [helpTooltipActive, setHelpTooltipActive] = useState(false)
   const [mapCollapsed, setMapCollapsed] = useState(true)
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
+  const onboardingExitTimerRef = useRef(null)
 
   const selectableStations = useMemo(
     () => [...recommendedStations, ...fairStations],
@@ -180,6 +184,15 @@ function App() {
       window.removeEventListener('meetmiddle:help-tooltip-close', handleCloseTooltip)
     }
   }, [])
+
+  useEffect(
+    () => () => {
+      if (onboardingExitTimerRef.current) {
+        window.clearTimeout(onboardingExitTimerRef.current)
+      }
+    },
+    [],
+  )
 
   const handleAddressChange = (index, value) => {
     setOriginInputs((prev) =>
@@ -331,8 +344,21 @@ function App() {
     }
   }
 
+  const handleStartApp = () => {
+    if (isOnboardingLeaving) return
+
+    setIsOnboardingLeaving(true)
+    onboardingExitTimerRef.current = window.setTimeout(() => {
+      setHasStarted(true)
+    }, 560)
+  }
+
+  if (!hasStarted) {
+    return <OnboardingScreen onStart={handleStartApp} isLeaving={isOnboardingLeaving} />
+  }
+
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8">
+    <main className="app-enter min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8">
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
           <header className="relative left-1/2 isolate w-[calc(100vw-8px)] -translate-x-1/2 overflow-hidden bg-[linear-gradient(180deg,#FFFFFF_0%,#FAFBFF_58%,#F8FAFC_100%)]">
@@ -916,9 +942,6 @@ function StationCard({ station, selected, onClick }) {
         <div className="min-w-0">
           <div className="min-w-0">
             <strong className="block min-w-0 break-keep text-base font-black tracking-tight text-slate-950 sm:text-xl">{station.name}</strong>
-            <span className="mt-1 inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-black text-[#5A45E8]">
-              #{station.rank}
-            </span>
           </div>
         </div>
         <div className="shrink-0 text-right">
@@ -995,9 +1018,9 @@ function getCommercialMetricStatus(station) {
   const count = station.hotPlaceCount || 0
   const signal = station.hotPlaceSignal || 0
 
-  if (count >= 145 || signal >= 220) return '매우 좋음'
-  if (count >= 85 || signal >= 140) return '좋음'
-  if (count >= 35 || signal >= 70) return '보통'
+  if (count >= 180 || signal >= 280) return '매우 좋음'
+  if (count >= 140 || signal >= 220) return '좋음'
+  if (count >= 70 || signal >= 120) return '보통'
   return '낮음'
 }
 
@@ -1006,6 +1029,7 @@ function getRecommendationReasons(station, scores, primary = false) {
   const lines = getStationLineLabels(station)
   const linesText = lines.slice(0, 2).join(' · ')
   const hotPlaceCount = station.hotPlaceCount || 0
+  const hotPlaceSignal = station.hotPlaceSignal || 0
 
   if (scores.fairness >= 80) {
     reasons.push('출발지 간 이동 부담이 비교적 비슷해요.')
@@ -1015,10 +1039,12 @@ function getRecommendationReasons(station, scores, primary = false) {
     reasons.push('완전한 중간보다 실제로 만나기 좋은 조건을 우선했어요.')
   }
 
-  if (scores.commercial >= 85 || hotPlaceCount >= 160) {
-    reasons.push(`주변 상권 약 ${hotPlaceCount}곳으로 선택지가 넉넉해요.`)
-  } else if (scores.commercial >= 65 || hotPlaceCount >= 100) {
-    reasons.push('식사와 카페 선택지가 충분한 편이에요.')
+  if (hotPlaceCount >= 180 || hotPlaceSignal >= 280) {
+    reasons.push('식사, 카페, 편의시설 선택지가 넉넉해 약속 장소로 좋아요.')
+  } else if (hotPlaceCount >= 140 || hotPlaceSignal >= 220) {
+    reasons.push('주변 상권이 충분해서 약속 장소를 고르기 좋아요.')
+  } else if (hotPlaceCount >= 70 || hotPlaceSignal >= 120) {
+    reasons.push('기본적인 식사와 카페 선택지는 있는 편이에요.')
   }
 
   if (scores.transit >= 85 && linesText) {

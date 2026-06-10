@@ -30,16 +30,22 @@ export function getOriginLines(origin) {
 
 function getLineCompatibilityScore(originLines, stationLines) {
   const hasDirectLine = originLines.some((line) => stationLines.includes(line))
+
+  if (hasDirectLine) return 20
+
   const minimumTransfers = getMinimumLineTransfers(originLines, stationLines)
 
-  if (minimumTransfers === 0 || hasDirectLine) return 20
+  if (minimumTransfers === null) {
+    if (hasTransferFriendlyLine(originLines, stationLines)) return 8
+    if (stationLines.length >= 3) return -8
+    return -16
+  }
+
+  if (minimumTransfers === 0) return 20
   if (minimumTransfers === 1) return 12
   if (minimumTransfers === 2) return 2
-  if (minimumTransfers >= 3) return -12
-  if (hasTransferFriendlyLine(originLines, stationLines)) return 8
-  if (stationLines.length >= 3) return 2
 
-  return -16
+  return -12
 }
 
 function hasTransferFriendlyLine(originLines, stationLines) {

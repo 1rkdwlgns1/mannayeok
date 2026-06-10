@@ -41,7 +41,7 @@ export const STATION_SCORE_DB = {
   녹사평역: { meetingPlaceScore: 78, middleHubScore: 62 },
   고속터미널역: { meetingPlaceScore: 91, middleHubScore: 100 },
   왕십리역: { meetingPlaceScore: 94, middleHubScore: 98 },
-  신촌역: { meetingPlaceScor용산e: 86, middleHubScore: 71 },
+  신촌역: { meetingPlaceScore: 86, middleHubScore: 71 },
   종각역: { meetingPlaceScore: 82, middleHubScore: 86 },
   광화문역: { meetingPlaceScore: 80, middleHubScore: 85 },
   서울역: { meetingPlaceScore: 88, middleHubScore: 100 },

@@ -305,6 +305,7 @@ export function searchNearbyCafes(center) {
 
 export async function searchRecommendedStations(center, origins = [], limit = 3) {
   const kakao = await loadKakaoMapSdk()
+  const enrichedOrigins = await enrichOriginsWithNearbyStations(origins)
   const candidateMap = new Map()
 
   for (const searchArea of getStationSearchAreas(center)) {
@@ -317,7 +318,7 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
     })
   }
 
-  for (const searchArea of getRouteStationSearchAreas(origins)) {
+  for (const searchArea of getRouteStationSearchAreas(enrichedOrigins)) {
     const candidates = await searchStationCandidates(kakao, searchArea.center, searchArea.radius, center, 'route')
 
     candidates.forEach((station) => {
@@ -339,7 +340,7 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
       })
   }
 
-  const contextualHubCandidates = await searchContextualHubStations(kakao, center, origins)
+  const contextualHubCandidates = await searchContextualHubStations(kakao, center, enrichedOrigins)
 
   contextualHubCandidates.forEach((station) => {
     const existingStation = candidateMap.get(station.id)
@@ -369,7 +370,7 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
 
   const scoredStations = await Promise.all(candidates.map((station) => addStationCounts(kakao, station)))
 
-  return rankMeetingStations(scoredStations, origins, limit)
+  return rankMeetingStations(scoredStations, enrichedOrigins, limit)
 }
 
 export async function getRoadRoutePath(origin, destination) {
