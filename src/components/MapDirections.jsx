@@ -1,4 +1,7 @@
 function MapDirections({ origins, station }) {
+  const directionGridClass =
+    origins.length === 3 ? 'md:grid-cols-3' : origins.length >= 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
+
   return (
     <section id="directions" className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
       <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
@@ -9,7 +12,7 @@ function MapDirections({ origins, station }) {
         <p className="text-xs text-slate-500">지도 앱에서 상세 경로와 환승을 확인해요.</p>
       </div>
 
-      <div className="grid gap-2 md:grid-cols-2">
+      <div className={`grid gap-2 ${directionGridClass}`}>
         {origins.map((origin, index) => (
           <article key={`${origin.address}-${index}`} className="rounded-2xl bg-slate-50 p-2.5 ring-1 ring-slate-100 md:p-3">
             <div className="flex items-center justify-between gap-3">

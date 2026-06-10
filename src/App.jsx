@@ -715,13 +715,14 @@ function ResultTypeCard({
   const Component = onClick ? 'button' : 'div'
   const score = Math.round(station.meetingPlaceScore || 0)
   const scores = getStationDisplayScores(station)
+  const reasons = getRecommendationReasons(station, scores, primary)
 
   if (primary) {
     return (
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-        className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-5 ${
+        className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
         selected ? 'ring-1 ring-violet-100' : ''
         } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
       >
@@ -735,7 +736,7 @@ function ResultTypeCard({
               <StationLineChips station={station} />
             </div>
 
-            <h2 className="mt-4 break-keep text-[28px] font-black tracking-tight text-slate-950 md:text-4xl">
+            <h2 className="mt-3 break-keep text-[28px] font-black tracking-tight text-slate-950 md:text-3xl">
               {station.name}
             </h2>
           </div>
@@ -748,14 +749,26 @@ function ResultTypeCard({
           </div>
         </div>
 
-        <p className="mt-4 text-sm leading-6 text-slate-600 sm:mt-5">
-          {description}
-        </p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            {description}
+          </p>
 
-        <div className="mt-4 grid grid-cols-3 border-t border-slate-100 pt-3 sm:mt-5 sm:pt-4">
-          <MetricSummaryItem icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
-          <MetricSummaryItem icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
-          <MetricSummaryItem icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+          <div className="mt-3 rounded-xl bg-slate-50/80 px-3 py-2.5">
+            <p className="text-[11px] font-black text-slate-400">추천 이유</p>
+            <ul className="mt-1.5 space-y-1">
+              {reasons.map((reason) => (
+                <li key={reason} className="flex gap-1.5 text-xs font-bold leading-5 text-slate-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#5A45E8]" />
+                  <span>{reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 border-t border-slate-100 pt-3">
+            <MetricSummaryItem icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+            <MetricSummaryItem icon="store" label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
+            <MetricSummaryItem icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
         </div>
       </Component>
     )
@@ -773,23 +786,23 @@ function ResultTypeCard({
         <Icon name={eyebrowIcon || 'scales'} className="h-4 w-4" style={{ filter: ICON_TONES.green.filter }} />
         거리 기준 참고역
       </p>
-      <h2 className="mt-3 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
+      <h2 className="mt-3 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-[28px]">
         {station.name}
       </h2>
-      <p className="mt-1 text-2xl font-black leading-none text-slate-300">
+      <p className="mt-1 text-xl font-black leading-none text-slate-300">
         {score}<span className="ml-1 text-sm text-slate-300">/100</span>
       </p>
-      <StationLineChips station={station} className="mt-4" />
+      <StationLineChips station={station} className="mt-3" />
 
-      <div className="mt-4 border-t border-slate-100 pt-3">
+      <div className="mt-3 border-t border-slate-100 pt-3">
         <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
       </div>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-3">
         <p className="text-xs leading-5 text-slate-500">
           이동 거리 균형만 보면 가장 중간에 가까운 역이에요.
         </p>
-        <div className="mt-3 rounded-2xl bg-[#F6F3FF] px-3 py-2 text-xs font-bold leading-5 text-[#8A7BD8]">
+        <div className="mt-2 rounded-xl bg-[#F6F3FF] px-3 py-2 text-xs font-bold leading-5 text-[#8A7BD8]">
           이동 공평성을 비교할 때 참고해보세요.
         </div>
       </div>
@@ -893,19 +906,19 @@ function StationCard({ station, selected, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`min-w-0 rounded-xl border p-4 text-left transition active:scale-[0.98] md:p-3 ${
+      className={`min-w-0 rounded-xl border p-3 text-left transition active:scale-[0.98] md:p-3 ${
         selected
           ? 'border-violet-200 bg-violet-50/40 shadow-sm'
           : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-slate-50'
       }`}
     >
       <div className="flex items-start justify-between gap-1.5">
-        <div className="flex min-w-0 items-start gap-1.5 sm:gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#5A45E8] text-[11px] font-black text-white shadow-sm sm:h-7 sm:w-7 sm:text-xs">
-            {station.rank}
-          </span>
+        <div className="min-w-0">
           <div className="min-w-0">
             <strong className="block min-w-0 break-keep text-base font-black tracking-tight text-slate-950 sm:text-xl">{station.name}</strong>
+            <span className="mt-1 inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-black text-[#5A45E8]">
+              #{station.rank}
+            </span>
           </div>
         </div>
         <div className="shrink-0 text-right">
@@ -916,13 +929,13 @@ function StationCard({ station, selected, onClick }) {
 
       <StationLineChips station={station} className="mt-2.5" />
 
-      <p className="mt-2.5 text-[11px] leading-5 text-slate-500 sm:text-xs">
+      <p className="mt-2 text-[11px] leading-5 text-slate-500 sm:text-xs">
         중간점에서 {formatDistance(station.distanceFromCenter)} · 상권 약 {station.hotPlaceCount}곳
       </p>
 
-      <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40 sm:mt-3">
+      <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
         <MiniMetric icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
-        <MiniMetric icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
+        <MiniMetric icon="store" label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
         <MiniMetric icon="subway" label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
       </div>
     </button>
@@ -972,11 +985,55 @@ function getStarRating(score) {
 }
 
 function getMetricStatus(score) {
-  if (score >= 85) return '매우 우수'
-  if (score >= 70) return '우수'
-  if (score >= 55) return '보통'
-  if (score >= 40) return '아쉬움'
+  if (score >= 85) return '매우 좋음'
+  if (score >= 70) return '좋음'
+  if (score >= 50) return '보통'
   return '낮음'
+}
+
+function getCommercialMetricStatus(station) {
+  const count = station.hotPlaceCount || 0
+  const signal = station.hotPlaceSignal || 0
+
+  if (count >= 145 || signal >= 220) return '매우 좋음'
+  if (count >= 85 || signal >= 140) return '좋음'
+  if (count >= 35 || signal >= 70) return '보통'
+  return '낮음'
+}
+
+function getRecommendationReasons(station, scores, primary = false) {
+  const reasons = []
+  const lines = getStationLineLabels(station)
+  const linesText = lines.slice(0, 2).join(' · ')
+  const hotPlaceCount = station.hotPlaceCount || 0
+
+  if (scores.fairness >= 80) {
+    reasons.push('출발지 간 이동 부담이 비교적 비슷해요.')
+  } else if (scores.fairness >= 55) {
+    reasons.push('거리 균형은 무난하고, 상권과 접근성이 보완돼요.')
+  } else if (primary || scores.commercial >= 70 || scores.transit >= 70) {
+    reasons.push('완전한 중간보다 실제로 만나기 좋은 조건을 우선했어요.')
+  }
+
+  if (scores.commercial >= 85 || hotPlaceCount >= 160) {
+    reasons.push(`주변 상권 약 ${hotPlaceCount}곳으로 선택지가 넉넉해요.`)
+  } else if (scores.commercial >= 65 || hotPlaceCount >= 100) {
+    reasons.push('식사와 카페 선택지가 충분한 편이에요.')
+  }
+
+  if (scores.transit >= 85 && linesText) {
+    reasons.push(`${linesText} 이용이 편리해 접근성이 좋아요.`)
+  } else if (scores.transit >= 65 && linesText) {
+    reasons.push(`${linesText}을 이용할 수 있어 이동이 무난해요.`)
+  } else if (scores.transit >= 65) {
+    reasons.push('주요 노선을 이용할 수 있어 이동이 무난해요.')
+  }
+
+  if (!reasons.length) {
+    reasons.push(primary ? '거리, 상권, 노선 조건을 종합했을 때 가장 적합한 후보예요.' : '이동 거리 공평성을 비교할 때 참고하기 좋아요.')
+  }
+
+  return reasons.slice(0, 3)
 }
 
 function getStationDisplayScores(station) {
