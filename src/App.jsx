@@ -81,6 +81,7 @@ function App() {
   const [placeError, setPlaceError] = useState('')
   const [helpTooltipActive, setHelpTooltipActive] = useState(false)
   const [mapCollapsed, setMapCollapsed] = useState(true)
+  const [alternativeStationsCollapsed, setAlternativeStationsCollapsed] = useState(true)
   const [hasStarted, setHasStarted] = useState(false)
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const onboardingExitTimerRef = useRef(null)
@@ -361,7 +362,12 @@ function App() {
     <main className="app-enter min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8">
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
-          <header className="relative left-1/2 isolate w-[calc(100vw-8px)] -translate-x-1/2 overflow-hidden bg-[linear-gradient(180deg,#FFFFFF_0%,#FAFBFF_58%,#F8FAFC_100%)]">
+          <div className="flex items-center gap-2.5 px-1 py-1 md:px-2 md:py-2">
+            <MeetMiddleLogo />
+            <p className="text-lg font-black tracking-tight text-slate-950">MeetMiddle</p>
+          </div>
+
+          <header className="hidden">
             <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
               <div className="flex items-center gap-2.5">
                 <MeetMiddleLogo />
@@ -392,7 +398,7 @@ function App() {
             </div>
           </header>
 
-          <section id="origin-input" className="relative z-[80] scroll-mt-6 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:-mt-8 md:p-5">
+          <section id="origin-input" className="relative z-[80] scroll-mt-6 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:p-5">
             <AddressInput
               origins={originInputs}
               maxOrigins={MAX_ORIGIN_COUNT}
@@ -408,7 +414,7 @@ function App() {
               type="button"
               onClick={handleCalculate}
               disabled={loading}
-              className="mt-3.5 w-full rounded-2xl bg-[#5A45E8] px-4 py-3.5 text-base font-bold text-white shadow-[0_12px_28px_rgba(90,69,232,0.28)] transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-violet-200 disabled:shadow-none sm:py-4"
+              className="mt-3 w-full rounded-2xl bg-[#5A45E8] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(90,69,232,0.28)] transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-violet-200 disabled:shadow-none sm:mt-3.5 sm:py-4 sm:text-base"
             >
               {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
             </button>
@@ -448,18 +454,41 @@ function App() {
               <section className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-4">
                 <div className="mb-4 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
                   <div>
-                    <h2 className="flex items-center gap-2 text-base font-black text-slate-950">
+                    <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 md:text-base">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-50">
                         <Icon name="trophy" className="h-3.5 w-3.5" style={{ filter: ICON_TONES.amber.filter }} />
                       </span>
                       다른 추천 후보 TOP3
                     </h2>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                    <p className="mt-1 hidden text-xs leading-5 text-slate-500 md:block">
                       탭하면 지도와 길찾기 기준역이 바뀌어요. 각 역의 특성을 비교해보세요.
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setAlternativeStationsCollapsed((collapsed) => !collapsed)}
+                    className="hidden"
+                    aria-expanded={!alternativeStationsCollapsed}
+                  >
+                    <span className="text-xs">{alternativeStationsCollapsed ? '후보 열기' : '후보 접기'}</span>
+                    {alternativeStationsCollapsed ? '후보 열기' : '후보 접기'}
+                  </button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+                  {alternativeStations.map((station, index) => (
+                    <div key={station.id} className="w-[15.5rem] shrink-0">
+                      <StationCard
+                        station={{
+                          ...station,
+                          rank: index + 2,
+                        }}
+                        selected={station.id === selectedStation.id}
+                        onClick={() => handleStationSelect(station.id)}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden gap-3 md:grid md:grid-cols-3">
                   {alternativeStations.map((station, index) => (
                     <StationCard
                       key={station.id}

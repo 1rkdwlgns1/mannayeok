@@ -46,7 +46,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
 
       <div className="my-3 border-t border-[#E5EAF2]" />
 
-      <div className={`grid grid-cols-2 gap-2 md:gap-3 ${originGridClass}`}>
+      <div className={`grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3 ${originGridClass}`}>
         {origins.map((origin, index) => (
           <AddressField
             key={origin.id}
@@ -186,8 +186,8 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
               if (!origin.selected) setOpen(true)
             }}
             placeholder={`${label} 검색`}
-            className={`min-w-0 flex-1 bg-transparent py-0 font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 ${
-              compact ? 'text-sm' : 'text-sm md:text-base'
+            className={`min-w-0 flex-1 bg-transparent py-0 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 ${
+              compact ? 'leading-6' : 'leading-6 md:text-base'
             }`}
           />
         </div>
@@ -212,7 +212,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleSelect(suggestion)}
                 >
-                  <span className="block text-sm font-bold text-slate-950">
+                  <span className="block text-base font-bold text-slate-950 sm:text-sm">
                     {suggestion.roadAddress || suggestion.address}
                   </span>
                   {suggestion.roadAddress ? (
@@ -231,7 +231,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleSelect(suggestion)}
                 >
-                  <span className="block text-sm font-bold text-slate-950">
+                  <span className="block text-base font-bold text-slate-950 sm:text-sm">
                     {suggestion.roadAddress || suggestion.address}
                   </span>
                   {suggestion.roadAddress ? (

@@ -1,56 +1,53 @@
 const TEXT = {
-  badge: '먼저 결과 흐름을 확인해보세요',
-  cta: '추천 시작하기',
+  badge: '약속역 추천',
+  cta: '지금 시작하기',
   featureBalance: '거리 균형',
   featureBalanceText: '모두의 이동 거리가 비슷한 역 추천',
   featureCommercial: '주변 상권',
   featureCommercialText: '카페, 식당, 놀거리가 많은 역 추천',
   featureTransit: '노선 접근성',
   featureTransitText: '환승과 이동이 편한 역 추천',
-  headline: '출발지만 넣으면,',
-  headlineAccent: '만남 후보가 바로 정리돼요',
-  helper: '다음 화면에서 출발지를 입력하고 바로 계산할 수 있어요.',
+  headline: '어디서 만날지 고민 끝,',
+  headlineAccent: '만나기 좋은 역을 찾아드려요',
+  helper: '출발지를 입력하고 바로 계산할 수 있어요.',
   line2: '2호선',
   line5: '5호선',
   lineGyeongui: '경의중앙',
-  previewDescription:
-    '출발지 간 이동 부담이 비슷하고, 주변 장소와 노선 접근성이 함께 좋은 후보입니다.',
+  previewDescription: '출발지 간 이동 부담이 비슷하고, 주변 장소와 노선 접근성이 함께 좋은 후보입니다.',
   previewKicker: '최적 추천역',
   previewReasonTitle: '추천 이유',
   previewScoreLabel: '만남 적합도',
   previewStation: '?? 역',
   scoreUnit: '점',
-  serviceTag: '결과 미리보기',
-  subcopy:
-    '단순한 중간 지점이 아니라 이동 부담, 주변 장소, 노선 접근성을 함께 본 추천 결과를 보여드립니다.',
+  serviceTag: '서비스 소개',
+  subcopy: '거리 균형, 주변 상권, 노선 접근성까지 고려해 모두에게 부담 적은 약속역을 추천해드려요.',
 }
 
 const FEATURE_ITEMS = [
   {
     icon: '/phosphor-icons/users-three-fill.svg',
+    iconFilter: 'invert(35%) sepia(90%) saturate(1798%) hue-rotate(220deg) brightness(97%) contrast(96%)',
     label: TEXT.featureBalance,
     text: TEXT.featureBalanceText,
     tone: 'bg-sky-50 text-sky-700',
   },
   {
     icon: '/phosphor-icons/storefront-fill.svg',
+    iconFilter: 'invert(36%) sepia(88%) saturate(1784%) hue-rotate(234deg) brightness(94%) contrast(95%)',
     label: TEXT.featureCommercial,
     text: TEXT.featureCommercialText,
     tone: 'bg-violet-50 text-[#5A45E8]',
   },
   {
     icon: '/phosphor-icons/subway-fill.svg',
+    iconFilter: 'invert(49%) sepia(88%) saturate(472%) hue-rotate(105deg) brightness(91%) contrast(88%)',
     label: TEXT.featureTransit,
     text: TEXT.featureTransitText,
     tone: 'bg-emerald-50 text-emerald-700',
   },
 ]
 
-const PREVIEW_REASONS = [
-  '이동 부담이 비슷해요',
-  '근처 장소가 충분해요',
-  '환승 흐름이 편해요',
-]
+const PREVIEW_REASONS = ['이동 부담이 비슷해요', '근처 장소가 충분해요', '환승 흐름이 편해요']
 
 function OnboardingScreen({ onStart, isLeaving = false }) {
   return (
@@ -150,7 +147,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               <div key={item.label} className="hero-feature-card rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${item.tone}`}>
-                    <img src={item.icon} alt="" className="h-4 w-4" />
+                    <img src={item.icon} alt="" className="h-4 w-4" style={{ filter: item.iconFilter }} />
                   </span>
                   <div>
                     <h3 className="text-sm font-black text-slate-950">{item.label}</h3>
