@@ -9,10 +9,12 @@ const ORIGIN_LABELS = ['출발지 A', '출발지 B', '출발지 C', '출발지 D
 function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, onRemoveOrigin, onReset, onSelect }) {
   const canAddOrigin = origins.length < maxOrigins
   const canRemoveOrigin = origins.length > minOrigins
+  const compactOrigins = origins.length >= 3
+  const originGridClass = origins.length === 3 ? 'lg:grid-cols-3' : origins.length >= 4 ? 'lg:grid-cols-4' : ''
 
   return (
     <div>
-      <div className="mb-3 flex items-start justify-between gap-3 sm:items-end sm:mb-3.5">
+      <div className="flex items-start justify-between gap-3 sm:items-center">
         <div>
           <h2 className="text-lg font-black text-slate-950 sm:text-lg">출발지 입력</h2>
           <p className="mt-1 hidden text-sm text-slate-500 sm:block">각자의 출발지를 검색해서 선택해주세요.</p>
@@ -22,7 +24,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
             <button
               type="button"
               onClick={onAddOrigin}
-              className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-[#3182F6] ring-1 ring-blue-100 transition hover:bg-blue-100 active:scale-[0.98] sm:px-3 sm:text-xs"
+              className="inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-full bg-violet-50 px-3 text-xs font-bold text-[#5A45E8] ring-1 ring-violet-100 transition hover:bg-violet-100 active:scale-[0.98]"
             >
               <span className="sm:hidden">인원 +</span>
               <span className="hidden sm:inline">+ 인원 추가</span>
@@ -31,22 +33,25 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
           <button
             type="button"
             onClick={onReset}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-500 ring-1 ring-rose-100 transition hover:bg-rose-100 active:scale-[0.98] sm:px-3 sm:text-xs"
+            className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-rose-50 px-3 text-xs font-bold text-rose-500 ring-1 ring-rose-100 transition hover:bg-rose-100 active:scale-[0.98]"
           >
             <span aria-hidden="true">↻</span>
             초기화
           </button>
-          <span className="hidden rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#3182F6] sm:inline-flex">
+          <span className="hidden h-8 items-center rounded-full bg-violet-50 px-3 text-xs font-bold text-[#5A45E8] sm:inline-flex">
             {origins.length}명 기준
           </span>
         </div>
       </div>
 
-      <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
+      <div className="my-3 border-t border-[#E5EAF2]" />
+
+      <div className={`grid grid-cols-2 gap-2 md:gap-3 ${originGridClass}`}>
         {origins.map((origin, index) => (
           <AddressField
             key={origin.id}
             canRemove={canRemoveOrigin}
+            compact={compactOrigins}
             origin={origin}
             index={index}
             label={ORIGIN_LABELS[index] || `출발지 ${index + 1}`}
@@ -60,7 +65,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
   )
 }
 
-function AddressField({ canRemove, origin, index, label, onChange, onRemove, onSelect }) {
+function AddressField({ canRemove, compact = false, origin, index, label, onChange, onRemove, onSelect }) {
   const [suggestions, setSuggestions] = useState([])
   const [recentOrigins, setRecentOrigins] = useState(() => getRecentOrigins())
   const [loading, setLoading] = useState(false)
@@ -133,11 +138,13 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
   return (
     <div ref={fieldRef} className="relative">
       <div
-        className={`block rounded-2xl border bg-slate-50 px-3 py-2 transition sm:py-2.5 ${
+        className={`block rounded-xl border bg-slate-50 px-3 transition md:rounded-2xl ${
+          compact ? 'py-1.5' : 'py-1.5 md:py-2'
+        } ${
           origin.selected ? `${theme.selectedBorder} ${theme.selectedBg} shadow-sm` : 'border-slate-100'
         }`}
       >
-        <span className="mb-1.5 flex items-center justify-between gap-2">
+        <span className={`${compact ? 'mb-1' : 'mb-1.5'} flex items-center justify-between gap-2`}>
           <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500">
             <span
               className={`h-1.5 w-1.5 shrink-0 rounded-full ${origin.selected ? theme.solidBg : 'bg-slate-300'}`}
@@ -155,7 +162,7 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
                   event.preventDefault()
                   onRemove(index)
                 }}
-                className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-400 transition hover:text-red-500"
+                className="min-h-8 rounded-full bg-white px-2 text-xs font-bold text-slate-400 transition hover:text-red-500"
               >
                 삭제
               </button>
@@ -179,7 +186,9 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
               if (!origin.selected) setOpen(true)
             }}
             placeholder={`${label} 검색`}
-            className="min-w-0 flex-1 bg-transparent py-0.5 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400"
+            className={`min-w-0 flex-1 bg-transparent py-0 font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 ${
+              compact ? 'text-sm' : 'text-sm md:text-base'
+            }`}
           />
         </div>
       </div>
@@ -199,7 +208,7 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
                 <button
                   key={suggestion.id}
                   type="button"
-                  className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-blue-50"
+                  className="block min-h-11 w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-violet-50"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleSelect(suggestion)}
                 >
@@ -218,7 +227,7 @@ function AddressField({ canRemove, origin, index, label, onChange, onRemove, onS
                 <button
                   key={suggestion.id}
                   type="button"
-                  className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-blue-50"
+                  className="block min-h-11 w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-violet-50"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleSelect(suggestion)}
                 >
@@ -287,7 +296,7 @@ function shouldShowBroadKeywordHint(query, suggestions) {
 function getOriginTheme(index) {
   if (index === 1) {
     return {
-      selectedBg: 'bg-slate-50',
+      selectedBg: 'bg-green-50/30',
       selectedBorder: 'border-green-200',
       solidBg: 'bg-[#00A84D]',
       text: 'text-[#00A84D]',
@@ -296,7 +305,7 @@ function getOriginTheme(index) {
 
   if (index === 2) {
     return {
-      selectedBg: 'bg-slate-50',
+      selectedBg: 'bg-yellow-50/30',
       selectedBorder: 'border-yellow-200',
       solidBg: 'bg-yellow-400',
       text: 'text-yellow-600',
@@ -305,7 +314,7 @@ function getOriginTheme(index) {
 
   if (index === 3) {
     return {
-      selectedBg: 'bg-slate-50',
+      selectedBg: 'bg-purple-50/30',
       selectedBorder: 'border-purple-200',
       solidBg: 'bg-purple-500',
       text: 'text-purple-600',
@@ -313,10 +322,10 @@ function getOriginTheme(index) {
   }
 
   return {
-    selectedBg: 'bg-slate-50',
-    selectedBorder: 'border-blue-200',
-    solidBg: 'bg-[#3182F6]',
-    text: 'text-[#3182F6]',
+    selectedBg: 'bg-violet-50/30',
+    selectedBorder: 'border-violet-200',
+    solidBg: 'bg-[#5A45E8]',
+    text: 'text-[#5A45E8]',
   }
 }
 

@@ -2,7 +2,7 @@ function TransitRoutes({ station, transitSummary, loading, error }) {
   return (
     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="mb-4">
-        <p className="text-sm font-semibold text-[#3182F6]">어떻게 가나요?</p>
+        <p className="text-sm font-semibold text-[#5A45E8]">어떻게 가나요?</p>
         <h2 className="mt-1 text-lg font-semibold text-slate-900">{station.name}까지 가는 길</h2>
       </div>
 

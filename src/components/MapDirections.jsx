@@ -3,7 +3,7 @@ function MapDirections({ origins, station }) {
     <section id="directions" className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
       <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-bold text-[#3182F6]">어떻게 가나요?</p>
+          <p className="text-sm font-bold text-[#5A45E8]">어떻게 가나요?</p>
           <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950 md:text-xl">{station.name}까지 가는 길</h2>
         </div>
         <p className="text-xs text-slate-500">지도 앱에서 상세 경로와 환승을 확인해요.</p>
@@ -27,7 +27,7 @@ function MapDirections({ origins, station }) {
                 href={createKakaoDirectionUrl(origin, station)}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl bg-[#3182F6] px-3 py-2 text-center text-sm font-bold text-white shadow-sm transition active:scale-[0.98] md:py-2.5"
+                className="rounded-xl bg-[#5A45E8] px-3 py-2 text-center text-sm font-bold text-white shadow-sm transition active:scale-[0.98] md:py-2.5"
               >
                 카카오맵
               </a>

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { getRoadRoutePath, loadKakaoMapSdk } from '../services/kakaoApi'
 
-const ORIGIN_COLORS = ['#3182F6', '#00A84D', '#EAB308', '#8B5CF6']
+const ORIGIN_COLORS = ['#5A45E8', '#00A84D', '#EAB308', '#8B5CF6']
 const STATION_COLORS = ['#F97316', '#8B5CF6', '#06B6D4']
 
 function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {

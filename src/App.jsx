@@ -30,9 +30,9 @@ const ICONS = {
 
 const ICON_TONES = {
   blue: {
-    bg: 'bg-blue-50',
-    badge: 'bg-blue-50 text-[#3658F5]',
-    filter: 'invert(40%) sepia(92%) saturate(1711%) hue-rotate(214deg) brightness(100%) contrast(93%)',
+    bg: 'bg-violet-50',
+    badge: 'bg-violet-50 text-[#5A45E8]',
+    filter: 'invert(36%) sepia(88%) saturate(1784%) hue-rotate(234deg) brightness(94%) contrast(95%)',
   },
   purple: {
     bg: 'bg-violet-50',
@@ -79,7 +79,7 @@ function App() {
   const [error, setError] = useState('')
   const [placeError, setPlaceError] = useState('')
   const [helpTooltipActive, setHelpTooltipActive] = useState(false)
-  const [mapCollapsed, setMapCollapsed] = useState(false)
+  const [mapCollapsed, setMapCollapsed] = useState(true)
 
   const selectableStations = useMemo(
     () => [...recommendedStations, ...fairStations],
@@ -332,23 +332,21 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F8FA] px-2.5 py-3 md:px-6 md:py-8">
+    <main className="min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8">
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
-          <header className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-            <div className="flex items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
+          <header className="relative left-1/2 isolate w-[calc(100vw-8px)] -translate-x-1/2 overflow-hidden bg-[linear-gradient(180deg,#FFFFFF_0%,#FAFBFF_58%,#F8FAFC_100%)]">
+            <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
               <div className="flex items-center gap-2.5">
                 <MeetMiddleLogo />
                 <p className="text-lg font-black tracking-tight text-slate-950">MeetMiddle</p>
               </div>
-              <div className="hidden items-center gap-3 text-xs font-bold text-slate-500 sm:flex">
-                <span>사용법</span>
-                <span>즐겨찾기</span>
-              </div>
             </div>
 
-            <div className="relative isolate overflow-hidden bg-[linear-gradient(135deg,#F9FBFF_0%,#EEF4FF_58%,#F8FBFF_100%)] px-4 py-5 md:px-8 md:py-8">
-              <div className="absolute right-8 top-4 hidden h-px w-56 rotate-[-38deg] bg-blue-100 md:block" />
+            <div className="relative mx-auto w-full max-w-4xl px-5 pb-9 pt-5 md:px-8 md:pb-12 md:pt-8">
+              <div className="absolute right-4 top-2 hidden h-px w-64 rotate-[-38deg] bg-violet-100 md:block" />
+              <div className="absolute -right-8 bottom-8 hidden h-44 w-44 rounded-full border-[12px] border-white/70 md:block" />
+              <div className="absolute right-10 bottom-20 hidden h-px w-64 rotate-[-38deg] bg-indigo-100 md:block" />
               <div className="relative grid items-center gap-5 lg:grid-cols-[1fr_1.05fr]">
                 <div className="min-w-0">
                   <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-black text-[#5A45E8] shadow-sm ring-1 ring-indigo-100">
@@ -368,7 +366,7 @@ function App() {
             </div>
           </header>
 
-          <section id="origin-input" className="relative z-[80] scroll-mt-6 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:-mt-4 md:p-5">
+          <section id="origin-input" className="relative z-[80] scroll-mt-6 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:-mt-8 md:p-5">
             <AddressInput
               origins={originInputs}
               maxOrigins={MAX_ORIGIN_COUNT}
@@ -384,7 +382,7 @@ function App() {
               type="button"
               onClick={handleCalculate}
               disabled={loading}
-              className="mt-3.5 w-full rounded-2xl bg-[#3182F6] px-4 py-3.5 text-base font-bold text-white shadow-[0_12px_28px_rgba(49,130,246,0.28)] transition hover:bg-blue-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-blue-200 disabled:shadow-none sm:py-4"
+              className="mt-3.5 w-full rounded-2xl bg-[#5A45E8] px-4 py-3.5 text-base font-bold text-white shadow-[0_12px_28px_rgba(90,69,232,0.28)] transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-violet-200 disabled:shadow-none sm:py-4"
             >
               {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
             </button>
@@ -396,7 +394,7 @@ function App() {
         {showResults ? (
           <>
             {primaryStation ? (
-              <section className={`relative grid items-start gap-3 lg:grid-cols-[1.2fr_0.8fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
+              <section className={`relative grid items-stretch gap-3 lg:grid-cols-[1.08fr_0.92fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
                 <ResultTypeCard
                   eyebrow="가장 만나기 좋은 장소"
                   eyebrowIcon="trophy"
@@ -451,13 +449,13 @@ function App() {
               </section>
             ) : null}
 
-            <section className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-base font-bold text-slate-950 md:text-lg">지도에서 보기</h2>
+            <section className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:p-4">
+              <div className={`${mapCollapsed ? '' : 'mb-3'} flex items-center justify-between gap-3`}>
+                <h2 className="text-base font-bold text-slate-950">지도에서 보기</h2>
                 <button
                   type="button"
                   onClick={() => setMapCollapsed((collapsed) => !collapsed)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#3182F6]"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-[#5A45E8]"
                   aria-expanded={!mapCollapsed}
                 >
                   {mapCollapsed ? '지도 열기' : '지도 접기'}
@@ -473,7 +471,7 @@ function App() {
             <section id="places" className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
               <div className="space-y-3.5 md:space-y-4">
                 <div>
-                  <p className="text-sm font-bold text-[#3182F6]">추천 만남 장소</p>
+                  <p className="text-sm font-bold text-[#5A45E8]">추천 만남 장소</p>
                   <h2 className="mt-1 text-xl font-black text-slate-950 md:text-2xl">
                     {selectedStation.name} 근처 장소 추천
                   </h2>
@@ -486,7 +484,7 @@ function App() {
                       type="button"
                       onClick={() => handlePlaceRecommendation(category)}
                       disabled={placeLoading}
-                      className={`rounded-xl px-1.5 py-2 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-2.5 sm:text-sm ${
+                      className={`min-h-11 rounded-xl px-1.5 py-2 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-2.5 sm:text-sm ${
                         selectedPlaceCategory === category
                           ? 'bg-white text-slate-950 shadow-sm'
                           : 'text-slate-500'
@@ -522,8 +520,8 @@ function App() {
           </>
         ) : (
           <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
-              <div className="h-5 w-5 rounded-full border-4 border-[#3182F6] bg-white shadow-sm" />
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-violet-50">
+              <div className="h-5 w-5 rounded-full border-4 border-[#5A45E8] bg-white shadow-sm" />
             </div>
             <h2 className="text-base font-black text-slate-950">어디서 만날까요?</h2>
             <p className="mx-auto mt-1.5 max-w-md text-sm leading-6 text-slate-500">
@@ -542,11 +540,11 @@ function Icon({ name, className = 'h-5 w-5', alt = '', style }) {
 
 function MeetMiddleLogo() {
   return (
-    <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[#3182F6] shadow-sm ring-1 ring-blue-200">
+    <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[#5A45E8] shadow-sm ring-1 ring-violet-200">
       <span className="absolute h-4 w-4 rounded-full bg-white/95" />
-      <span className="absolute left-1.5 h-2 w-2 rounded-full bg-[#3182F6]" />
+      <span className="absolute left-1.5 h-2 w-2 rounded-full bg-[#5A45E8]" />
       <span className="absolute right-1.5 h-2 w-2 rounded-full bg-[#00A84D] ring-1 ring-white" />
-      <span className="absolute h-px w-5 bg-blue-100" />
+      <span className="absolute h-px w-5 bg-violet-100" />
     </span>
   )
 }
@@ -594,8 +592,8 @@ function HeroFeatureCard({ icon, tone = 'blue', title, description }) {
   const iconTone = toneMap[tone] || ICON_TONES.blue
 
   return (
-    <div className="rounded-xl border border-white/80 bg-white/86 p-2.5 text-center shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur sm:rounded-2xl sm:p-4">
-      <span className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full ${iconTone.bg} sm:h-11 sm:w-11`}>
+    <div className="rounded-xl border border-white/80 bg-white/86 p-3 text-center shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur sm:rounded-2xl sm:p-4">
+      <span className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full ${iconTone.bg} sm:h-11 sm:w-11`}>
         <Icon name={icon} className="h-4 w-4 sm:h-5 sm:w-5" style={{ filter: iconTone.filter }} />
       </span>
       <h2 className="mt-2 text-xs font-black text-slate-950 sm:mt-3 sm:text-sm">{title}</h2>
@@ -723,9 +721,9 @@ function ResultTypeCard({
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-        className={`w-full rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-6 ${
-          selected ? 'ring-2 ring-blue-200' : ''
-        } ${onClick ? 'cursor-pointer hover:border-blue-200' : ''}`}
+        className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-5 ${
+        selected ? 'ring-1 ring-violet-100' : ''
+        } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -737,18 +735,16 @@ function ResultTypeCard({
               <StationLineChips station={station} />
             </div>
 
-            <h2 className="mt-4 break-keep text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
+            <h2 className="mt-4 break-keep text-[28px] font-black tracking-tight text-slate-950 md:text-4xl">
               {station.name}
             </h2>
-            <StarRating score={score} compact />
           </div>
 
-          <div className="w-24 shrink-0 rounded-xl bg-[#F1F0FA] px-2.5 py-2 text-center sm:w-36 sm:rounded-2xl sm:px-4 sm:py-3">
+          <div className="shrink-0 text-right">
             <p className="text-xs font-black text-slate-400">만남 적합도</p>
-            <p className="mt-1 leading-none">
-              <strong className="text-3xl font-black text-[#5A45E8] sm:text-4xl">{score}</strong>
+            <p className="mt-1 text-2xl font-black leading-none text-[#5A45E8] md:text-3xl">
+              {score}<span className="ml-1 text-sm font-black text-slate-400">점</span>
             </p>
-            <p className="mt-0.5 text-xs font-black text-slate-400 sm:text-sm">/100점</p>
           </div>
         </div>
 
@@ -769,7 +765,7 @@ function ResultTypeCard({
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`w-full rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-5 ${
+      className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
         selected ? 'ring-2 ring-emerald-100' : ''
       } ${onClick ? 'cursor-pointer hover:border-emerald-200' : ''}`}
     >
@@ -777,7 +773,7 @@ function ResultTypeCard({
         <Icon name={eyebrowIcon || 'scales'} className="h-4 w-4" style={{ filter: ICON_TONES.green.filter }} />
         거리 기준 참고역
       </p>
-      <h2 className="mt-4 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
+      <h2 className="mt-3 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
         {station.name}
       </h2>
       <p className="mt-1 text-2xl font-black leading-none text-slate-300">
@@ -789,11 +785,13 @@ function ResultTypeCard({
         <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
       </div>
 
-      <p className="mt-3 text-xs leading-5 text-slate-500">
-        이동 거리 균형만 보면 가장 중간에 가까운 역이에요.
-      </p>
-      <div className="mt-3 rounded-2xl bg-[#F6F3FF] px-3 py-2 text-xs font-bold leading-5 text-[#8A7BD8]">
-        이동 공평성을 비교할 때 참고해보세요.
+      <div className="mt-auto pt-4">
+        <p className="text-xs leading-5 text-slate-500">
+          이동 거리 균형만 보면 가장 중간에 가까운 역이에요.
+        </p>
+        <div className="mt-3 rounded-2xl bg-[#F6F3FF] px-3 py-2 text-xs font-bold leading-5 text-[#8A7BD8]">
+          이동 공평성을 비교할 때 참고해보세요.
+        </div>
       </div>
     </Component>
   )
@@ -895,34 +893,34 @@ function StationCard({ station, selected, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`min-w-0 rounded-xl border p-3 text-left transition active:scale-[0.98] ${
+      className={`min-w-0 rounded-xl border p-4 text-left transition active:scale-[0.98] md:p-3 ${
         selected
-          ? 'border-blue-300 bg-blue-50 shadow-sm'
-          : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'
+          ? 'border-violet-200 bg-violet-50/40 shadow-sm'
+          : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-slate-50'
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#5A45E8] text-sm font-black text-white shadow-sm">
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="flex min-w-0 items-start gap-1.5 sm:gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#5A45E8] text-[11px] font-black text-white shadow-sm sm:h-7 sm:w-7 sm:text-xs">
             {station.rank}
           </span>
           <div className="min-w-0">
-            <strong className="block min-w-0 break-keep text-lg font-black tracking-tight text-slate-950 sm:text-xl">{station.name}</strong>
+            <strong className="block min-w-0 break-keep text-base font-black tracking-tight text-slate-950 sm:text-xl">{station.name}</strong>
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <StarRating score={meetingScore} tiny />
-          <p className="mt-1 text-xs font-black text-slate-500">{meetingScore}점</p>
+          <p className="text-[11px] font-bold text-slate-400">만남 적합도</p>
+          <p className="mt-0.5 text-sm font-black text-[#5A45E8]">{meetingScore}점</p>
         </div>
       </div>
 
-      <StationLineChips station={station} className="mt-3" />
+      <StationLineChips station={station} className="mt-2.5" />
 
-      <p className="mt-3 text-xs leading-5 text-slate-500">
+      <p className="mt-2.5 text-[11px] leading-5 text-slate-500 sm:text-xs">
         중간점에서 {formatDistance(station.distanceFromCenter)} · 상권 약 {station.hotPlaceCount}곳
       </p>
 
-      <div className="mt-3 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
+      <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40 sm:mt-3">
         <MiniMetric icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
         <MiniMetric icon="store" label="주변 상권" value={getMetricStatus(scores.commercial)} tone="purple" />
         <MiniMetric icon="subway" label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
@@ -936,11 +934,11 @@ function MiniMetric({ icon, label, value, tone = 'blue' }) {
 
   return (
     <div className="min-w-0 border-r border-slate-100 bg-white/50 px-1.5 py-2 text-center last:border-r-0">
-      <p className="flex items-center justify-center gap-1 truncate text-[10px] font-bold text-slate-500">
+      <p className="flex items-center justify-center gap-1 truncate text-[11px] font-bold text-slate-500">
         <Icon name={icon} className="h-3 w-3 shrink-0" style={{ filter: iconTone.filter }} />
         {label}
       </p>
-      <p className={`mt-1 text-xs font-black sm:text-sm ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>
+      <p className={`mt-0.5 text-[11px] font-black sm:mt-1 sm:text-sm ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>
         {value}
       </p>
     </div>

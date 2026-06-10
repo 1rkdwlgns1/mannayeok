@@ -4,7 +4,7 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
       <section className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-[#3182F6]">거리 비교</p>
+            <p className="text-sm font-bold text-[#5A45E8]">거리 비교</p>
             <h2 className="mt-1 text-lg font-black text-slate-950">출발지별 직선거리</h2>
           </div>
           <p className="text-xs text-slate-500">실제 이동시간은 지도 앱 기준</p>
@@ -37,7 +37,7 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
           {places.map((place) => (
             <li
               key={place.id}
-              className="group rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.03)] transition hover:border-blue-100 hover:shadow-[0_14px_30px_rgba(49,130,246,0.09)]"
+              className="group rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.03)] transition hover:border-violet-100 hover:shadow-[0_14px_30px_rgba(90,69,232,0.09)]"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -56,7 +56,7 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
                       {place.categoryLabel || '장소'}
                     </span>
-                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#3182F6]">
+                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-[#5A45E8]">
                       {formatDistance(place.distance)}
                     </span>
                   </div>
@@ -68,7 +68,7 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
                   href={createNaverPlaceSearchUrl(place)}
                   target="_blank"
                   rel="noreferrer"
-                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:border-[#3182F6] hover:text-[#3182F6] active:scale-[0.98]"
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:border-[#5A45E8] hover:text-[#5A45E8] active:scale-[0.98]"
                 >
                   지도보기
                 </a>
