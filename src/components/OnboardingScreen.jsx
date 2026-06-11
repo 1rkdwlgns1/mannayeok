@@ -1,170 +1,215 @@
-const TEXT = {
-  badge: '약속역 추천',
-  cta: '지금 시작하기',
-  featureBalance: '거리 균형',
-  featureBalanceText: '모두의 이동 거리가 비슷한 역 추천',
-  featureCommercial: '주변 상권',
-  featureCommercialText: '카페, 식당, 놀거리가 많은 역 추천',
-  featureTransit: '노선 접근성',
-  featureTransitText: '환승과 이동이 편한 역 추천',
-  headline: '어디서 만날지 고민 끝,',
-  headlineAccent: '만나기 좋은 역을 찾아드려요',
-  helper: '출발지를 입력하고 바로 계산할 수 있어요.',
-  line2: '2호선',
-  line5: '5호선',
-  lineGyeongui: '경의중앙',
-  previewDescription: '출발지 간 이동 부담이 비슷하고, 주변 장소와 노선 접근성이 함께 좋은 후보입니다.',
-  previewKicker: '최적 추천역',
-  previewReasonTitle: '추천 이유',
-  previewScoreLabel: '만남 적합도',
-  previewStation: '?? 역',
-  scoreUnit: '점',
-  serviceTag: '서비스 소개',
-  subcopy: '거리 균형, 주변 상권, 노선 접근성까지 고려해 모두에게 부담 적은 약속역을 추천해드려요.',
-}
+import { motion } from 'framer-motion'
+import backgroundImage from '../assets/background.png'
+import logoImage from '../assets/rogo.png'
 
-const FEATURE_ITEMS = [
+const TRUST_ITEMS = [
   {
-    icon: '/phosphor-icons/users-three-fill.svg',
-    iconFilter: 'invert(35%) sepia(90%) saturate(1798%) hue-rotate(220deg) brightness(97%) contrast(96%)',
-    label: TEXT.featureBalance,
-    text: TEXT.featureBalanceText,
-    tone: 'bg-sky-50 text-sky-700',
+    icon: '/phosphor-icons/subway-fill.svg',
+    label: '이동 부담 최소화',
+    text: '모두에게 공평한 거리의 장소 추천',
   },
   {
     icon: '/phosphor-icons/storefront-fill.svg',
-    iconFilter: 'invert(36%) sepia(88%) saturate(1784%) hue-rotate(234deg) brightness(94%) contrast(95%)',
-    label: TEXT.featureCommercial,
-    text: TEXT.featureCommercialText,
-    tone: 'bg-violet-50 text-[#5A45E8]',
+    label: '주변 상권 분석',
+    text: '카페, 식당 등 편의시설까지 고려',
   },
   {
-    icon: '/phosphor-icons/subway-fill.svg',
-    iconFilter: 'invert(49%) sepia(88%) saturate(472%) hue-rotate(105deg) brightness(91%) contrast(88%)',
-    label: TEXT.featureTransit,
-    text: TEXT.featureTransitText,
-    tone: 'bg-emerald-50 text-emerald-700',
+    icon: '/phosphor-icons/users-three-fill.svg',
+    label: '실제 만나기 좋은 곳',
+    text: '약속하기 좋은 장소만 추천',
   },
 ]
 
-const PREVIEW_REASONS = ['이동 부담이 비슷해요', '근처 장소가 충분해요', '환승 흐름이 편해요']
+const REASON_CHIPS = ['거리 균형 우수', '상권 좋음', '환승 편리']
+const ICON_FILTER = 'invert(36%) sepia(88%) saturate(1784%) hue-rotate(234deg) brightness(94%) contrast(95%)'
+const EASE_OUT = [0.22, 1, 0.36, 1]
+
+const fadeIn = (delay = 0, duration = 0.5) => ({
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: { delay, duration, ease: EASE_OUT },
+})
+
+const riseIn = (delay = 0, duration = 0.55) => ({
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay, duration, ease: EASE_OUT },
+})
 
 function OnboardingScreen({ onStart, isLeaving = false }) {
   return (
     <main
-      className={`onboarding-screen min-h-screen overflow-hidden bg-[#F8FAFC] px-3 py-4 text-slate-950 md:px-6 md:py-8 ${
+      className={`onboarding-screen min-h-screen overflow-hidden bg-[#F8FAFC] text-slate-950 ${
         isLeaving ? 'is-leaving' : ''
       }`}
+      style={{
+        backgroundImage: `linear-gradient(180deg, rgba(248,250,252,0.80) 0%, rgba(248,250,252,0.54) 50%, rgba(248,250,252,0.86) 100%), url(${backgroundImage})`,
+        backgroundPosition: 'center bottom',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+      }}
     >
-      <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-5xl flex-col">
-        <header className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#5A45E8] shadow-[0_10px_24px_rgba(90,69,232,0.24)]">
-              <span className="text-sm font-black text-white">M</span>
-            </div>
-            <span className="text-lg font-black tracking-tight">MeetMiddle</span>
-          </div>
-          <span className="hidden rounded-full bg-white px-3 py-1 text-xs font-black text-[#5A45E8] shadow-sm ring-1 ring-violet-100 sm:inline-flex">
-            {TEXT.serviceTag}
-          </span>
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5 md:px-8 md:py-7">
+        <header className="flex items-center justify-between">
+          <motion.div {...fadeIn(0, 0.5)}>
+            <LogoMark className="h-20 w-52 md:h-24 md:w-64" />
+          </motion.div>
         </header>
 
-        <section className="flex flex-1 flex-col justify-center gap-8 py-8 md:py-10">
-          <div className="grid items-center gap-7 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="max-w-xl">
-              <p className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-[#5A45E8] shadow-sm ring-1 ring-violet-100">
-                {TEXT.badge}
-              </p>
-              <h1 className="mt-5 text-[34px] font-black leading-tight tracking-tight text-slate-950 sm:text-5xl lg:text-[54px]">
-                {TEXT.headline}
-                <span className="block text-[#5A45E8]">{TEXT.headlineAccent}</span>
-              </h1>
-              <p className="mt-5 max-w-lg text-base leading-7 text-slate-600 sm:text-lg">{TEXT.subcopy}</p>
+        <section className="flex flex-1 flex-col items-center justify-center gap-6 pb-5 pt-5 text-center md:gap-7 md:pt-2">
+          <motion.div className="max-w-3xl" {...riseIn(0.4, 0.55)}>
+            <p className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-[#5A45E8] shadow-sm ring-1 ring-violet-100">
+              <img src="/phosphor-icons/subway-fill.svg" alt="" className="h-4 w-4" style={{ filter: ICON_FILTER }} />
+              약속 장소 추천 서비스
+            </p>
 
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={onStart}
-                  disabled={isLeaving}
-                  className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#5A45E8] px-6 text-base font-black text-white shadow-[0_12px_28px_rgba(90,69,232,0.28)] transition hover:-translate-y-0.5 hover:bg-[#4938D1] active:translate-y-0 disabled:cursor-wait disabled:bg-violet-300"
+            <h1 className="mt-5 text-[36px] font-black leading-tight tracking-tight text-slate-950 sm:text-5xl lg:text-[58px]">
+              여기서 만나, <span className="text-[#5A45E8]">역!</span>
+              <span className="block text-[28px] sm:text-4xl lg:text-[44px]">
+                약속 장소 고민, <span className="text-[#5A45E8]">3초 만에 끝.</span>
+              </span>
+            </h1>
+
+            <p className="mx-auto mt-4 max-w-xl text-base font-bold leading-7 text-slate-600 sm:text-lg">
+              출발지만 입력하면 모두가 부담 적은 만나기 좋은 약속 장소를 추천해드려요.
+            </p>
+
+            <motion.button
+              type="button"
+              onClick={onStart}
+              disabled={isLeaving}
+              className="mt-6 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#5A45E8] px-7 text-base font-black text-white shadow-[0_14px_34px_rgba(90,69,232,0.30)] transition hover:-translate-y-0.5 hover:bg-[#4938D1] active:translate-y-0 disabled:cursor-wait disabled:bg-violet-300 sm:min-h-14"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 3.4, duration: 0.4, ease: EASE_OUT }}
+            >
+              입력하러 가기
+              <img src="/phosphor-icons/arrow-right.svg" alt="" className="h-4 w-4 invert" />
+            </motion.button>
+          </motion.div>
+
+          <div className="relative w-full max-w-4xl">
+            <div className="mx-auto">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4">
+                <motion.div
+                  initial={{ opacity: 0, x: -26 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.8, duration: 0.55, ease: EASE_OUT }}
                 >
-                  {TEXT.cta}
-                  <img src="/phosphor-icons/arrow-right.svg" alt="" className="h-4 w-4 invert" />
-                </button>
-                <p className="text-sm font-bold leading-6 text-slate-500">{TEXT.helper}</p>
-              </div>
-            </div>
+                  <StationPill label="노원역" />
+                </motion.div>
 
-            <div className="hero-preview-card rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5A45E8] px-3 py-1.5 text-xs font-black text-white shadow-sm">
-                    <img
-                      src="/phosphor-icons/trophy-fill.svg"
-                      alt=""
-                      className="h-3.5 w-3.5 brightness-0 invert"
-                    />
-                    {TEXT.previewKicker}
-                  </span>
-                  <h2 className="mt-4 text-[30px] font-black tracking-tight text-slate-950 md:text-4xl">
-                    {TEXT.previewStation}
-                  </h2>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <LineChip label={TEXT.line2} tone="border-emerald-200 bg-emerald-50 text-[#4DA463]" />
-                    <LineChip label={TEXT.line5} tone="border-violet-200 bg-violet-50 text-[#8A4FF5]" />
-                    <LineChip label={TEXT.lineGyeongui} tone="border-slate-200 bg-slate-50 text-slate-600" />
+                <motion.div
+                  className="flex items-center justify-center"
+                  initial={{ opacity: 0, scale: 0.88 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.4, duration: 0.42, ease: EASE_OUT }}
+                >
+                  <span className="hidden h-0.5 w-20 border-t-2 border-dashed border-violet-300 md:block" />
+                  <span className="mx-1 text-3xl font-black leading-none text-[#5A45E8]">↓</span>
+                  <span className="hidden h-0.5 w-20 border-t-2 border-dashed border-violet-300 md:block" />
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: 26 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 1.1, duration: 0.55, ease: EASE_OUT }}
+                >
+                  <StationPill label="서울역" />
+                </motion.div>
+              </div>
+
+              <motion.div
+                className="mx-auto mt-4 w-full max-w-xl rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-[0_20px_55px_rgba(15,23,42,0.14)] md:p-6"
+                initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: 1.8, duration: 0.6, ease: EASE_OUT }}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5A45E8] px-3 py-1.5 text-xs font-black text-white shadow-sm">
+                      <img src="/phosphor-icons/trophy-fill.svg" alt="" className="h-3.5 w-3.5 brightness-0 invert" />
+                      추천 약속역
+                    </span>
+                    <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+                      미아사거리역
+                    </h2>
+                  </div>
+                  <div className="shrink-0 rounded-2xl bg-violet-50 px-3 py-2 text-right">
+                    <p className="text-[11px] font-black text-[#8A7BD8]">만남 적합도</p>
+                    <p className="mt-1 text-3xl font-black leading-none text-[#5A45E8]">
+                      91<span className="ml-1 text-sm font-black text-[#8A7BD8]">점</span>
+                    </p>
                   </div>
                 </div>
 
-                <div className="shrink-0 rounded-2xl bg-violet-50 px-3 py-2 text-right">
-                  <p className="text-[11px] font-black text-[#8A7BD8]">{TEXT.previewScoreLabel}</p>
-                  <p className="mt-1 text-3xl font-black leading-none text-[#5A45E8]">
-                    91<span className="ml-1 text-sm font-black text-[#8A7BD8]">{TEXT.scoreUnit}</span>
-                  </p>
-                </div>
-              </div>
-
-              <p className="mt-4 text-sm leading-6 text-slate-600">{TEXT.previewDescription}</p>
-
-              <div className="mt-4 rounded-xl bg-slate-50/80 px-3 py-3">
-                <p className="text-[11px] font-black text-slate-400">{TEXT.previewReasonTitle}</p>
-                <ul className="mt-2 space-y-1.5">
-                  {PREVIEW_REASONS.map((reason) => (
-                    <li key={reason} className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-black text-emerald-600">
-                        ✓
-                      </span>
-                      {reason}
-                    </li>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {REASON_CHIPS.map((label, index) => (
+                    <ReasonChip key={label} label={label} delay={2.3 + index * 0.1} />
                   ))}
-                </ul>
-              </div>
+                </div>
+              </motion.div>
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            {FEATURE_ITEMS.map((item) => (
-              <div key={item.label} className="hero-feature-card rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${item.tone}`}>
-                    <img src={item.icon} alt="" className="h-4 w-4" style={{ filter: item.iconFilter }} />
+          <div className="grid w-full max-w-4xl gap-3 md:grid-cols-3">
+            {TRUST_ITEMS.map((item, index) => (
+              <motion.div
+                key={item.label}
+                className="rounded-2xl border border-slate-100 bg-white/92 p-4 text-left shadow-sm backdrop-blur"
+                initial={{ opacity: 0, x: -12, y: 8 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                transition={{ delay: 2.7 + index * 0.15, duration: 0.45, ease: EASE_OUT }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-50">
+                    <img src={item.icon} alt="" className="h-5 w-5" style={{ filter: ICON_FILTER }} />
                   </span>
                   <div>
                     <h3 className="text-sm font-black text-slate-950">{item.label}</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">{item.text}</p>
+                    <p className="mt-1 text-xs font-bold leading-5 text-slate-500 md:text-sm">{item.text}</p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
+
         </section>
       </div>
     </main>
   )
 }
 
-function LineChip({ label, tone }) {
-  return <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-black ${tone}`}>{label}</span>
+function LogoMark({ className }) {
+  return (
+    <span className={`block ${className}`} aria-label="만나역" role="img">
+      <img src={logoImage} alt="" className="h-full w-full object-contain object-left" />
+    </span>
+  )
+}
+
+function StationPill({ label }) {
+  return (
+    <div className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 text-sm font-black text-slate-950 shadow-sm md:min-h-14 md:text-base">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5A45E8]">
+        <img src="/phosphor-icons/subway-fill.svg" alt="" className="h-3.5 w-3.5 brightness-0 invert" />
+      </span>
+      {label}
+    </div>
+  )
+}
+
+function ReasonChip({ label, delay }) {
+  return (
+    <motion.span
+      className="rounded-xl border border-violet-100 bg-white px-3 py-1.5 text-xs font-black text-[#5A45E8] shadow-sm md:text-sm"
+      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, duration: 0.35, ease: EASE_OUT }}
+    >
+      {label}
+    </motion.span>
+  )
 }
 
 export default OnboardingScreen

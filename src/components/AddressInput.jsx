@@ -24,7 +24,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
             <button
               type="button"
               onClick={onAddOrigin}
-              className="inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-full bg-violet-50 px-3 text-xs font-bold text-[#5A45E8] ring-1 ring-violet-100 transition hover:bg-violet-100 active:scale-[0.98]"
+              className="inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-xl bg-violet-50 px-3 text-xs font-bold text-[#5A45E8] ring-1 ring-violet-100 transition hover:bg-violet-100 active:scale-[0.98]"
             >
               <span className="sm:hidden">인원 +</span>
               <span className="hidden sm:inline">+ 인원 추가</span>
@@ -33,12 +33,12 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
           <button
             type="button"
             onClick={onReset}
-            className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-rose-50 px-3 text-xs font-bold text-rose-500 ring-1 ring-rose-100 transition hover:bg-rose-100 active:scale-[0.98]"
+            className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-rose-200 bg-white px-3 text-xs font-bold text-rose-500 transition hover:bg-rose-50 active:scale-[0.98]"
           >
             <span aria-hidden="true">↻</span>
             초기화
           </button>
-          <span className="hidden h-8 items-center rounded-full bg-violet-50 px-3 text-xs font-bold text-[#5A45E8] sm:inline-flex">
+          <span className="hidden h-8 items-center rounded-xl bg-violet-50 px-3 text-xs font-bold text-[#5A45E8] sm:inline-flex">
             {origins.length}명 기준
           </span>
         </div>
@@ -314,10 +314,10 @@ function getOriginTheme(index) {
 
   if (index === 3) {
     return {
-      selectedBg: 'bg-purple-50/30',
-      selectedBorder: 'border-purple-200',
-      solidBg: 'bg-purple-500',
-      text: 'text-purple-600',
+      selectedBg: 'bg-rose-50/30',
+      selectedBorder: 'border-rose-200',
+      solidBg: 'bg-rose-500',
+      text: 'text-rose-600',
     }
   }
 

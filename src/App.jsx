@@ -4,6 +4,7 @@ import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
 import OnboardingScreen from './components/OnboardingScreen'
 import PlaceList from './components/PlaceList'
+import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
 import { calculateMidpoint } from './services/midpointCalculator'
@@ -362,9 +363,14 @@ function App() {
     <main className="app-enter min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8">
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
-          <div className="flex items-center gap-2.5 px-1 py-1 md:px-2 md:py-2">
-            <MeetMiddleLogo />
-            <p className="text-lg font-black tracking-tight text-slate-950">MeetMiddle</p>
+          <div className="flex items-center px-0 py-1 md:py-2">
+            <span className="block h-18 w-48 overflow-hidden md:h-20 md:w-52" aria-label="만나역" role="img">
+              <img
+                src={logoImage}
+                alt=""
+                className="h-full w-full object-contain object-left"
+              />
+            </span>
           </div>
 
           <header className="hidden">
