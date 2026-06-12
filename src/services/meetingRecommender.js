@@ -119,6 +119,9 @@ export const STATION_SCORE_DB = {
   지행역: { meetingPlaceScore: 42, middleHubScore: 58 },
   덕계역: { meetingPlaceScore: 24, middleHubScore: 48 },
   양주역: { meetingPlaceScore: 15, middleHubScore: 30 },
+  청량리역: { meetingPlaceScore: 86, middleHubScore: 90 },
+제기동역: { meetingPlaceScore: 58, middleHubScore: 74 },
+신설동역: { meetingPlaceScore: 66, middleHubScore: 82 },
   덕정역: { meetingPlaceScore: 20, middleHubScore: 36 },
 }
 

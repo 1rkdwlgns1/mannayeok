@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import AddressInput from './components/AddressInput'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
 import OnboardingScreen from './components/OnboardingScreen'
 import PlaceList from './components/PlaceList'
+import backgroundImage from './assets/background.png'
 import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
@@ -360,15 +361,23 @@ function App() {
   }
 
   return (
-    <main className="app-enter min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8">
+    <main
+      className="app-enter min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8"
+      style={{
+        backgroundImage: `linear-gradient(180deg, rgba(248,250,252,0.80) 0%, rgba(248,250,252,0.54) 50%, rgba(248,250,252,0.86) 100%), url(${backgroundImage})`,
+        backgroundPosition: 'center bottom',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+      }}
+    >
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
-          <div className="flex items-center px-0 py-1 md:py-2">
-            <span className="block h-18 w-48 overflow-hidden md:h-20 md:w-52" aria-label="만나역" role="img">
+          <div className="relative flex items-center px-0 py-0">
+            <span className="block h-16 w-64 overflow-visible md:h-20 md:w-72" aria-label="만나역" role="img">
               <img
                 src={logoImage}
                 alt=""
-                className="h-full w-full object-contain object-left"
+                className="h-full w-full origin-left -translate-x-10 translate-y-1 scale-[1.95] object-contain object-left md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
               />
             </span>
           </div>
@@ -457,7 +466,7 @@ function App() {
             ) : null}
 
             {alternativeStations.length ? (
-              <section className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-4">
+              <section className="rounded-2xl border border-slate-100 bg-white/92 p-3.5 shadow-sm backdrop-blur md:p-4">
                 <div className="mb-4 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
                   <div>
                     <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 md:text-base">
@@ -529,37 +538,41 @@ function App() {
 
             <MapDirections origins={origins} station={selectedStation} />
 
-            <section id="places" className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
-              <div className="space-y-3.5 md:space-y-4">
+            <section id="places" className="rounded-3xl border border-slate-100 bg-white/95 p-4 shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur md:p-6">
+              <div className="space-y-4 md:space-y-5">
                 <div>
-                  <p className="text-sm font-bold text-[#5A45E8]">추천 만남 장소</p>
-                  <h2 className="mt-1 text-xl font-black text-slate-950 md:text-2xl">
-                    {selectedStation.name} 근처 장소 추천
+                  <p className="text-sm font-black text-[#5A45E8]">약속 장소 후보</p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
+                    {selectedStation.name} 근처 약속 장소
                   </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 md:text-base">
+                    카테고리를 고르면 가까운 순서로 장소를 추천해드려요.
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-5 rounded-2xl bg-slate-100 p-1">
+                <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] md:flex-wrap [&::-webkit-scrollbar]:hidden">
                   {PLACE_CATEGORY_KEYS.map((category) => (
                     <button
                       key={category}
                       type="button"
                       onClick={() => handlePlaceRecommendation(category)}
                       disabled={placeLoading}
-                      className={`min-h-11 rounded-xl px-1.5 py-2 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-2.5 sm:text-sm ${
+                      className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 md:min-h-12 ${
                         selectedPlaceCategory === category
-                          ? 'bg-white text-slate-950 shadow-sm'
-                          : 'text-slate-500'
+                          ? 'border-[#5A45E8] bg-violet-50 text-[#5A45E8] shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:text-[#5A45E8]'
                       }`}
                     >
+                      <span className="text-xs font-black text-current">{getCategoryMarker(category)}</span>
                       {PLACE_CATEGORY_LABELS[category]}
                     </button>
                   ))}
                 </div>
 
                 {!selectedPlaceCategory ? (
-                  <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-500 sm:py-4">
-                    카페, 밥집, 술집, 놀거리 중에서 {selectedStation.name} 근처 장소를 추천받아보세요.
-                  </p>
+                    <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-500">
+                      카페, 밥집, 술집, 놀거리 중에서 하나를 골라보세요.
+                    </p>
                 ) : null}
                 {placeLoading ? <p className="text-sm text-slate-500">근처 장소를 찾는 중...</p> : null}
                 {placeError ? <p className="text-sm text-red-500">{placeError}</p> : null}
@@ -597,6 +610,16 @@ function App() {
 
 function Icon({ name, className = 'h-5 w-5', alt = '', style }) {
   return <img src={ICONS[name]} alt={alt} aria-hidden={alt ? undefined : true} className={className} style={style} />
+}
+
+function getCategoryMarker(category) {
+  if (category === 'all') return '▦'
+  if (category === 'cafe') return 'C'
+  if (category === 'restaurant') return 'F'
+  if (category === 'bar') return 'B'
+  if (category === 'activity') return 'P'
+
+  return '•'
 }
 
 function MeetMiddleLogo() {
@@ -696,7 +719,6 @@ function HeroPreview() {
           </div>
         </div>
         <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-3">
-          <span className="text-xs font-bold text-slate-500">만남 적합도</span>
           <strong className="text-2xl font-black text-[#3182F6]">★★★★★</strong>
         </div>
       </div>
@@ -732,35 +754,6 @@ function StationLineChips({ station, className = '' }) {
   )
 }
 
-function MeetingScoreBlock({ score, tone = 'blue', compact = false }) {
-  const scoreColor = tone === 'green' ? 'text-[#4DA463]' : 'text-[#5A45E8]'
-
-  return (
-    <div className={compact ? '' : 'max-w-sm'}>
-      <p className="text-xs font-bold text-slate-500">만남 장소 적합도</p>
-      <p className="mt-1.5 flex items-end gap-1">
-        <strong className={`${compact ? 'text-3xl' : 'text-4xl'} font-black leading-none ${scoreColor}`}>{score}</strong>
-        <span className="pb-0.5 text-sm font-black text-slate-500">/100점</span>
-      </p>
-      <ScoreProgress score={score} tone={tone} />
-      <p className="mt-2 text-[11px] leading-5 text-slate-500">
-        별점은 거리 균형, 주변 상권, 노선 접근성을 함께 반영한 종합 추천 점수예요.
-      </p>
-    </div>
-  )
-}
-
-function ScoreProgress({ score, tone = 'blue' }) {
-  const width = `${Math.max(0, Math.min(100, Math.round(score || 0)))}%`
-  const fillClass = tone === 'green' ? 'bg-[#4DA463]' : 'bg-[#5A45E8]'
-
-  return (
-    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-      <div className={`h-full rounded-full ${fillClass}`} style={{ width }} />
-    </div>
-  )
-}
-
 function ResultTypeCard({
   eyebrow,
   eyebrowMeta,
@@ -774,7 +767,6 @@ function ResultTypeCard({
   if (!station) return null
 
   const Component = onClick ? 'button' : 'div'
-  const score = Math.round(station.meetingPlaceScore || 0)
   const scores = getStationDisplayScores(station)
   const reasons = getRecommendationReasons(station, scores, primary)
 
@@ -783,8 +775,8 @@ function ResultTypeCard({
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-        className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
-        selected ? 'ring-1 ring-violet-100' : ''
+          className={`flex h-full w-full flex-col rounded-2xl border border-violet-100 bg-white p-4 text-left shadow-[0_14px_36px_rgba(90,69,232,0.10)] transition active:scale-[0.99] md:p-4 ${
+          selected ? 'ring-2 ring-violet-100' : ''
         } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
       >
         <div className="flex items-start justify-between gap-3">
@@ -802,12 +794,6 @@ function ResultTypeCard({
             </h2>
           </div>
 
-          <div className="shrink-0 text-right">
-            <p className="text-xs font-black text-slate-400">만남 적합도</p>
-            <p className="mt-1 text-2xl font-black leading-none text-[#5A45E8] md:text-3xl">
-              {score}<span className="ml-1 text-sm font-black text-slate-400">점</span>
-            </p>
-          </div>
         </div>
 
           <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -839,7 +825,7 @@ function ResultTypeCard({
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
+        className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white/90 p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
         selected ? 'ring-2 ring-emerald-100' : ''
       } ${onClick ? 'cursor-pointer hover:border-emerald-200' : ''}`}
     >
@@ -847,13 +833,10 @@ function ResultTypeCard({
         <Icon name={eyebrowIcon || 'scales'} className="h-4 w-4" style={{ filter: ICON_TONES.green.filter }} />
         거리 기준 참고역
       </p>
-      <h2 className="mt-3 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-[28px]">
-        {station.name}
-      </h2>
-      <p className="mt-1 text-xl font-black leading-none text-slate-300">
-        {score}<span className="ml-1 text-sm text-slate-300">/100</span>
-      </p>
-      <StationLineChips station={station} className="mt-3" />
+        <h2 className="mt-3 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-[28px]">
+          {station.name}
+        </h2>
+        <StationLineChips station={station} className="mt-3" />
 
       <div className="mt-3 border-t border-slate-100 pt-3">
         <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
@@ -868,29 +851,6 @@ function ResultTypeCard({
         </div>
       </div>
     </Component>
-  )
-}
-
-function PrimaryScoreReport({ station }) {
-  const meetingScore = Math.round(station.meetingPlaceScore || 0)
-
-  return (
-    <div className="mt-4">
-      <MeetingScoreBlock score={meetingScore} />
-      <StarRating score={meetingScore} />
-    </div>
-  )
-}
-
-function FairScoreReport({ score, scores }) {
-  return (
-    <div className="mt-4 flex flex-1 flex-col">
-      <MeetingScoreBlock score={score} tone="green" compact />
-      <StarRating score={score} compact />
-      <div className="mt-4 border-t border-slate-100 pt-3">
-        <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
-      </div>
-    </div>
   )
 }
 
@@ -961,33 +921,27 @@ function StatusMetricCard({ icon, label, value, tone = 'blue' }) {
 
 function StationCard({ station, selected, onClick }) {
   const scores = getStationDisplayScores(station)
-  const meetingScore = Math.round(station.meetingPlaceScore || 0)
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`min-w-0 rounded-xl border p-3 text-left transition active:scale-[0.98] md:p-3 ${
-        selected
-          ? 'border-violet-200 bg-violet-50/40 shadow-sm'
-          : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-slate-50'
-      }`}
+        className={`min-w-0 rounded-2xl border p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.04)] transition active:scale-[0.98] md:p-3.5 ${
+          selected
+            ? 'border-violet-200 bg-violet-50/35 ring-1 ring-violet-100'
+            : 'border-slate-100 bg-white/95 hover:border-violet-200 hover:bg-white'
+        }`}
     >
-      <div className="flex items-start justify-between gap-1.5">
-        <div className="min-w-0">
+        <div className="flex items-start justify-between gap-1.5">
           <div className="min-w-0">
-            <strong className="block min-w-0 break-keep text-base font-black tracking-tight text-slate-950 sm:text-xl">{station.name}</strong>
+            <div className="min-w-0">
+              <strong className="block min-w-0 break-keep text-base font-black tracking-tight text-slate-950 sm:text-xl">{station.name}</strong>
+            </div>
+            <StationLineChips station={station} className="mt-2" />
           </div>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-[11px] font-bold text-slate-400">만남 적합도</p>
-          <p className="mt-0.5 text-sm font-black text-[#5A45E8]">{meetingScore}점</p>
-        </div>
-      </div>
-
-      <StationLineChips station={station} className="mt-2.5" />
-
-      <p className="mt-2 text-[11px] leading-5 text-slate-500 sm:text-xs">
+  
+        <p className="mt-2 text-[11px] leading-5 text-slate-500 sm:text-xs">
         중간점에서 {formatDistance(station.distanceFromCenter)} · 상권 약 {station.hotPlaceCount}곳
       </p>
 
@@ -1014,32 +968,6 @@ function MiniMetric({ icon, label, value, tone = 'blue' }) {
       </p>
     </div>
   )
-}
-
-function StarRating({ score, compact = false, tiny = false }) {
-  const stars = getStarRating(score)
-
-  if (tiny) {
-    return (
-      <span className="w-fit shrink-0 text-right">
-        <span className="block text-xs leading-none tracking-normal text-amber-400">{stars}</span>
-      </span>
-    )
-  }
-
-  return (
-    <div className="mt-2">
-      <p className={`${compact ? 'text-lg' : 'text-xl'} tracking-normal text-amber-400`}>{stars}</p>
-    </div>
-  )
-}
-
-function getStarRating(score) {
-  if (score >= 88) return '★★★★★'
-  if (score >= 80) return '★★★★☆'
-  if (score >= 70) return '★★★☆☆'
-  if (score >= 60) return '★★☆☆☆'
-  return '★☆☆☆☆'
 }
 
 function getMetricStatus(score) {

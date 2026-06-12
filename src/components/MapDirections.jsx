@@ -1,6 +1,6 @@
 function MapDirections({ origins, station }) {
   const directionGridClass =
-    origins.length === 3 ? 'md:grid-cols-3' : origins.length >= 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
+    origins.length === 3 ? 'md:grid-cols-3' : origins.length >= 4 ? 'md:grid-cols-2' : 'md:grid-cols-2'
 
   return (
     <section id="directions" className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">

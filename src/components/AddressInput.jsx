@@ -10,7 +10,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
   const canAddOrigin = origins.length < maxOrigins
   const canRemoveOrigin = origins.length > minOrigins
   const compactOrigins = origins.length >= 3
-  const originGridClass = origins.length === 3 ? 'lg:grid-cols-3' : origins.length >= 4 ? 'lg:grid-cols-4' : ''
+  const originGridClass = origins.length === 3 ? 'lg:grid-cols-3' : origins.length >= 4 ? 'lg:grid-cols-2' : ''
 
   return (
     <div>
@@ -162,7 +162,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
                   event.preventDefault()
                   onRemove(index)
                 }}
-                className="min-h-8 rounded-full bg-white px-2 text-xs font-bold text-slate-400 transition hover:text-red-500"
+                className="min-h-6 rounded-full bg-white/80 px-1.5 text-[11px] font-bold text-slate-400 transition hover:text-red-500"
               >
                 삭제
               </button>
