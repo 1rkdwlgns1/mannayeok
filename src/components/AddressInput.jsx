@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { searchAddressSuggestions } from '../services/kakaoApi'
 
-const RECENT_ORIGINS_KEY = 'meetmiddle:recent-origins'
+const RECENT_ORIGINS_KEY = 'mannayeok:recent-origins'
 const RECENT_ORIGIN_LIMIT = 6
 
 const ORIGIN_LABELS = ['출발지 A', '출발지 B', '출발지 C', '출발지 D']
@@ -120,11 +120,11 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
-    window.addEventListener('meetmiddle:close-address-dropdowns', handleCloseDropdowns)
+    window.addEventListener('mannayeok:close-address-dropdowns', handleCloseDropdowns)
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
-      window.removeEventListener('meetmiddle:close-address-dropdowns', handleCloseDropdowns)
+      window.removeEventListener('mannayeok:close-address-dropdowns', handleCloseDropdowns)
     }
   }, [open])
 

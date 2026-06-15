@@ -21,7 +21,7 @@ const TRUST_ITEMS = [
 ]
 
 const REASON_CHIPS = ['거리 균형 우수', '상권 좋음', '환승 편리']
-const ICON_FILTER = 'invert(36%) sepia(88%) saturate(1784%) hue-rotate(234deg) brightness(94%) contrast(95%)'
+const BRAND_PURPLE = '#5A45E8'
 const EASE_OUT = [0.22, 1, 0.36, 1]
 
 const fadeIn = (delay = 0, duration = 0.5) => ({
@@ -59,7 +59,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
         <section className="flex flex-1 flex-col items-center justify-center gap-6 pb-5 pt-5 text-center md:gap-7 md:pt-2">
           <motion.div className="max-w-3xl" {...riseIn(0.4, 0.55)}>
             <p className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-[#5A45E8] shadow-sm ring-1 ring-violet-100">
-              <img src="/phosphor-icons/subway-fill.svg" alt="" className="h-4 w-4" style={{ filter: ICON_FILTER }} />
+              <MaskedIcon src="/phosphor-icons/subway-fill.svg" className="h-4 w-4" />
               약속 장소 추천 서비스
             </p>
 
@@ -80,8 +80,16 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               disabled={isLeaving}
               className="mt-6 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#5A45E8] px-7 text-base font-black text-white shadow-[0_14px_34px_rgba(90,69,232,0.30)] transition hover:-translate-y-0.5 hover:bg-[#4938D1] active:translate-y-0 disabled:cursor-wait disabled:bg-violet-300 sm:min-h-14"
               initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 3.4, duration: 0.4, ease: EASE_OUT }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: [0, -4, 0],
+              }}
+              transition={{
+                opacity: { delay: 3.4, duration: 0.4, ease: EASE_OUT },
+                scale: { delay: 3.4, duration: 0.4, ease: EASE_OUT },
+                y: { delay: 3.9, duration: 1.7, repeat: Infinity, repeatType: 'loop', ease: 'easeInOut' },
+              }}
             >
               입력하러 가기
               <img src="/phosphor-icons/arrow-right.svg" alt="" className="h-4 w-4 invert" />
@@ -96,7 +104,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.8, duration: 0.55, ease: EASE_OUT }}
                 >
-                  <StationPill label="노원역" />
+                  <StationPill label="청량리" />
                 </motion.div>
 
                 <motion.div
@@ -132,7 +140,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                       추천 약속역
                     </span>
                     <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
-                      미아사거리역
+                      왕십리역
                     </h2>
                   </div>
                   <div className="shrink-0 rounded-2xl bg-violet-50 px-3 py-2 text-right">
@@ -163,7 +171,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-50">
-                    <img src={item.icon} alt="" className="h-5 w-5" style={{ filter: ICON_FILTER }} />
+                    <MaskedIcon src={item.icon} className="h-5 w-5" />
                   </span>
                   <div>
                     <h3 className="text-sm font-black text-slate-950">{item.label}</h3>
@@ -196,6 +204,26 @@ function StationPill({ label }) {
       </span>
       {label}
     </div>
+  )
+}
+
+function MaskedIcon({ src, className = '' }) {
+  return (
+    <span
+      className={`inline-block shrink-0 ${className}`}
+      aria-hidden="true"
+      style={{
+        backgroundColor: BRAND_PURPLE,
+        maskImage: `url(${src})`,
+        maskPosition: 'center',
+        maskRepeat: 'no-repeat',
+        maskSize: 'contain',
+        WebkitMaskImage: `url(${src})`,
+        WebkitMaskPosition: 'center',
+        WebkitMaskRepeat: 'no-repeat',
+        WebkitMaskSize: 'contain',
+      }}
+    />
   )
 }
 

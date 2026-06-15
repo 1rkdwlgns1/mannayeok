@@ -13,7 +13,7 @@ import { getStationLines } from '../data/subwayStationLines'
 const KAKAO_SCRIPT_ID = 'kakao-map-sdk-script'
 const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services'
 const KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
-const STATION_COUNTS_CACHE_KEY = 'meetmiddle:station-counts-cache'
+const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache'
 const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 
 const PLACE_CATEGORIES = {

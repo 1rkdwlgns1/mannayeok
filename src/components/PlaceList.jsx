@@ -26,54 +26,49 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
   }
 
   return (
-    <section className="rounded-3xl border border-slate-100 bg-white/95 p-4 shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur md:p-6">
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-sm font-black text-[#5A45E8]">{placeCategoryLabel}</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
-            {meetingPointName} 근처 약속 장소
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">가까운 순서로 바로 확인할 수 있어요.</p>
+    <section className="rounded-3xl border border-slate-100 bg-white/95 p-3 shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur md:p-5">
+      <div className="mb-3 flex justify-end">
+        <div className="flex items-center gap-2">
+          <span className="hidden w-fit rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500 shadow-sm sm:inline-flex">
+            ⌁ 가까운 순
+          </span>
         </div>
-        <span className="w-fit rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-500 shadow-sm">
-          가까운 순
-        </span>
       </div>
 
       {places.length ? (
-        <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white">
-          <ul className="divide-y divide-slate-100">
+        <div className="rounded-2xl border border-slate-100 bg-white p-2">
+          <ul className="space-y-2">
             {places.map((place) => (
-              <li key={place.id} className="group bg-white p-3 transition hover:bg-violet-50/30 md:p-4">
-                <div className="flex items-center gap-3 md:gap-4">
+              <li
+                key={place.id}
+                className="group rounded-2xl border border-slate-100 bg-white px-3 py-2.5 shadow-[0_4px_14px_rgba(15,23,42,0.025)] transition hover:border-violet-100 hover:bg-violet-50/20 md:px-4 md:py-3"
+              >
+                <div className="flex items-center gap-3">
                   <div
-                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-black md:h-20 md:w-20 ${getPlaceVisualClass(
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-base md:h-12 md:w-12 md:text-lg ${getPlaceVisualClass(
                       place.categoryLabel,
                     )}`}
                   >
-                    {getPlaceInitial(place.categoryLabel)}
+                    {getPlaceIcon(place.categoryLabel)}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${getPlaceBadgeClass(place.categoryLabel)}`}>
-                        {place.categoryLabel || '장소'}
-                      </span>
-                      <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-500">
-                        도보 {formatWalkingMinutes(place.distance)}
-                      </span>
+                    <p className="truncate text-sm font-black text-slate-950 md:text-base">{place.name}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-500 md:gap-2 md:text-xs">
+                      <span className={getPlaceInlineClass(place.categoryLabel)}>{place.categoryLabel || '장소'}</span>
+                      <span className="text-slate-300">|</span>
+                      <span>🚶 도보 {formatWalkingMinutes(place.distance)}</span>
                       {place.distance <= 500 ? (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
-                          역 근처
-                        </span>
+                        <>
+                          <span className="text-slate-300">|</span>
+                          <span className="text-emerald-600">역 근처</span>
+                        </>
                       ) : null}
                     </div>
-
-                    <p className="mt-1.5 truncate text-base font-black text-slate-950 md:text-lg">{place.name}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-500 md:text-sm">{place.address}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-slate-500 md:text-sm">{place.address}</p>
                   </div>
 
-                  <div className="hidden shrink-0 text-right text-xs font-bold text-[#8A7BD8] md:block">
+                  <div className="hidden shrink-0 text-right text-xs font-bold text-slate-500 sm:block">
                     약 {formatDistance(place.distance)}
                   </div>
 
@@ -81,7 +76,7 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
                     href={createNaverPlaceSearchUrl(place)}
                     target="_blank"
                     rel="noreferrer"
-                    className="shrink-0 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:border-[#5A45E8] hover:text-[#5A45E8] active:scale-[0.98] md:px-4 md:py-2.5"
+                    className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-500 transition hover:border-[#5A45E8]/40 hover:bg-white hover:text-[#5A45E8] active:scale-[0.98] md:px-3 md:py-2 md:text-xs"
                   >
                     지도 보기
                   </a>
@@ -89,6 +84,24 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
               </li>
             ))}
           </ul>
+
+          <div className="mt-2 border-t border-slate-100 px-1 pb-1 pt-3">
+            <p className="text-center text-xs font-black text-slate-400">더 많은 장소 보기</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {MORE_PLACE_LINKS.map((item) => (
+                <a
+                  key={item.label}
+                  href={createNaverCategorySearchUrl(meetingPointName, item.label)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-center text-xs font-black text-slate-500 transition hover:border-[#5A45E8]/30 hover:bg-violet-50 hover:text-[#5A45E8] active:scale-[0.98]"
+                >
+                  <span className="mr-1">{item.icon}</span>
+                  {item.label} 더보기
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
@@ -99,13 +112,20 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
   )
 }
 
-function getPlaceInitial(categoryLabel) {
-  if (categoryLabel === '카페') return 'C'
-  if (categoryLabel === '밥집') return 'F'
-  if (categoryLabel === '술집') return 'B'
-  if (categoryLabel === '놀거리') return 'P'
+const MORE_PLACE_LINKS = [
+  { label: '카페', icon: '☕' },
+  { label: '맛집', icon: '🍖' },
+  { label: '술집', icon: '🍺' },
+  { label: '놀거리', icon: '🎮' },
+]
 
-  return 'A'
+function getPlaceIcon(categoryLabel) {
+  if (categoryLabel === '카페') return '☕'
+  if (categoryLabel === '밥집') return '🍖'
+  if (categoryLabel === '술집') return '🍺'
+  if (categoryLabel === '놀거리') return '🎮'
+
+  return '📍'
 }
 
 function getPlaceVisualClass(categoryLabel) {
@@ -126,11 +146,27 @@ function getPlaceBadgeClass(categoryLabel) {
   return 'bg-violet-50 text-[#5A45E8]'
 }
 
+function getPlaceInlineClass(categoryLabel) {
+  if (categoryLabel === '카페') return 'text-[#5A45E8]'
+  if (categoryLabel === '밥집') return 'text-rose-600'
+  if (categoryLabel === '술집') return 'text-emerald-600'
+  if (categoryLabel === '놀거리') return 'text-blue-600'
+
+  return 'text-[#5A45E8]'
+}
+
 function createNaverPlaceSearchUrl(place) {
   const query = encodeURIComponent(place.name)
   const center = place.lng && place.lat ? `?c=${place.lng},${place.lat},16,0,0,0,dh` : ''
 
   return `https://map.naver.com/p/search/${query}${center}`
+}
+
+function createNaverCategorySearchUrl(meetingPointName, categoryLabel) {
+  const stationName = meetingPointName || ''
+  const query = encodeURIComponent(`${stationName} ${categoryLabel}`.trim())
+
+  return `https://map.naver.com/p/search/${query}`
 }
 
 function formatWalkingMinutes(distance) {

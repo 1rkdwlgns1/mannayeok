@@ -84,6 +84,7 @@ function App() {
   const [helpTooltipActive, setHelpTooltipActive] = useState(false)
   const [mapCollapsed, setMapCollapsed] = useState(true)
   const [alternativeStationsCollapsed, setAlternativeStationsCollapsed] = useState(true)
+  const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
   const [hasStarted, setHasStarted] = useState(false)
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const onboardingExitTimerRef = useRef(null)
@@ -179,12 +180,12 @@ function App() {
     const handleOpenTooltip = () => setHelpTooltipActive(true)
     const handleCloseTooltip = () => setHelpTooltipActive(false)
 
-    window.addEventListener('meetmiddle:help-tooltip-open', handleOpenTooltip)
-    window.addEventListener('meetmiddle:help-tooltip-close', handleCloseTooltip)
+    window.addEventListener('mannayeok:help-tooltip-open', handleOpenTooltip)
+    window.addEventListener('mannayeok:help-tooltip-close', handleCloseTooltip)
 
     return () => {
-      window.removeEventListener('meetmiddle:help-tooltip-open', handleOpenTooltip)
-      window.removeEventListener('meetmiddle:help-tooltip-close', handleCloseTooltip)
+      window.removeEventListener('mannayeok:help-tooltip-open', handleOpenTooltip)
+      window.removeEventListener('mannayeok:help-tooltip-close', handleCloseTooltip)
     }
   }, [])
 
@@ -385,8 +386,8 @@ function App() {
           <header className="hidden">
             <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
               <div className="flex items-center gap-2.5">
-                <MeetMiddleLogo />
-                <p className="text-lg font-black tracking-tight text-slate-950">MeetMiddle</p>
+                <MannayeokLogo />
+                <p className="text-lg font-black tracking-tight text-slate-950">mannayeok</p>
               </div>
             </div>
 
@@ -452,15 +453,35 @@ function App() {
                   primary
                 />
                 {fairStation ? (
-                  <ResultTypeCard
-                    eyebrow="가장 공평한 역"
-                    eyebrowMeta="거리 기준 중간역"
-                    eyebrowIcon="scales"
-                    station={fairStation}
-                    description="상권보다 이동 거리 균형을 우선해서 선정된 기준역이에요."
-                    selected={fairStation.id === selectedStation.id}
-                    onClick={() => handleStationSelect(fairStation.id)}
-                  />
+                  <>
+                    <div className="lg:hidden">
+                      <button
+                        type="button"
+                        onClick={() => setFairStationCollapsed((collapsed) => !collapsed)}
+                        className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm"
+                        aria-expanded={!fairStationCollapsed}
+                      >
+                        <span>
+                          <span className="block text-xs font-black text-slate-400">거리 중간 참고역</span>
+                          <span className="mt-0.5 block text-lg font-black text-slate-950">{fairStation.name}</span>
+                        </span>
+                        <span className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500">
+                          {fairStationCollapsed ? '펼치기' : '접기'}
+                        </span>
+                      </button>
+                    </div>
+                    <div className={`${fairStationCollapsed ? 'hidden' : 'block'} lg:block`}>
+                      <ResultTypeCard
+                        eyebrow="가장 공평한 역"
+                        eyebrowMeta="거리 중간 중간역"
+                        eyebrowIcon="scales"
+                        station={fairStation}
+                        description="상권보다 이동 거리 균형을 우선해서 선정된 기준역이에요."
+                        selected={fairStation.id === selectedStation.id}
+                        onClick={() => handleStationSelect(fairStation.id)}
+                      />
+                    </div>
+                  </>
                 ) : null}
               </section>
             ) : null}
@@ -469,10 +490,7 @@ function App() {
               <section className="rounded-2xl border border-slate-100 bg-white/92 p-3.5 shadow-sm backdrop-blur md:p-4">
                 <div className="mb-4 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
                   <div>
-                    <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 md:text-base">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-50">
-                        <Icon name="trophy" className="h-3.5 w-3.5" style={{ filter: ICON_TONES.amber.filter }} />
-                      </span>
+                    <h2 className="text-lg font-black text-slate-950 md:text-base">
                       다른 추천 후보 TOP3
                     </h2>
                     <p className="mt-1 hidden text-xs leading-5 text-slate-500 md:block">
@@ -489,9 +507,9 @@ function App() {
                     {alternativeStationsCollapsed ? '후보 열기' : '후보 접기'}
                   </button>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+                <div className="grid gap-3 md:hidden">
                   {alternativeStations.map((station, index) => (
-                    <div key={station.id} className="w-[15.5rem] shrink-0">
+                    <div key={station.id}>
                       <StationCard
                         station={{
                           ...station,
@@ -538,14 +556,14 @@ function App() {
 
             <MapDirections origins={origins} station={selectedStation} />
 
-            <section id="places" className="rounded-3xl border border-slate-100 bg-white/95 p-4 shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur md:p-6">
-              <div className="space-y-4 md:space-y-5">
+            <section id="places" className="rounded-3xl border border-slate-100 bg-white/95 p-4 shadow-[0_10px_28px_rgba(15,23,42,0.045)] backdrop-blur md:p-5">
+              <div className="space-y-4">
                 <div>
-                  <p className="text-sm font-black text-[#5A45E8]">약속 장소 후보</p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
+                  <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-slate-950 md:text-2xl">
+                    <span className="text-[#5A45E8]">📍</span>
                     {selectedStation.name} 근처 약속 장소
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-500 md:text-base">
+                  <p className="mt-1.5 text-xs leading-5 text-slate-500 md:text-sm md:leading-6">
                     카테고리를 고르면 가까운 순서로 장소를 추천해드려요.
                   </p>
                 </div>
@@ -557,13 +575,13 @@ function App() {
                       type="button"
                       onClick={() => handlePlaceRecommendation(category)}
                       disabled={placeLoading}
-                      className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 md:min-h-12 ${
+                      className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-2xl border px-3 text-xs font-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 md:min-h-10 md:gap-2 md:px-4 md:text-sm ${
                         selectedPlaceCategory === category
-                          ? 'border-[#5A45E8] bg-violet-50 text-[#5A45E8] shadow-sm'
-                          : 'border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:text-[#5A45E8]'
+                          ? 'border-[#5A45E8] bg-[#5A45E8] text-white'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:bg-violet-50/40 hover:text-[#5A45E8]'
                       }`}
                     >
-                      <span className="text-xs font-black text-current">{getCategoryMarker(category)}</span>
+                      <span className="text-sm leading-none md:text-base">{getCategoryMarker(category)}</span>
                       {PLACE_CATEGORY_LABELS[category]}
                     </button>
                   ))}
@@ -614,15 +632,15 @@ function Icon({ name, className = 'h-5 w-5', alt = '', style }) {
 
 function getCategoryMarker(category) {
   if (category === 'all') return '▦'
-  if (category === 'cafe') return 'C'
-  if (category === 'restaurant') return 'F'
-  if (category === 'bar') return 'B'
-  if (category === 'activity') return 'P'
+  if (category === 'cafe') return '☕'
+  if (category === 'restaurant') return '🍖'
+  if (category === 'bar') return '🍺'
+  if (category === 'activity') return '🎮'
 
   return '•'
 }
 
-function MeetMiddleLogo() {
+function MannayeokLogo() {
   return (
     <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[#5A45E8] shadow-sm ring-1 ring-violet-200">
       <span className="absolute h-4 w-4 rounded-full bg-white/95" />
@@ -831,15 +849,17 @@ function ResultTypeCard({
     >
       <p className="inline-flex items-center gap-2 text-xs font-black text-slate-400">
         <Icon name={eyebrowIcon || 'scales'} className="h-4 w-4" style={{ filter: ICON_TONES.green.filter }} />
-        거리 기준 참고역
+        거리 중간 참고역
       </p>
         <h2 className="mt-3 break-keep text-2xl font-black tracking-tight text-slate-950 md:text-[28px]">
           {station.name}
         </h2>
         <StationLineChips station={station} className="mt-3" />
 
-      <div className="mt-3 border-t border-slate-100 pt-3">
-        <StatusMetricRow icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" simple />
+      <div className="mt-4 grid grid-cols-3 border-t border-slate-100 pt-3">
+        <MetricSummaryItem icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+        <MetricSummaryItem icon="store" label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
+        <MetricSummaryItem icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
       </div>
 
       <div className="mt-auto pt-3">
@@ -926,7 +946,7 @@ function StationCard({ station, selected, onClick }) {
     <button
       type="button"
       onClick={onClick}
-        className={`min-w-0 rounded-2xl border p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.04)] transition active:scale-[0.98] md:p-3.5 ${
+        className={`w-full min-w-0 rounded-2xl border p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.04)] transition active:scale-[0.98] md:p-3.5 ${
           selected
             ? 'border-violet-200 bg-violet-50/35 ring-1 ring-violet-100'
             : 'border-slate-100 bg-white/95 hover:border-violet-200 hover:bg-white'
@@ -946,21 +966,20 @@ function StationCard({ station, selected, onClick }) {
       </p>
 
       <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
-        <MiniMetric icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
-        <MiniMetric icon="store" label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
-        <MiniMetric icon="subway" label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
+        <MiniMetric label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+        <MiniMetric label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
+        <MiniMetric label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
       </div>
     </button>
   )
 }
 
-function MiniMetric({ icon, label, value, tone = 'blue' }) {
+function MiniMetric({ label, value, tone = 'blue' }) {
   const iconTone = ICON_TONES[tone] || ICON_TONES.blue
 
   return (
     <div className="min-w-0 border-r border-slate-100 bg-white/50 px-1.5 py-2 text-center last:border-r-0">
-      <p className="flex items-center justify-center gap-1 truncate text-[11px] font-bold text-slate-500">
-        <Icon name={icon} className="h-3 w-3 shrink-0" style={{ filter: iconTone.filter }} />
+      <p className="truncate text-[11px] font-bold text-slate-500">
         {label}
       </p>
       <p className={`mt-0.5 text-[11px] font-black sm:mt-1 sm:text-sm ${iconTone.badge.replace('bg-emerald-50 ', '').replace('bg-blue-50 ', '').replace('bg-violet-50 ', '').replace('bg-amber-50 ', '')}`}>

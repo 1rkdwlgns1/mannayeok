@@ -61,7 +61,7 @@ export const STATION_SCORE_DB = {
   신도림역: { meetingPlaceScore: 78, middleHubScore: 96 },
   문정역: { meetingPlaceScore: 76, middleHubScore: 74 },
   가산디지털단지역: { meetingPlaceScore: 76, middleHubScore: 84 },
-  노원역: { meetingPlaceScore: 88, middleHubScore: 84 },
+  노원역: { meetingPlaceScore: 92, middleHubScore: 84 },
   미아사거리역: { meetingPlaceScore: 78, middleHubScore: 74 },
   석계역: { meetingPlaceScore: 68, middleHubScore: 84 },
   태릉입구역: { meetingPlaceScore: 66, middleHubScore: 80 },
@@ -102,7 +102,7 @@ export const STATION_SCORE_DB = {
   동대문역: { meetingPlaceScore: 70, middleHubScore: 79 },
   창동역: { meetingPlaceScore: 76, middleHubScore: 88 },
   수유역: { meetingPlaceScore: 76, middleHubScore: 79 },
-  의정부역: { meetingPlaceScore: 82, middleHubScore: 82 },
+  의정부역: { meetingPlaceScore: 80, middleHubScore: 82 },
   회룡역: { meetingPlaceScore: 58, middleHubScore: 82 },
   한남역: { meetingPlaceScore: 64, middleHubScore: 95 },
   옥수역: { meetingPlaceScore: 54, middleHubScore: 96 },
@@ -129,6 +129,7 @@ export const MEETING_HUB_STATIONS = Object.keys(STATION_SCORE_DB)
 
 const LOCAL_LIGHT_RAIL_KEYWORDS = ['경전철', '의정부경전철', '우이신설', '신림선', '김포골드']
 const NORTHERN_REMOTE_KEYWORDS = ['연천', '전곡', '청산', '소요산']
+const NORTHERN_LONG_DISTANCE_KEYWORDS = ['지행', '덕계', '덕정', '양주']
 const NORTHERN_SEOUL_KEYWORDS = ['망월사', '도봉산', '방학', '창동', '노원', '수유']
 
 export function normalizeStationName(name) {
@@ -142,7 +143,10 @@ export function normalizeStationName(name) {
 
 export function getContextualHubStationKeywords(origins) {
   const originText = origins.map((origin) => origin.address || origin.query || '').join(' ')
-  const hasNorthernRemoteOrigin = includesAny(originText, NORTHERN_REMOTE_KEYWORDS)
+  const hasNorthernRemoteOrigin = includesAny(originText, [
+    ...NORTHERN_REMOTE_KEYWORDS,
+    ...NORTHERN_LONG_DISTANCE_KEYWORDS,
+  ])
 
   if (!hasNorthernRemoteOrigin) return []
 
@@ -360,10 +364,10 @@ function getPairAffinity(origins) {
     return genericAffinity
   }
 
-  if (includesAny(originText, NORTHERN_REMOTE_KEYWORDS)) {
+  if (includesAny(originText, [...NORTHERN_REMOTE_KEYWORDS, ...NORTHERN_LONG_DISTANCE_KEYWORDS])) {
     const northernCoreBonus = {
       의정부역: 34,
-      노원역: 32,
+      노원역: 38,
       창동역: 26,
       수유역: 20,
       회기역: 14,
@@ -395,9 +399,9 @@ function getPairAffinity(origins) {
     if (includesAny(originText, NORTHERN_SEOUL_KEYWORDS)) {
       return mergeAffinity(genericAffinity, {
         ...northernCoreBonus,
-        의정부역: 55,
-        노원역: 30,
-        창동역: 28,
+        의정부역: 35,
+        노원역: 28,
+        창동역: 24,
         수유역: 22,
         도봉산역: 18,
         회룡역: 14,
