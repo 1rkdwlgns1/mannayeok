@@ -50,9 +50,12 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
       }}
     >
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5 md:px-8 md:py-7">
-        <header className="flex items-center justify-between">
+        <header className="mx-auto flex w-full max-w-4xl items-center justify-between">
           <motion.div {...fadeIn(0, 0.5)}>
-            <LogoMark className="h-20 w-52 md:h-24 md:w-64" />
+            <LogoMark
+              className="h-16 w-64 overflow-visible md:h-20 md:w-72"
+              imageClassName="origin-left -translate-x-10 translate-y-1 scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
+            />
           </motion.div>
         </header>
 
@@ -78,7 +81,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               type="button"
               onClick={onStart}
               disabled={isLeaving}
-              className="mt-6 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#5A45E8] px-7 text-base font-black text-white shadow-[0_14px_34px_rgba(90,69,232,0.30)] transition hover:-translate-y-0.5 hover:bg-[#4938D1] active:translate-y-0 disabled:cursor-wait disabled:bg-violet-300 sm:min-h-14"
+              className="mt-6 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#5A45E8] px-7 text-base font-black text-white opacity-0 shadow-[0_14px_34px_rgba(90,69,232,0.30)] transition hover:-translate-y-0.5 hover:bg-[#4938D1] active:translate-y-0 disabled:cursor-wait disabled:bg-violet-300 sm:min-h-14"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{
                 opacity: 1,
@@ -91,7 +94,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                 y: { delay: 3.9, duration: 1.7, repeat: Infinity, repeatType: 'loop', ease: 'easeInOut' },
               }}
             >
-              입력하러 가기
+              약속 장소 찾기
               <img src="/phosphor-icons/arrow-right.svg" alt="" className="h-4 w-4 invert" />
             </motion.button>
           </motion.div>
@@ -188,10 +191,10 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
   )
 }
 
-function LogoMark({ className }) {
+function LogoMark({ className, imageClassName = '' }) {
   return (
     <span className={`block ${className}`} aria-label="만나역" role="img">
-      <img src={logoImage} alt="" className="h-full w-full object-contain object-left" />
+      <img src={logoImage} alt="" className={`h-full w-full object-contain object-left ${imageClassName}`} />
     </span>
   )
 }

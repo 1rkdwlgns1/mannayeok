@@ -2,8 +2,8 @@ function TransitRoutes({ station, transitSummary, loading, error }) {
   return (
     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="mb-4">
-        <p className="text-sm font-semibold text-[#5A45E8]">어떻게 가나요?</p>
-        <h2 className="mt-1 text-lg font-semibold text-slate-900">{station.name}까지 가는 길</h2>
+        <p className="text-sm font-black text-[#5A45E8]">어떻게 가나요?</p>
+        <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950 md:text-xl">{station.name}까지 가는 길</h2>
       </div>
 
       {loading ? <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-500">대중교통 경로를 찾는 중...</p> : null}

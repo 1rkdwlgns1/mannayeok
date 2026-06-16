@@ -6,7 +6,7 @@ function MapDirections({ origins, station }) {
     <section id="directions" className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm md:p-5">
       <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-bold text-[#5A45E8]">어떻게 가나요?</p>
+          <p className="text-sm font-black text-[#5A45E8]">어떻게 가나요?</p>
           <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950 md:text-xl">{station.name}까지 가는 길</h2>
         </div>
         <p className="text-xs text-slate-500">지도 앱에서 상세 경로와 환승을 확인해요.</p>
