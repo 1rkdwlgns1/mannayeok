@@ -1,5 +1,6 @@
 import { calculateDistanceInMeters } from './midpointCalculator'
 import { getTransitCompatibilityScore } from './transitCompatibility'
+import { getStationTransitTimeProfile } from '../data/subwayTravelTimeGraph'
 
 export const STATION_SCORE_DB = {
   성수역: { meetingPlaceScore: 100, middleHubScore: 72 },
@@ -201,6 +202,7 @@ function rankMultiPersonStations(stations, origins, limit) {
     const centerScore = getCenterDistanceScore(station.distanceFromCenter)
     const commercialScore = getCommercialScore(station)
     const transitCompatibilityScore = getTransitCompatibilityScore(origins, normalizedName)
+    const transitTimeProfile = getStationTransitTimeProfile(origins, normalizedName)
     const minDistance = Math.min(...originDistances)
     const maxDistance = Math.max(...originDistances)
 
@@ -261,6 +263,7 @@ function rankMultiPersonStations(stations, origins, limit) {
       middleHubScore: stationScores.middleHubScore,
       name: normalizedName,
       originDistances,
+      transitTimeProfile,
       transitCompatibilityScore,
       travelScore,
     }
@@ -309,6 +312,7 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
   const travelScore = getTravelScore(originDistances)
   const commercialScore = getCommercialScore(station)
   const transitCompatibilityScore = getTransitCompatibilityScore(origins, normalizedName)
+  const transitTimeProfile = getStationTransitTimeProfile(origins, normalizedName)
   const localRailPenalty = LOCAL_LIGHT_RAIL_KEYWORDS.some((keyword) => normalizedName.includes(keyword)) ? 28 : 0
   const farMeetingPenalty = getFarMeetingPenalty(station.distanceFromCenter)
   const unknownStationPenalty = hasStationScore ? 0 : 14
@@ -351,6 +355,7 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
     lowCommercialPenalty,
     lowMeetingPlacePenalty,
     originDistances,
+    transitTimeProfile,
     transitCompatibilityScore,
     travelScore,
   }
