@@ -551,7 +551,7 @@ function App() {
                     {selectedStation.name} 근처 약속 장소
                   </p>
                   <h2 className="mt-1 break-keep text-lg font-black tracking-tight text-slate-950 md:text-xl">
-                    {getPlaceQuestion(selectedPlaceCategory)}
+                    어디에서 만날까요?
                   </h2>
                   <p className="mt-1.5 max-w-sm text-xs font-medium leading-5 text-slate-500 md:text-sm md:leading-5">
                     카페, 식당, 술집, 놀거리 중 원하는 카테고리를 선택해보세요.
@@ -645,16 +645,6 @@ function getPlaceTabLabel(category) {
   if (category === 'activity') return '놀거리'
 
   return PLACE_CATEGORY_LABELS[category]
-}
-
-function getPlaceQuestion(category) {
-  if (category === 'cafe') return '카페에서 만날까요?'
-  if (category === 'restaurant') return '식당에서 만날까요?'
-  if (category === 'bar') return '술집에서 만날까요?'
-  if (category === 'activity') return '놀거리도 볼까요?'
-  if (category === 'all') return '어디에서 만날까요?'
-
-  return '어디에서 만날까요?'
 }
 
 function MannayeokLogo() {
