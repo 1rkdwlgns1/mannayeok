@@ -15,6 +15,8 @@ const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libr
 const KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
 const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache'
 const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
+const HUB_STATIONS_CACHE_KEY = 'mannayeok:hub-stations-cache'
+const HUB_STATIONS_CACHE_TTL = 1000 * 60 * 60 * 24 * 30
 const LOCAL_SEARCH_CONCURRENCY = 5
 const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 20
 
@@ -423,7 +425,7 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
   })
 
   if (isSeoulMetroArea(center)) {
-    const hubCandidates = await searchMeetingHubStations(kakao, center)
+    const hubCandidates = await searchMeetingHubStations(kakao, center, [...candidateMap.values()])
 
     hubCandidates
       .filter((station) => shouldIncludeHubStation(center, station))
@@ -434,7 +436,9 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
       })
   }
 
-  const contextualHubCandidates = await searchContextualHubStations(kakao, center, enrichedOrigins)
+  const contextualHubCandidates = await searchContextualHubStations(kakao, center, enrichedOrigins, [
+    ...candidateMap.values(),
+  ])
 
   contextualHubCandidates.forEach((station) => {
     const existingStation = candidateMap.get(station.id)
@@ -661,19 +665,23 @@ async function countNearbyCategory(kakao, center, categoryCode) {
   return meta?.total_count || documents.length
 }
 
-function searchMeetingHubStations(kakao, center) {
+function searchMeetingHubStations(kakao, center, knownStations = []) {
+  const knownStationMap = createKnownStationMap(knownStations)
+
   return mapWithConcurrency(MEETING_HUB_STATIONS, LOCAL_SEARCH_CONCURRENCY, (keyword) =>
-    searchStationByKeyword(kakao, keyword, center),
+    searchStationByKeyword(kakao, keyword, center, knownStationMap),
   ).then((stations) => stations.filter(Boolean))
 }
 
-function searchContextualHubStations(kakao, center, origins) {
+function searchContextualHubStations(kakao, center, origins, knownStations = []) {
   const keywords = getContextualHubStationKeywords(origins)
 
   if (!keywords.length) return Promise.resolve([])
 
+  const knownStationMap = createKnownStationMap(knownStations)
+
   return mapWithConcurrency(keywords, LOCAL_SEARCH_CONCURRENCY, (keyword) =>
-    searchStationByKeyword(kakao, keyword, center),
+    searchStationByKeyword(kakao, keyword, center, knownStationMap),
   ).then((stations) =>
     stations.filter(Boolean).map((station) => ({
       ...station,
@@ -682,7 +690,20 @@ function searchContextualHubStations(kakao, center, origins) {
   )
 }
 
-async function searchStationByKeyword(kakao, keyword, center) {
+async function searchStationByKeyword(kakao, keyword, center, knownStationMap = new Map()) {
+  const normalizedKeyword = normalizeSearchStationName(keyword)
+  const knownStation = knownStationMap.get(normalizedKeyword)
+
+  if (knownStation) {
+    return createHubCandidateFromStation(knownStation, center)
+  }
+
+  const cachedStation = getCachedHubStation(normalizedKeyword)
+
+  if (cachedStation) {
+    return createHubCandidateFromStation(cachedStation, center)
+  }
+
   const { documents } = await searchLocalKeyword(
     kakao,
     keyword,
@@ -698,14 +719,102 @@ async function searchStationByKeyword(kakao, keyword, center) {
 
   if (!station) return null
 
-  return {
+  const hubStation = {
     id: station.id,
     name: station.place_name,
     routeName: station.place_name,
     address: station.road_address_name || station.address_name,
-    distanceFromCenter: getDistanceFromCenter(center, station),
-    isHubCandidate: true,
     lat: Number(station.y),
     lng: Number(station.x),
   }
+
+  setCachedHubStation(normalizedKeyword, hubStation)
+
+  return createHubCandidateFromStation(hubStation, center)
+}
+
+function createKnownStationMap(stations) {
+  const stationMap = new Map()
+
+  stations.forEach((station) => {
+    const normalizedName = normalizeSearchStationName(station.name || station.routeName)
+
+    if (
+      normalizedName &&
+      !stationMap.has(normalizedName) &&
+      Number.isFinite(station.lat) &&
+      Number.isFinite(station.lng)
+    ) {
+      stationMap.set(normalizedName, station)
+    }
+  })
+
+  return stationMap
+}
+
+function createHubCandidateFromStation(station, center) {
+  return {
+    id: station.id,
+    name: station.name,
+    routeName: station.routeName || station.name,
+    address: station.address,
+    distanceFromCenter: getDistanceFromCenter(center, {
+      y: station.lat,
+      x: station.lng,
+    }),
+    isHubCandidate: true,
+    lat: Number(station.lat),
+    lng: Number(station.lng),
+  }
+}
+
+function getCachedHubStation(stationName) {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const cache = JSON.parse(window.localStorage.getItem(HUB_STATIONS_CACHE_KEY) || '{}')
+    const cached = cache[stationName]
+
+    if (!cached || Date.now() - cached.cachedAt > HUB_STATIONS_CACHE_TTL) {
+      return null
+    }
+
+    return cached.station
+  } catch {
+    return null
+  }
+}
+
+function setCachedHubStation(stationName, station) {
+  if (typeof window === 'undefined') return
+
+  try {
+    const cache = JSON.parse(window.localStorage.getItem(HUB_STATIONS_CACHE_KEY) || '{}')
+    cache[stationName] = {
+      cachedAt: Date.now(),
+      station,
+    }
+
+    window.localStorage.setItem(HUB_STATIONS_CACHE_KEY, JSON.stringify(pruneHubStationCache(cache)))
+  } catch {
+    // 허브역 캐시 실패는 검색 자체를 막지 않습니다.
+  }
+}
+
+function pruneHubStationCache(cache) {
+  const entries = Object.entries(cache)
+    .filter(([, value]) => Date.now() - value.cachedAt <= HUB_STATIONS_CACHE_TTL)
+    .sort((a, b) => b[1].cachedAt - a[1].cachedAt)
+    .slice(0, 180)
+
+  return Object.fromEntries(entries)
+}
+
+function normalizeSearchStationName(name) {
+  const normalizedName = String(name || '')
+    .replace(/\s+/g, '')
+    .trim()
+
+  if (!normalizedName) return ''
+  return normalizedName.endsWith('역') ? normalizedName : `${normalizedName}역`
 }
