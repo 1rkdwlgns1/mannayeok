@@ -13,7 +13,11 @@ export default async function handler(request, response) {
     return
   }
 
-  const restApiKey = process.env.KAKAO_MOBILITY_KEY || process.env.KAKAO_REST_API_KEY
+  const restApiKey =
+    process.env.KAKAO_MOBILITY_KEY ||
+    process.env.VITE_KAKAO_MOBILITY_KEY ||
+    process.env.KAKAO_REST_API_KEY ||
+    process.env.VITE_KAKAO_REST_API_KEY
 
   if (!restApiKey) {
     response.status(500).json({ error: 'Kakao REST API key is not configured' })
