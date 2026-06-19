@@ -44,6 +44,7 @@ export default async function handler(request, response) {
     const bodyText = await kakaoResponse.text()
     response.status(kakaoResponse.status)
     response.setHeader('Content-Type', kakaoResponse.headers.get('content-type') || 'application/json')
+    response.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
     response.send(bodyText)
   } catch {
     response.status(502).json({ error: 'Kakao Mobility API request failed' })

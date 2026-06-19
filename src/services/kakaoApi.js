@@ -402,25 +402,25 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
   const enrichedOrigins = await enrichOriginsWithNearbyStations(origins)
   const candidateMap = new Map()
 
-  for (const searchArea of getStationSearchAreas(center)) {
-    const candidates = await searchStationCandidates(kakao, searchArea.center, searchArea.radius, center, 'center')
+  const nearbyCandidateGroups = await mapWithConcurrency(getStationSearchAreas(center), LOCAL_SEARCH_CONCURRENCY, (
+    searchArea,
+  ) => searchStationCandidates(kakao, searchArea.center, searchArea.radius, center, 'center'))
 
-    candidates.forEach((station) => {
-      if (!candidateMap.has(station.id)) {
-        candidateMap.set(station.id, station)
-      }
-    })
-  }
+  nearbyCandidateGroups.flat().forEach((station) => {
+    if (!candidateMap.has(station.id)) {
+      candidateMap.set(station.id, station)
+    }
+  })
 
-  for (const searchArea of getRouteStationSearchAreas(enrichedOrigins)) {
-    const candidates = await searchStationCandidates(kakao, searchArea.center, searchArea.radius, center, 'route')
+  const routeCandidateGroups = await mapWithConcurrency(getRouteStationSearchAreas(enrichedOrigins), LOCAL_SEARCH_CONCURRENCY, (
+    searchArea,
+  ) => searchStationCandidates(kakao, searchArea.center, searchArea.radius, center, 'route'))
 
-    candidates.forEach((station) => {
-      if (!candidateMap.has(station.id)) {
-        candidateMap.set(station.id, station)
-      }
-    })
-  }
+  routeCandidateGroups.flat().forEach((station) => {
+    if (!candidateMap.has(station.id)) {
+      candidateMap.set(station.id, station)
+    }
+  })
 
   if (isSeoulMetroArea(center)) {
     const hubCandidates = await searchMeetingHubStations(kakao, center)

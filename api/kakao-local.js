@@ -51,6 +51,7 @@ export default async function handler(request, response) {
     const bodyText = await kakaoResponse.text()
     response.status(kakaoResponse.status)
     response.setHeader('Content-Type', kakaoResponse.headers.get('content-type') || 'application/json')
+    response.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800')
     response.send(bodyText)
   } catch {
     response.status(502).json({ error: 'Kakao Local API request failed' })
