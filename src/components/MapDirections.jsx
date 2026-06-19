@@ -30,7 +30,7 @@ function MapDirections({ origins, station }) {
                 href={createKakaoDirectionUrl(origin, station)}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl bg-[#5A45E8] px-3 py-2 text-center text-sm font-bold text-white shadow-sm transition active:scale-[0.98] md:py-2.5"
+                className="rounded-xl border border-[#FEE500] bg-[#FFF8C6] px-3 py-2 text-center text-sm font-bold text-[#2F2618] shadow-sm transition hover:bg-[#FEE500] active:scale-[0.98] md:py-2.5"
               >
                 카카오맵
               </a>
@@ -38,7 +38,7 @@ function MapDirections({ origins, station }) {
                 href={createNaverSearchUrl(origin, station)}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm font-bold text-slate-700 transition active:scale-[0.98] md:py-2.5"
+                className="rounded-xl border border-[#03C75A] bg-[#EAFBF2] px-3 py-2 text-center text-sm font-bold text-[#03A64A] transition hover:bg-[#D7F7E6] active:scale-[0.98] md:py-2.5"
               >
                 네이버지도
               </a>
