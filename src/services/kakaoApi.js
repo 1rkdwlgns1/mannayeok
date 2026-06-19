@@ -16,7 +16,7 @@ const KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
 const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache'
 const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 const LOCAL_SEARCH_CONCURRENCY = 5
-const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 22
+const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 20
 
 const PLACE_CATEGORIES = {
   cafe: {
@@ -41,7 +41,7 @@ const PLACE_CATEGORIES = {
   },
 }
 
-const COMMERCIAL_CATEGORY_CODES = ['CS2', 'CT1']
+const COMMERCIAL_CATEGORY_CODES = ['CT1']
 
 let scriptLoadingPromise = null
 
