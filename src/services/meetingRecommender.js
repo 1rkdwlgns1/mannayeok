@@ -2,6 +2,8 @@ import { calculateDistanceInMeters } from './midpointCalculator'
 import { getTransitCompatibilityScore } from './transitCompatibility'
 import { getStationTransitTimeProfile } from '../data/subwayTravelTimeGraph'
 
+const MAX_PAIR_AFFINITY_BONUS = 15
+
 export const STATION_SCORE_DB = {
   성수역: { meetingPlaceScore: 100, middleHubScore: 72 },
   홍대입구역: { meetingPlaceScore: 100, middleHubScore: 76 },
@@ -30,6 +32,7 @@ export const STATION_SCORE_DB = {
   군자역: { meetingPlaceScore: 76, middleHubScore: 82 },
   어린이대공원역: { meetingPlaceScore: 72, middleHubScore: 70 },
   을지로입구역: { meetingPlaceScore: 85, middleHubScore: 84 },
+  종로3가역: { meetingPlaceScore: 88, middleHubScore: 96 },
   을지로3가역: { meetingPlaceScore: 87, middleHubScore: 88 },
   을지로4가역: { meetingPlaceScore: 72, middleHubScore: 80 },
   동대문역사문화공원역: { meetingPlaceScore: 82, middleHubScore: 92 },
@@ -132,6 +135,7 @@ const LOCAL_LIGHT_RAIL_KEYWORDS = ['경전철', '의정부경전철', '우이신
 const NORTHERN_REMOTE_KEYWORDS = ['연천', '전곡', '청산', '소요산']
 const NORTHERN_LONG_DISTANCE_KEYWORDS = ['지행', '덕계', '덕정', '양주']
 const NORTHERN_SEOUL_KEYWORDS = ['망월사', '도봉산', '방학', '창동', '노원', '수유']
+const WEST_LINE_5_KEYWORDS = ['우장산', '화곡', '발산', '마곡', '김포공항', '까치산']
 
 export function normalizeStationName(name) {
   return name
@@ -151,6 +155,10 @@ export function getContextualHubStationKeywords(origins) {
 
   if (!hasNorthernRemoteOrigin) return []
 
+  if (includesAny(originText, WEST_LINE_5_KEYWORDS)) {
+    return ['동대문역사문화공원역', '종로3가역', '청량리역', '동대문역', '노원역', '창동역']
+  }
+
   if (includesAny(originText, NORTHERN_SEOUL_KEYWORDS)) {
     return ['의정부역', '도봉산역', '창동역', '노원역', '회룡역']
   }
@@ -164,7 +172,7 @@ export function rankMeetingStations(stations, origins, limit = 3) {
     return rankMultiPersonStations(stations, origins, limit)
   }
   const bestByName = new Map()
-  const pairAffinity = getPairAffinity(origins)
+  const pairAffinity = capPairAffinityBonuses(getPairAffinity(origins))
 
   stations.forEach((station) => {
     const normalizedName = normalizeStationName(station.name)
@@ -193,7 +201,7 @@ export function rankMeetingStations(stations, origins, limit = 3) {
 }
 function rankMultiPersonStations(stations, origins, limit) {
   const bestByName = new Map()
-  const pairAffinity = getPairAffinity(origins)
+  const pairAffinity = capPairAffinityBonuses(getPairAffinity(origins))
 
   stations.forEach((station) => {
     const normalizedName = normalizeStationName(station.name)
@@ -228,6 +236,7 @@ function rankMultiPersonStations(stations, origins, limit) {
     const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceSignal || 0)
     const lowMeetingPlacePenalty = getLowMeetingPlacePenalty(stationScores.meetingPlaceScore)
     const affinityBonus = pairAffinity[normalizedName] || 0
+    const transitTimeBalanceAdjustment = getTransitTimeBalanceAdjustment(transitTimeProfile)
 
     const meetingScore =
       fairnessScore * 0.20 +
@@ -239,7 +248,8 @@ function rankMultiPersonStations(stations, origins, limit) {
       lowCommercialPenalty -
       lowMeetingPlacePenalty +
       affinityBonus +
-      transitCompatibilityScore
+      transitCompatibilityScore +
+      transitTimeBalanceAdjustment
 
     const fairScore =
       fairnessScore * 0.45 +
@@ -265,6 +275,7 @@ function rankMultiPersonStations(stations, origins, limit) {
       originDistances,
       transitTimeProfile,
       transitCompatibilityScore,
+      transitTimeBalanceAdjustment,
       travelScore,
     }
 
@@ -321,6 +332,7 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
   const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceSignal || 0)
   const lowMeetingPlacePenalty = getLowMeetingPlacePenalty(stationScores.meetingPlaceScore)
   const meetingWeights = getMeetingScoreWeights(routeDistance)
+  const transitTimeBalanceAdjustment = getTransitTimeBalanceAdjustment(transitTimeProfile)
 
   const fairScore =
     centerScore * 0.38 +
@@ -341,7 +353,8 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
     lowCommercialPenalty -
     lowMeetingPlacePenalty +
     affinityBonus +
-    transitCompatibilityScore
+    transitCompatibilityScore +
+    transitTimeBalanceAdjustment
 
   return {
     centerScore,
@@ -357,8 +370,32 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
     originDistances,
     transitTimeProfile,
     transitCompatibilityScore,
+    transitTimeBalanceAdjustment,
     travelScore,
   }
+}
+
+function getTransitTimeBalanceAdjustment(profile) {
+  if (!profile?.hasAllEstimates || !Number.isFinite(profile.minMinutes) || !Number.isFinite(profile.maxMinutes)) {
+    return 0
+  }
+
+  const diffMinutes = profile.maxMinutes - profile.minMinutes
+  const averageMinutes = profile.averageMinutes || 0
+  const maxTransfers = profile.maxTransferCount || 0
+  let adjustment = 0
+
+  if (diffMinutes <= 8) adjustment += 8
+  else if (diffMinutes <= 15) adjustment += 4
+  else if (diffMinutes >= 30) adjustment -= 10
+  else if (diffMinutes >= 22) adjustment -= 6
+
+  if (averageMinutes >= 80) adjustment -= 4
+  else if (averageMinutes <= 45 && diffMinutes <= 15) adjustment += 2
+
+  if (maxTransfers >= 3) adjustment -= 4
+
+  return clamp(adjustment, -10, 8)
 }
 
 function getPairAffinity(origins) {
@@ -388,6 +425,21 @@ function getPairAffinity(origins) {
       전곡역: -36,
       청산역: -38,
       소요산역: -34,
+    }
+
+    if (includesAny(originText, WEST_LINE_5_KEYWORDS)) {
+      return mergeAffinity(genericAffinity, {
+        ...northernCoreBonus,
+        종로3가역: 38,
+        동대문역사문화공원역: 36,
+        청량리역: 32,
+        동대문역: 24,
+        회기역: 16,
+        노원역: 24,
+        창동역: 14,
+        의정부역: -12,
+        도봉산역: -14,
+      })
     }
 
     if (includesAny(originText, ['잠실', '강남', '건대', '성수', '왕십리', '서울'])) {
@@ -584,6 +636,15 @@ function addAffinity(target, entries) {
   Object.entries(entries).forEach(([stationName, score]) => {
     target[stationName] = (target[stationName] || 0) + score
   })
+}
+
+function capPairAffinityBonuses(pairAffinity) {
+  return Object.fromEntries(
+    Object.entries(pairAffinity).map(([stationName, score]) => [
+      stationName,
+      Math.min(score, MAX_PAIR_AFFINITY_BONUS),
+    ]),
+  )
 }
 
 function includesAll(text, keywords) {

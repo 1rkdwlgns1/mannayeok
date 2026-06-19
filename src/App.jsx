@@ -20,7 +20,6 @@ const PLACE_CATEGORY_LABELS = {
 const PLACE_CATEGORY_KEYS = ['cafe', 'restaurant', 'bar', 'activity']
 
 const ICONS = {
-  trophy: '/phosphor-icons/trophy-fill.svg',
   scales: '/phosphor-icons/scales-fill.svg',
   warning: '/phosphor-icons/warning-fill.svg',
   people: '/phosphor-icons/users-three-fill.svg',
@@ -372,7 +371,7 @@ function App() {
     >
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
-          <div className="relative flex items-center px-0 py-0">
+          <div className="relative flex items-start justify-between px-0 py-0">
             <span className="block h-16 w-64 overflow-visible md:h-20 md:w-72" aria-label="만나역" role="img">
               <img
                 src={logoImage}
@@ -380,6 +379,7 @@ function App() {
                 className="h-full w-full origin-left -translate-x-10 translate-y-1 scale-[1.95] object-contain object-left md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
               />
             </span>
+            <BetaBadge className="mt-3 md:mt-4" />
           </div>
 
           <header className="hidden">
@@ -404,7 +404,7 @@ function App() {
                     <span className="block text-[#5A45E8]">만나기 좋은 역을 찾아드려요</span>
                   </h1>
                   <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
-                    거리 균형, 주변 상권, 노선 접근성까지 고려해 모두에게 부담 적은 약속역을 추천해드려요.
+                    위치 균형, 주변 상권, 노선 접근성까지 고려해 모두에게 부담 적은 약속역을 추천해드려요.
                   </p>
                 </div>
 
@@ -446,7 +446,7 @@ function App() {
                   eyebrow="가장 만나기 좋은 장소"
                   eyebrowIcon="trophy"
                   station={primaryStation}
-                  description="상권, 노선 접근성, 거리 균형을 함께 보고 고른 대표 추천역이에요."
+                  description="위치, 접근성, 주변 장소를 종합해 추천한 역이에요."
                   selected={primaryStation.id === selectedStation.id}
                   onClick={() => handleStationSelect(primaryStation.id)}
                   primary
@@ -460,11 +460,11 @@ function App() {
                     />
                     <div className="hidden lg:block">
                       <ResultTypeCard
-                        eyebrow="가장 공평한 역"
-                        eyebrowMeta="거리 중간 중간역"
+                        eyebrow="위치상 가장 중간인 역"
+                        eyebrowMeta="지도상 중간 기준"
                         eyebrowIcon="scales"
                         station={fairStation}
-                        description="상권보다 이동 거리 균형을 우선해서 선정된 기준역이에요."
+                        description="출발지 위치를 기준으로 가장 중간에 가까운 역이에요."
                         selected={fairStation.id === selectedStation.id}
                         onClick={() => handleStationSelect(fairStation.id)}
                       />
@@ -605,7 +605,7 @@ function App() {
             </div>
             <h2 className="text-base font-black text-slate-950">어디서 만날까요?</h2>
             <p className="mx-auto mt-1.5 max-w-md text-sm leading-6 text-slate-500">
-              출발지 사이의 거리 균형과 주변 상권을 함께 보고, 만나기 좋은 역을 추천해드려요.
+              출발지 사이의 위치 균형과 주변 상권을 함께 보고, 만나기 좋은 역을 추천해드려요.
             </p>
           </section>
         )}
@@ -615,7 +615,19 @@ function App() {
 }
 
 function Icon({ name, className = 'h-5 w-5', alt = '', style }) {
+  if (name === 'trophy') {
+    return <TrophyIcon className={className} aria-hidden={alt ? undefined : true} style={style} />
+  }
+
   return <img src={ICONS[name]} alt={alt} aria-hidden={alt ? undefined : true} className={className} style={style} />
+}
+
+function TrophyIcon({ className = 'h-5 w-5', style }) {
+  return (
+    <svg viewBox="0 0 256 256" className={className} style={style} fill="currentColor" focusable="false">
+      <path d="M232 64h-24V48a8 8 0 0 0-8-8H56a8 8 0 0 0-8 8v16H24A16 16 0 0 0 8 80v16a40 40 0 0 0 40 40h3.65A80.13 80.13 0 0 0 120 191.61V216H96a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16h-24v-24.42c31.94-3.23 58.44-25.64 68.08-55.58H208a40 40 0 0 0 40-40V80a16 16 0 0 0-16-16ZM48 120a24 24 0 0 1-24-24V80h24v32q0 4 .39 8ZM232 96a24 24 0 0 1-24 24h-.5a81.81 81.81 0 0 0 .5-8.9V80h24Z" />
+    </svg>
+  )
 }
 
 function getCategoryMarker(category) {
@@ -671,8 +683,8 @@ function HeroFeatureGrid() {
       <HeroFeatureCard
         icon="subway"
         tone="blue"
-        title="거리 균형"
-        description="모두의 이동 거리가 비슷한 역 추천"
+        title="위치 균형"
+        description="지도상 중간 위치에 가까운 역 참고"
       />
       <HeroFeatureCard
         icon="store"
@@ -729,7 +741,7 @@ function HeroPreview() {
         <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">왕십리역</h2>
         <div className="mt-3 space-y-2 text-xs font-bold text-slate-600">
           <div className="flex items-center justify-between">
-            <span>거리 균형</span>
+            <span>위치 균형</span>
             <span className="text-[#3182F6]">상위권</span>
           </div>
           <div className="flex items-center justify-between">
@@ -774,6 +786,17 @@ function StationLineChips({ station, className = '' }) {
         </span>
       ))}
     </div>
+  )
+}
+
+function BetaBadge({ className = '' }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-xl border border-violet-200 bg-white/95 px-2.5 py-1 text-[11px] font-black tracking-wide text-[#5A45E8] shadow-sm ring-1 ring-violet-50 ${className}`}
+      aria-label="베타 서비스"
+    >
+      BETA
+    </span>
   )
 }
 
@@ -832,7 +855,7 @@ function ResultTypeCard({
           </div>
 
           <div className="mt-3 grid grid-cols-3 border-t border-slate-100 pt-3">
-            <MetricSummaryItem icon="people" label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+            <MetricSummaryItem icon="people" label="접근 조건" value={getMetricStatus(scores.fairness)} tone="blue" />
             <MetricSummaryItem icon="store" label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
             <MetricSummaryItem icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
         </div>
@@ -850,7 +873,7 @@ function ResultTypeCard({
     >
       <div className="flex items-start justify-between gap-3">
         <span className="inline-flex items-center rounded-full border border-violet-100 bg-[#F6F3FF] px-3 py-1.5 text-xs font-black text-[#5A45E8]">
-          가장 공평한 중간역
+          위치상 가장 중간인 역
         </span>
       </div>
 
@@ -858,17 +881,17 @@ function ResultTypeCard({
         {station.name}
       </h2>
       <p className="mt-2 max-w-sm break-keep text-xs leading-5 text-slate-500 md:text-[13px] md:leading-5">
-        이동 거리의 균형만 보면 가장 중간에 가까운 역이에요.
+        출발지 위치를 기준으로 가장 중간에 가까운 역이에요.
       </p>
 
       <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
-        <FairMetricRow label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+        <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
         <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
         <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
       </div>
 
       <div className="mt-3 rounded-xl bg-[#F6F3FF] px-3 py-2 text-[11px] font-bold leading-5 text-[#8A7BD8] md:text-xs">
-        거리 균형을 가장 중요하게 생각한다면 {station.name}을 참고해보세요.
+        지도상 중간 위치를 중요하게 본다면 {station.name}을 참고해보세요.
       </div>
     </Component>
   )
@@ -888,7 +911,7 @@ function MobileFairStationCard({ station, collapsed, onToggle }) {
         aria-expanded={!collapsed}
       >
         <span className="min-w-0">
-          <span className="block text-xs font-black text-[#5A45E8]">가장 공평한 중간역</span>
+          <span className="block text-xs font-black text-[#5A45E8]">위치상 가장 중간인 역</span>
           <span className="mt-0.5 block truncate text-base font-black tracking-tight text-slate-950">
             {station.name}
           </span>
@@ -901,17 +924,17 @@ function MobileFairStationCard({ station, collapsed, onToggle }) {
       {!collapsed ? (
         <div className="mt-3 border-t border-slate-100 pt-3">
           <p className="break-keep text-xs leading-5 text-slate-500">
-            이동 거리의 균형만 보면 가장 중간에 가까운 역이에요.
+            출발지 위치를 기준으로 가장 중간에 가까운 역이에요.
           </p>
 
           <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
-            <FairMetricRow label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+            <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
             <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
             <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
           </div>
 
           <div className="mt-3 rounded-xl bg-[#F6F3FF] px-3 py-2 text-[11px] font-bold leading-5 text-[#8A7BD8]">
-            거리 균형을 중요하게 본다면 {station.name}을 참고해보세요.
+            지도상 중간 위치를 중요하게 본다면 {station.name}을 참고해보세요.
           </div>
         </div>
       ) : null}
@@ -922,7 +945,7 @@ function MobileFairStationCard({ station, collapsed, onToggle }) {
 function MetricStatusList({ scores }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
-      <StatusMetricRow icon="people" label="거리 균형" description="출발지 간 거리 차이가 작아요" value={getMetricStatus(scores.fairness)} tone="blue" />
+      <StatusMetricRow icon="people" label="위치 균형" description="지도상 출발지 위치의 중간에 가까워요" value={getMetricStatus(scores.fairness)} tone="blue" />
       <StatusMetricRow icon="store" label="주변 상권" description="맛집, 카페, 편의시설이 많아요" value={getMetricStatus(scores.commercial)} tone="purple" />
       <StatusMetricRow icon="subway" label="노선 접근성" description="환승 부담이 적은 편이에요" value={getMetricStatus(scores.transit)} tone="green" />
     </div>
@@ -1021,7 +1044,7 @@ function StationCard({ station, selected, onClick }) {
       </p>
 
       <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
-        <MiniMetric label="거리 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
+        <MiniMetric label="위치 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
         <MiniMetric label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
         <MiniMetric label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
       </div>
@@ -1078,7 +1101,7 @@ function getRecommendationReasons(station, scores, primary = false) {
   if (scores.fairness >= 80) {
     reasons.push('출발지 간 이동 부담이 비교적 비슷해요.')
   } else if (scores.fairness >= 55) {
-    reasons.push('거리 균형은 무난하고, 상권과 접근성이 보완돼요.')
+    reasons.push('위치 균형은 무난하고, 상권과 접근성이 보완돼요.')
   } else if (primary || scores.commercial >= 70 || scores.transit >= 70) {
     reasons.push('완전한 중간보다 실제로 만나기 좋은 조건을 우선했어요.')
   }
@@ -1100,7 +1123,7 @@ function getRecommendationReasons(station, scores, primary = false) {
   }
 
   if (!reasons.length) {
-    reasons.push(primary ? '거리, 상권, 노선 조건을 종합했을 때 가장 적합한 후보예요.' : '이동 거리 공평성을 비교할 때 참고하기 좋아요.')
+    reasons.push(primary ? '위치, 상권, 노선 조건을 종합했을 때 가장 적합한 후보예요.' : '지도상 중간 위치를 비교할 때 참고하기 좋아요.')
   }
 
   return reasons.slice(0, 3)

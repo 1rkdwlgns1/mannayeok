@@ -6,7 +6,7 @@ const TRUST_ITEMS = [
   {
     icon: '/phosphor-icons/subway-fill.svg',
     label: '이동 부담 최소화',
-    text: '모두에게 공평한 거리의 장소 추천',
+    text: '위치와 이동 부담을 함께 고려한 장소 추천',
   },
   {
     icon: '/phosphor-icons/storefront-fill.svg',
@@ -20,7 +20,7 @@ const TRUST_ITEMS = [
   },
 ]
 
-const REASON_CHIPS = ['거리 균형 우수', '상권 좋음', '환승 편리']
+const REASON_CHIPS = ['위치 균형 우수', '상권 좋음', '환승 편리']
 const BRAND_PURPLE = '#5A45E8'
 const EASE_OUT = [0.22, 1, 0.36, 1]
 
@@ -35,6 +35,14 @@ const riseIn = (delay = 0, duration = 0.55) => ({
   animate: { opacity: 1, y: 0 },
   transition: { delay, duration, ease: EASE_OUT },
 })
+
+function TrophyIcon({ className = 'h-4 w-4' }) {
+  return (
+    <svg viewBox="0 0 256 256" className={className} fill="currentColor" focusable="false" aria-hidden="true">
+      <path d="M232 64h-24V48a8 8 0 0 0-8-8H56a8 8 0 0 0-8 8v16H24A16 16 0 0 0 8 80v16a40 40 0 0 0 40 40h3.65A80.13 80.13 0 0 0 120 191.61V216H96a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16h-24v-24.42c31.94-3.23 58.44-25.64 68.08-55.58H208a40 40 0 0 0 40-40V80a16 16 0 0 0-16-16ZM48 120a24 24 0 0 1-24-24V80h24v32q0 4 .39 8ZM232 96a24 24 0 0 1-24 24h-.5a81.81 81.81 0 0 0 .5-8.9V80h24Z" />
+    </svg>
+  )
+}
 
 function OnboardingScreen({ onStart, isLeaving = false }) {
   return (
@@ -57,9 +65,12 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               imageClassName="origin-left -translate-x-10 translate-y-1 scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
             />
           </motion.div>
+          <motion.div className="mt-3 md:mt-4" {...fadeIn(0.1, 0.5)}>
+            <BetaBadge />
+          </motion.div>
         </header>
 
-        <section className="flex flex-1 flex-col items-center justify-center gap-6 pb-5 pt-5 text-center md:gap-7 md:pt-2">
+        <section className="flex flex-1 flex-col items-center justify-center gap-5 pb-5 pt-5 text-center md:gap-5 md:pt-2">
           <motion.div className="max-w-3xl" {...riseIn(0.4, 0.55)}>
             <p className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-[#5A45E8] shadow-sm ring-1 ring-violet-100">
               <MaskedIcon src="/phosphor-icons/subway-fill.svg" className="h-4 w-4" />
@@ -100,8 +111,8 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
           </motion.div>
 
           <div className="relative w-full max-w-4xl">
-            <div className="mx-auto">
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4">
+            <div className="mx-auto max-w-3xl">
+              <div className="grid grid-cols-[minmax(0,0.9fr)_auto_minmax(0,0.9fr)] items-center gap-2 md:gap-4">
                 <motion.div
                   initial={{ opacity: 0, x: -26 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -139,18 +150,12 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5A45E8] px-3 py-1.5 text-xs font-black text-white shadow-sm">
-                      <img src="/phosphor-icons/trophy-fill.svg" alt="" className="h-3.5 w-3.5 brightness-0 invert" />
+                      <TrophyIcon className="h-3.5 w-3.5" />
                       추천 약속역
                     </span>
                     <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
                       왕십리역
                     </h2>
-                  </div>
-                  <div className="shrink-0 rounded-2xl bg-violet-50 px-3 py-2 text-right">
-                    <p className="text-[11px] font-black text-[#8A7BD8]">만남 적합도</p>
-                    <p className="mt-1 text-3xl font-black leading-none text-[#5A45E8]">
-                      91<span className="ml-1 text-sm font-black text-[#8A7BD8]">점</span>
-                    </p>
                   </div>
                 </div>
 
@@ -160,29 +165,29 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                   ))}
                 </div>
               </motion.div>
-            </div>
-          </div>
 
-          <div className="grid w-full max-w-4xl gap-3 md:grid-cols-3">
-            {TRUST_ITEMS.map((item, index) => (
-              <motion.div
-                key={item.label}
-                className="rounded-2xl border border-slate-100 bg-white/92 p-4 text-left shadow-sm backdrop-blur"
-                initial={{ opacity: 0, x: -12, y: 8 }}
-                animate={{ opacity: 1, x: 0, y: 0 }}
-                transition={{ delay: 2.7 + index * 0.15, duration: 0.45, ease: EASE_OUT }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-50">
-                    <MaskedIcon src={item.icon} className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-950">{item.label}</h3>
-                    <p className="mt-1 text-xs font-bold leading-5 text-slate-500 md:text-sm">{item.text}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+              <div className="mt-4 grid w-full items-stretch gap-3 md:grid-cols-3">
+                {TRUST_ITEMS.map((item, index) => (
+                  <motion.div
+                    key={item.label}
+                    className="flex min-h-20 items-center rounded-2xl border border-slate-100 bg-white/92 p-3 text-left shadow-sm backdrop-blur md:min-h-24"
+                    initial={{ opacity: 0, x: -12, y: 8 }}
+                    animate={{ opacity: 1, x: 0, y: 0 }}
+                    transition={{ delay: 2.7 + index * 0.15, duration: 0.45, ease: EASE_OUT }}
+                  >
+                    <div className="flex w-full items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-50 md:h-11 md:w-11">
+                        <MaskedIcon src={item.icon} className="h-4.5 w-4.5 md:h-5 md:w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-black text-slate-950">{item.label}</h3>
+                        <p className="mt-1 text-xs font-bold leading-5 text-slate-500 md:text-sm">{item.text}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </div>
 
         </section>
@@ -193,17 +198,28 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
 
 function LogoMark({ className, imageClassName = '' }) {
   return (
-    <span className={`block ${className}`} aria-label="만나역" role="img">
+    <span className={`relative block ${className}`} aria-label="만나역" role="img">
       <img src={logoImage} alt="" className={`h-full w-full object-contain object-left ${imageClassName}`} />
+    </span>
+  )
+}
+
+function BetaBadge() {
+  return (
+    <span
+      className="inline-flex items-center rounded-xl border border-violet-200 bg-white/95 px-2.5 py-1 text-[11px] font-black tracking-wide text-[#5A45E8] shadow-sm ring-1 ring-violet-50"
+      aria-label="베타 서비스"
+    >
+      BETA
     </span>
   )
 }
 
 function StationPill({ label }) {
   return (
-    <div className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 text-sm font-black text-slate-950 shadow-sm md:min-h-14 md:text-base">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5A45E8]">
-        <img src="/phosphor-icons/subway-fill.svg" alt="" className="h-3.5 w-3.5 brightness-0 invert" />
+    <div className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 text-sm font-black text-slate-950 shadow-sm md:min-h-12 md:text-base">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5A45E8] md:h-7 md:w-7">
+        <img src="/phosphor-icons/subway-fill.svg" alt="" className="h-3 w-3 brightness-0 invert md:h-3.5 md:w-3.5" />
       </span>
       {label}
     </div>
