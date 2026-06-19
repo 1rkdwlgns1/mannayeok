@@ -16,6 +16,7 @@ const KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
 const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache'
 const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 const LOCAL_SEARCH_CONCURRENCY = 5
+const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 25
 
 const PLACE_CATEGORIES = {
   cafe: {
@@ -461,11 +462,27 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
     ).values(),
   ]
 
-  const scoredStations = await mapWithConcurrency(candidates, LOCAL_SEARCH_CONCURRENCY, (station) =>
+  const candidatesForCommercialScoring = selectCandidatesForCommercialScoring(candidates, enrichedOrigins)
+  const scoredStations = await mapWithConcurrency(candidatesForCommercialScoring, LOCAL_SEARCH_CONCURRENCY, (station) =>
     addStationCounts(kakao, station),
   )
 
   return rankMeetingStations(scoredStations, enrichedOrigins, limit)
+}
+
+function selectCandidatesForCommercialScoring(candidates, origins) {
+  const preliminaryRank = rankMeetingStations(candidates, origins, candidates.length)
+  const selectedNames = new Set()
+
+  return [...preliminaryRank.meetingStations, ...preliminaryRank.fairStations]
+    .sort((a, b) => Math.max(b.meetingScore, b.fairScore) - Math.max(a.meetingScore, a.fairScore))
+    .filter((station) => {
+      if (selectedNames.has(station.name)) return false
+
+      selectedNames.add(station.name)
+      return true
+    })
+    .slice(0, COMMERCIAL_SCORING_CANDIDATE_LIMIT)
 }
 
 export async function getRoadRoutePath(origin, destination) {
