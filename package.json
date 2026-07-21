@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "generate:hub-coordinates": "node scripts/generateHubStationCoordinates.js",
+    "generate:commercial-metrics": "node scripts/generateHubStationCommercialMetrics.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

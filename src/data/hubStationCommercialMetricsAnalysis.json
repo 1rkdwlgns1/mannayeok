@@ -1,0 +1,675 @@
+{
+  "generatedAt": "2026-07-21T08:48:54.371Z",
+  "radius": 600,
+  "stationCount": 122,
+  "hotPlaceCount": {
+    "min": 7,
+    "max": 2103,
+    "average": 701.63,
+    "median": 651.5,
+    "p10": 225.1,
+    "p25": 448,
+    "p50": 651.5,
+    "p75": 900.5,
+    "p90": 1199.5
+  },
+  "hotPlaceSignal": {
+    "min": 9,
+    "max": 2660.05,
+    "average": 910.17,
+    "median": 851.75,
+    "p10": 289.55,
+    "p25": 590.73,
+    "p50": 851.75,
+    "p75": 1163.91,
+    "p90": 1567.32
+  },
+  "top20ByHotPlaceCount": [
+    {
+      "stationName": "종각역",
+      "hotPlaceCount": 2103,
+      "hotPlaceSignal": 2660.05,
+      "cafeCount": 440,
+      "restaurantCount": 1550,
+      "commercialCount": 113
+    },
+    {
+      "stationName": "을지로입구역",
+      "hotPlaceCount": 1897,
+      "hotPlaceSignal": 2450.7,
+      "cafeCount": 415,
+      "restaurantCount": 1434,
+      "commercialCount": 48
+    },
+    {
+      "stationName": "연남동역",
+      "hotPlaceCount": 1870,
+      "hotPlaceSignal": 2370,
+      "cafeCount": 550,
+      "restaurantCount": 1248,
+      "commercialCount": 72
+    },
+    {
+      "stationName": "홍대입구역",
+      "hotPlaceCount": 1870,
+      "hotPlaceSignal": 2370,
+      "cafeCount": 550,
+      "restaurantCount": 1248,
+      "commercialCount": 72
+    },
+    {
+      "stationName": "을지로3가역",
+      "hotPlaceCount": 1704,
+      "hotPlaceSignal": 2206.4,
+      "cafeCount": 320,
+      "restaurantCount": 1338,
+      "commercialCount": 46
+    },
+    {
+      "stationName": "종로3가역",
+      "hotPlaceCount": 1573,
+      "hotPlaceSignal": 2026.25,
+      "cafeCount": 282,
+      "restaurantCount": 1236,
+      "commercialCount": 55
+    },
+    {
+      "stationName": "강남역",
+      "hotPlaceCount": 1369,
+      "hotPlaceSignal": 1788.35,
+      "cafeCount": 292,
+      "restaurantCount": 1061,
+      "commercialCount": 16
+    },
+    {
+      "stationName": "안국역",
+      "hotPlaceCount": 1356,
+      "hotPlaceSignal": 1625.05,
+      "cafeCount": 337,
+      "restaurantCount": 864,
+      "commercialCount": 155
+    },
+    {
+      "stationName": "광화문역",
+      "hotPlaceCount": 1332,
+      "hotPlaceSignal": 1686,
+      "cafeCount": 308,
+      "restaurantCount": 958,
+      "commercialCount": 66
+    },
+    {
+      "stationName": "시청역",
+      "hotPlaceCount": 1310,
+      "hotPlaceSignal": 1671.85,
+      "cafeCount": 291,
+      "restaurantCount": 966,
+      "commercialCount": 53
+    },
+    {
+      "stationName": "합정역",
+      "hotPlaceCount": 1290,
+      "hotPlaceSignal": 1634.2,
+      "cafeCount": 322,
+      "restaurantCount": 909,
+      "commercialCount": 59
+    },
+    {
+      "stationName": "상수역",
+      "hotPlaceCount": 1277,
+      "hotPlaceSignal": 1628.15,
+      "cafeCount": 292,
+      "restaurantCount": 933,
+      "commercialCount": 52
+    },
+    {
+      "stationName": "충무로역",
+      "hotPlaceCount": 1200,
+      "hotPlaceSignal": 1559.35,
+      "cafeCount": 231,
+      "restaurantCount": 943,
+      "commercialCount": 26
+    },
+    {
+      "stationName": "신논현역",
+      "hotPlaceCount": 1195,
+      "hotPlaceSignal": 1568.2,
+      "cafeCount": 227,
+      "restaurantCount": 957,
+      "commercialCount": 11
+    },
+    {
+      "stationName": "명동역",
+      "hotPlaceCount": 1190,
+      "hotPlaceSignal": 1530.9,
+      "cafeCount": 284,
+      "restaurantCount": 873,
+      "commercialCount": 33
+    },
+    {
+      "stationName": "신촌역",
+      "hotPlaceCount": 1113,
+      "hotPlaceSignal": 1439.9,
+      "cafeCount": 231,
+      "restaurantCount": 854,
+      "commercialCount": 28
+    },
+    {
+      "stationName": "을지로4가역",
+      "hotPlaceCount": 1081,
+      "hotPlaceSignal": 1399,
+      "cafeCount": 189,
+      "restaurantCount": 860,
+      "commercialCount": 32
+    },
+    {
+      "stationName": "역삼역",
+      "hotPlaceCount": 1043,
+      "hotPlaceSignal": 1359.2,
+      "cafeCount": 219,
+      "restaurantCount": 808,
+      "commercialCount": 16
+    },
+    {
+      "stationName": "의정부역",
+      "hotPlaceCount": 1042,
+      "hotPlaceSignal": 1375.4,
+      "cafeCount": 182,
+      "restaurantCount": 856,
+      "commercialCount": 4
+    },
+    {
+      "stationName": "건대입구역",
+      "hotPlaceCount": 1033,
+      "hotPlaceSignal": 1352.55,
+      "cafeCount": 200,
+      "restaurantCount": 821,
+      "commercialCount": 12
+    }
+  ],
+  "bottom20ByHotPlaceCount": [
+    {
+      "stationName": "양주역",
+      "hotPlaceCount": 7,
+      "hotPlaceSignal": 9,
+      "cafeCount": 3,
+      "restaurantCount": 4,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "청산역",
+      "hotPlaceCount": 10,
+      "hotPlaceSignal": 13.2,
+      "cafeCount": 2,
+      "restaurantCount": 8,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "동두천역",
+      "hotPlaceCount": 20,
+      "hotPlaceSignal": 26.4,
+      "cafeCount": 4,
+      "restaurantCount": 16,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "소요산역",
+      "hotPlaceCount": 45,
+      "hotPlaceSignal": 58.3,
+      "cafeCount": 3,
+      "restaurantCount": 40,
+      "commercialCount": 2
+    },
+    {
+      "stationName": "응봉역",
+      "hotPlaceCount": 61,
+      "hotPlaceSignal": 78.65,
+      "cafeCount": 18,
+      "restaurantCount": 42,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "연천역",
+      "hotPlaceCount": 90,
+      "hotPlaceSignal": 119.85,
+      "cafeCount": 11,
+      "restaurantCount": 79,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "보산역",
+      "hotPlaceCount": 103,
+      "hotPlaceSignal": 135.55,
+      "cafeCount": 10,
+      "restaurantCount": 91,
+      "commercialCount": 2
+    },
+    {
+      "stationName": "덕계역",
+      "hotPlaceCount": 123,
+      "hotPlaceSignal": 162.9,
+      "cafeCount": 21,
+      "restaurantCount": 102,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "도봉산역",
+      "hotPlaceCount": 126,
+      "hotPlaceSignal": 166.85,
+      "cafeCount": 15,
+      "restaurantCount": 110,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "덕정역",
+      "hotPlaceCount": 131,
+      "hotPlaceSignal": 174,
+      "cafeCount": 19,
+      "restaurantCount": 112,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "송도달빛축제공원역",
+      "hotPlaceCount": 131,
+      "hotPlaceSignal": 171.65,
+      "cafeCount": 28,
+      "restaurantCount": 102,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "옥수역",
+      "hotPlaceCount": 150,
+      "hotPlaceSignal": 197.3,
+      "cafeCount": 28,
+      "restaurantCount": 121,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "청담역",
+      "hotPlaceCount": 224,
+      "hotPlaceSignal": 287.35,
+      "cafeCount": 47,
+      "restaurantCount": 169,
+      "commercialCount": 8
+    },
+    {
+      "stationName": "병점역",
+      "hotPlaceCount": 235,
+      "hotPlaceSignal": 309.35,
+      "cafeCount": 46,
+      "restaurantCount": 188,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "전곡역",
+      "hotPlaceCount": 250,
+      "hotPlaceSignal": 332.85,
+      "cafeCount": 31,
+      "restaurantCount": 219,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "동두천중앙역",
+      "hotPlaceCount": 254,
+      "hotPlaceSignal": 335.6,
+      "cafeCount": 42,
+      "restaurantCount": 211,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "회룡역",
+      "hotPlaceCount": 259,
+      "hotPlaceSignal": 344.1,
+      "cafeCount": 37,
+      "restaurantCount": 222,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "아현역",
+      "hotPlaceCount": 264,
+      "hotPlaceSignal": 344.75,
+      "cafeCount": 51,
+      "restaurantCount": 209,
+      "commercialCount": 4
+    },
+    {
+      "stationName": "한남역",
+      "hotPlaceCount": 268,
+      "hotPlaceSignal": 353.1,
+      "cafeCount": 38,
+      "restaurantCount": 227,
+      "commercialCount": 3
+    },
+    {
+      "stationName": "여의나루역",
+      "hotPlaceCount": 279,
+      "hotPlaceSignal": 363.75,
+      "cafeCount": 66,
+      "restaurantCount": 210,
+      "commercialCount": 3
+    }
+  ],
+  "top20ByHotPlaceSignal": [
+    {
+      "stationName": "종각역",
+      "hotPlaceCount": 2103,
+      "hotPlaceSignal": 2660.05,
+      "cafeCount": 440,
+      "restaurantCount": 1550,
+      "commercialCount": 113
+    },
+    {
+      "stationName": "을지로입구역",
+      "hotPlaceCount": 1897,
+      "hotPlaceSignal": 2450.7,
+      "cafeCount": 415,
+      "restaurantCount": 1434,
+      "commercialCount": 48
+    },
+    {
+      "stationName": "연남동역",
+      "hotPlaceCount": 1870,
+      "hotPlaceSignal": 2370,
+      "cafeCount": 550,
+      "restaurantCount": 1248,
+      "commercialCount": 72
+    },
+    {
+      "stationName": "홍대입구역",
+      "hotPlaceCount": 1870,
+      "hotPlaceSignal": 2370,
+      "cafeCount": 550,
+      "restaurantCount": 1248,
+      "commercialCount": 72
+    },
+    {
+      "stationName": "을지로3가역",
+      "hotPlaceCount": 1704,
+      "hotPlaceSignal": 2206.4,
+      "cafeCount": 320,
+      "restaurantCount": 1338,
+      "commercialCount": 46
+    },
+    {
+      "stationName": "종로3가역",
+      "hotPlaceCount": 1573,
+      "hotPlaceSignal": 2026.25,
+      "cafeCount": 282,
+      "restaurantCount": 1236,
+      "commercialCount": 55
+    },
+    {
+      "stationName": "강남역",
+      "hotPlaceCount": 1369,
+      "hotPlaceSignal": 1788.35,
+      "cafeCount": 292,
+      "restaurantCount": 1061,
+      "commercialCount": 16
+    },
+    {
+      "stationName": "광화문역",
+      "hotPlaceCount": 1332,
+      "hotPlaceSignal": 1686,
+      "cafeCount": 308,
+      "restaurantCount": 958,
+      "commercialCount": 66
+    },
+    {
+      "stationName": "시청역",
+      "hotPlaceCount": 1310,
+      "hotPlaceSignal": 1671.85,
+      "cafeCount": 291,
+      "restaurantCount": 966,
+      "commercialCount": 53
+    },
+    {
+      "stationName": "합정역",
+      "hotPlaceCount": 1290,
+      "hotPlaceSignal": 1634.2,
+      "cafeCount": 322,
+      "restaurantCount": 909,
+      "commercialCount": 59
+    },
+    {
+      "stationName": "상수역",
+      "hotPlaceCount": 1277,
+      "hotPlaceSignal": 1628.15,
+      "cafeCount": 292,
+      "restaurantCount": 933,
+      "commercialCount": 52
+    },
+    {
+      "stationName": "안국역",
+      "hotPlaceCount": 1356,
+      "hotPlaceSignal": 1625.05,
+      "cafeCount": 337,
+      "restaurantCount": 864,
+      "commercialCount": 155
+    },
+    {
+      "stationName": "신논현역",
+      "hotPlaceCount": 1195,
+      "hotPlaceSignal": 1568.2,
+      "cafeCount": 227,
+      "restaurantCount": 957,
+      "commercialCount": 11
+    },
+    {
+      "stationName": "충무로역",
+      "hotPlaceCount": 1200,
+      "hotPlaceSignal": 1559.35,
+      "cafeCount": 231,
+      "restaurantCount": 943,
+      "commercialCount": 26
+    },
+    {
+      "stationName": "명동역",
+      "hotPlaceCount": 1190,
+      "hotPlaceSignal": 1530.9,
+      "cafeCount": 284,
+      "restaurantCount": 873,
+      "commercialCount": 33
+    },
+    {
+      "stationName": "신촌역",
+      "hotPlaceCount": 1113,
+      "hotPlaceSignal": 1439.9,
+      "cafeCount": 231,
+      "restaurantCount": 854,
+      "commercialCount": 28
+    },
+    {
+      "stationName": "을지로4가역",
+      "hotPlaceCount": 1081,
+      "hotPlaceSignal": 1399,
+      "cafeCount": 189,
+      "restaurantCount": 860,
+      "commercialCount": 32
+    },
+    {
+      "stationName": "의정부역",
+      "hotPlaceCount": 1042,
+      "hotPlaceSignal": 1375.4,
+      "cafeCount": 182,
+      "restaurantCount": 856,
+      "commercialCount": 4
+    },
+    {
+      "stationName": "역삼역",
+      "hotPlaceCount": 1043,
+      "hotPlaceSignal": 1359.2,
+      "cafeCount": 219,
+      "restaurantCount": 808,
+      "commercialCount": 16
+    },
+    {
+      "stationName": "건대입구역",
+      "hotPlaceCount": 1033,
+      "hotPlaceSignal": 1352.55,
+      "cafeCount": 200,
+      "restaurantCount": 821,
+      "commercialCount": 12
+    }
+  ],
+  "bottom20ByHotPlaceSignal": [
+    {
+      "stationName": "양주역",
+      "hotPlaceCount": 7,
+      "hotPlaceSignal": 9,
+      "cafeCount": 3,
+      "restaurantCount": 4,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "청산역",
+      "hotPlaceCount": 10,
+      "hotPlaceSignal": 13.2,
+      "cafeCount": 2,
+      "restaurantCount": 8,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "동두천역",
+      "hotPlaceCount": 20,
+      "hotPlaceSignal": 26.4,
+      "cafeCount": 4,
+      "restaurantCount": 16,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "소요산역",
+      "hotPlaceCount": 45,
+      "hotPlaceSignal": 58.3,
+      "cafeCount": 3,
+      "restaurantCount": 40,
+      "commercialCount": 2
+    },
+    {
+      "stationName": "응봉역",
+      "hotPlaceCount": 61,
+      "hotPlaceSignal": 78.65,
+      "cafeCount": 18,
+      "restaurantCount": 42,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "연천역",
+      "hotPlaceCount": 90,
+      "hotPlaceSignal": 119.85,
+      "cafeCount": 11,
+      "restaurantCount": 79,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "보산역",
+      "hotPlaceCount": 103,
+      "hotPlaceSignal": 135.55,
+      "cafeCount": 10,
+      "restaurantCount": 91,
+      "commercialCount": 2
+    },
+    {
+      "stationName": "덕계역",
+      "hotPlaceCount": 123,
+      "hotPlaceSignal": 162.9,
+      "cafeCount": 21,
+      "restaurantCount": 102,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "도봉산역",
+      "hotPlaceCount": 126,
+      "hotPlaceSignal": 166.85,
+      "cafeCount": 15,
+      "restaurantCount": 110,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "송도달빛축제공원역",
+      "hotPlaceCount": 131,
+      "hotPlaceSignal": 171.65,
+      "cafeCount": 28,
+      "restaurantCount": 102,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "덕정역",
+      "hotPlaceCount": 131,
+      "hotPlaceSignal": 174,
+      "cafeCount": 19,
+      "restaurantCount": 112,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "옥수역",
+      "hotPlaceCount": 150,
+      "hotPlaceSignal": 197.3,
+      "cafeCount": 28,
+      "restaurantCount": 121,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "청담역",
+      "hotPlaceCount": 224,
+      "hotPlaceSignal": 287.35,
+      "cafeCount": 47,
+      "restaurantCount": 169,
+      "commercialCount": 8
+    },
+    {
+      "stationName": "병점역",
+      "hotPlaceCount": 235,
+      "hotPlaceSignal": 309.35,
+      "cafeCount": 46,
+      "restaurantCount": 188,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "전곡역",
+      "hotPlaceCount": 250,
+      "hotPlaceSignal": 332.85,
+      "cafeCount": 31,
+      "restaurantCount": 219,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "동두천중앙역",
+      "hotPlaceCount": 254,
+      "hotPlaceSignal": 335.6,
+      "cafeCount": 42,
+      "restaurantCount": 211,
+      "commercialCount": 1
+    },
+    {
+      "stationName": "회룡역",
+      "hotPlaceCount": 259,
+      "hotPlaceSignal": 344.1,
+      "cafeCount": 37,
+      "restaurantCount": 222,
+      "commercialCount": 0
+    },
+    {
+      "stationName": "아현역",
+      "hotPlaceCount": 264,
+      "hotPlaceSignal": 344.75,
+      "cafeCount": 51,
+      "restaurantCount": 209,
+      "commercialCount": 4
+    },
+    {
+      "stationName": "한남역",
+      "hotPlaceCount": 268,
+      "hotPlaceSignal": 353.1,
+      "cafeCount": 38,
+      "restaurantCount": 227,
+      "commercialCount": 3
+    },
+    {
+      "stationName": "여의나루역",
+      "hotPlaceCount": 279,
+      "hotPlaceSignal": 363.75,
+      "cafeCount": 66,
+      "restaurantCount": 210,
+      "commercialCount": 3
+    }
+  ]
+}
