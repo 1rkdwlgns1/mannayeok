@@ -657,7 +657,7 @@ async function countNearbyCategory(kakao, center, categoryCode) {
     {
       x: center.lng,
       y: center.lat,
-      radius: 1000,
+      radius: 600,
       size: 1,
     },
     '주변 장소 밀도 계산에 실패했습니다.',

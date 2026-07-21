@@ -1057,9 +1057,12 @@ function MiniMetric({ label, value, tone = 'blue' }) {
 
 function getMetricStatusTextClass(value) {
   if (value === '매우 좋음') return 'text-[#6D4AFF]'
+  if (value === '매우 풍부') return 'text-[#6D4AFF]'
   if (value === '좋음') return 'text-[#947EFF]'
+  if (value === '충분') return 'text-[#947EFF]'
   if (value === '보통') return 'text-[#64748B]'
   if (value === '아쉬움') return 'text-[#EF4444]'
+  if (value === '적음') return 'text-[#EF4444]'
 
   return 'text-[#64748B]'
 }
@@ -1075,10 +1078,10 @@ function getCommercialMetricStatus(station) {
   const count = station.hotPlaceCount || 0
   const signal = station.hotPlaceSignal || 0
 
-  if (count >= 180 || signal >= 280) return '매우 좋음'
-  if (count >= 140 || signal >= 220) return '좋음'
-  if (count >= 70 || signal >= 120) return '보통'
-  return '아쉬움'
+  if (count >= 220 || signal >= 320) return '매우 풍부'
+  if (count >= 140 || signal >= 220) return '충분'
+  if (count >= 60 || signal >= 100) return '보통'
+  return '적음'
 }
 
 function getRecommendationReasons(station, scores, primary = false) {
@@ -1096,11 +1099,11 @@ function getRecommendationReasons(station, scores, primary = false) {
     reasons.push('완전한 중간보다 실제로 만나기 좋은 조건을 우선했어요.')
   }
 
-  if (hotPlaceCount >= 180 || hotPlaceSignal >= 280) {
+  if (hotPlaceCount >= 220 || hotPlaceSignal >= 320) {
     reasons.push('식사, 카페, 편의시설 선택지가 넉넉해 약속 장소로 좋아요.')
   } else if (hotPlaceCount >= 140 || hotPlaceSignal >= 220) {
     reasons.push('주변 상권이 충분해서 약속 장소를 고르기 좋아요.')
-  } else if (hotPlaceCount >= 70 || hotPlaceSignal >= 120) {
+  } else if (hotPlaceCount >= 60 || hotPlaceSignal >= 100) {
     reasons.push('기본적인 식사와 카페 선택지는 있는 편이에요.')
   }
 
