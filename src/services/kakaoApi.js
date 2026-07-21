@@ -9,6 +9,7 @@ import {
   shouldIncludeHubStation,
 } from './meetingRecommender'
 import { getStationLines } from '../data/subwayStationLines'
+import hubStationCoordinates from '../data/hubStationCoordinates.json'
 
 const KAKAO_SCRIPT_ID = 'kakao-map-sdk-script'
 const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services'
@@ -18,7 +19,7 @@ const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 const HUB_STATIONS_CACHE_KEY = 'mannayeok:hub-stations-cache'
 const HUB_STATIONS_CACHE_TTL = 1000 * 60 * 60 * 24 * 30
 const LOCAL_SEARCH_CONCURRENCY = 5
-const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 20
+const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 8
 
 const PLACE_CATEGORIES = {
   cafe: {
@@ -669,6 +670,7 @@ function searchMeetingHubStations(kakao, center, knownStations = []) {
   const knownStationMap = createKnownStationMap(knownStations)
 
   return mapWithConcurrency(MEETING_HUB_STATIONS, LOCAL_SEARCH_CONCURRENCY, (keyword) =>
+    getLocalHubStationCandidate(keyword, center, knownStationMap) ||
     searchStationByKeyword(kakao, keyword, center, knownStationMap),
   ).then((stations) => stations.filter(Boolean))
 }
@@ -681,12 +683,35 @@ function searchContextualHubStations(kakao, center, origins, knownStations = [])
   const knownStationMap = createKnownStationMap(knownStations)
 
   return mapWithConcurrency(keywords, LOCAL_SEARCH_CONCURRENCY, (keyword) =>
+    getLocalHubStationCandidate(keyword, center, knownStationMap) ||
     searchStationByKeyword(kakao, keyword, center, knownStationMap),
   ).then((stations) =>
     stations.filter(Boolean).map((station) => ({
       ...station,
       isContextualCandidate: true,
     })),
+  )
+}
+
+function getLocalHubStationCandidate(keyword, center, knownStationMap = new Map()) {
+  const normalizedKeyword = normalizeSearchStationName(keyword)
+  const knownStation = knownStationMap.get(normalizedKeyword)
+
+  if (knownStation) {
+    return createHubCandidateFromStation(knownStation, center)
+  }
+
+  const station = hubStationCoordinates[keyword] || hubStationCoordinates[normalizedKeyword]
+
+  if (!hasValidStationCoordinate(station)) return null
+
+  return createHubCandidateFromStation(
+    {
+      ...station,
+      name: keyword,
+      routeName: station.name || keyword,
+    },
+    center,
   )
 }
 
@@ -766,6 +791,10 @@ function createHubCandidateFromStation(station, center) {
     lat: Number(station.lat),
     lng: Number(station.lng),
   }
+}
+
+function hasValidStationCoordinate(station) {
+  return Number.isFinite(station?.lat) && Number.isFinite(station?.lng)
 }
 
 function getCachedHubStation(stationName) {

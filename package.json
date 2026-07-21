@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "generate:hub-coordinates": "node scripts/generateHubStationCoordinates.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
