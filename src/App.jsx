@@ -13,6 +13,8 @@ import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedS
 import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateMidpoint } from './services/midpointCalculator'
 
+const PUBLIC_APP_URL = 'https://mannayeok.kr/'
+
 const PLACE_CATEGORY_LABELS = {
   cafe: '카페',
   restaurant: '밥집',
@@ -433,7 +435,7 @@ function App() {
   }
 
   const handleShare = async () => {
-    const shareUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+    const shareUrl = PUBLIC_APP_URL
     const shareData = {
       title: '만나역 - 만나기 좋은 중간역 찾기',
       text: '어디서 만날지 고민될 때, 만나역에서 모두에게 좋은 약속역을 찾아보세요.',
@@ -2041,7 +2043,7 @@ function hasSameOrigins(origins) {
 }
 
 function createResultShareUrl({ origins, recommendedStations, fairStations, selectedStationId }) {
-  const shareUrl = new URL(window.location.origin + window.location.pathname)
+  const shareUrl = new URL(PUBLIC_APP_URL)
   const payload = {
     origins: origins.map(pickSharedOrigin),
     recommendedStations: recommendedStations.slice(0, 4).map(pickSharedStation),
