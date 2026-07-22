@@ -57,34 +57,34 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
         backgroundSize: 'cover',
       }}
     >
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5 md:px-8 md:py-7">
-        <header className="mx-auto flex w-full max-w-4xl items-center justify-between">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-4 md:px-8 md:py-7">
+        <header className="mx-auto flex w-full max-w-4xl items-center justify-start md:justify-between">
           <motion.div {...fadeIn(0, 0.5)}>
             <LogoMark
-              className="h-16 w-64 overflow-visible md:h-20 md:w-72"
-              imageClassName="origin-left -translate-x-10 translate-y-1 scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
+              className="h-16 w-44 overflow-visible md:h-20 md:w-72"
+              imageClassName="origin-left -translate-x-7 translate-y-1 scale-[1.6] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
             />
           </motion.div>
-          <motion.div className="mt-3 md:mt-4" {...fadeIn(0.1, 0.5)}>
+          <motion.div className="-ml-12 mt-3 md:ml-0 md:mt-4" {...fadeIn(0.1, 0.5)}>
             <BetaBadge />
           </motion.div>
         </header>
 
-        <section className="flex flex-1 flex-col items-center justify-center gap-5 pb-5 pt-5 text-center md:gap-5 md:pt-2">
+        <section className="flex flex-1 flex-col items-center justify-center gap-4 pb-4 pt-2 text-center md:gap-5 md:pb-5 md:pt-2">
           <motion.div className="max-w-3xl" {...riseIn(0.4, 0.55)}>
-            <p className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-[#5A45E8] shadow-sm ring-1 ring-violet-100">
+            <p className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-black text-[#5A45E8] shadow-sm ring-1 ring-violet-100 md:gap-2 md:px-4 md:py-2 md:text-sm">
               <MaskedIcon src="/phosphor-icons/subway-fill.svg" className="h-4 w-4" />
               약속 장소 추천 서비스
             </p>
 
-            <h1 className="mt-5 text-[36px] font-black leading-tight tracking-tight text-slate-950 sm:text-5xl lg:text-[58px]">
+            <h1 className="mt-3 text-[30px] font-black leading-tight tracking-tight text-slate-950 md:mt-5 md:text-5xl lg:text-[58px]">
               여기서 만나, <span className="text-[#5A45E8]">역!</span>
-              <span className="block text-[28px] sm:text-4xl lg:text-[44px]">
+              <span className="mt-1 block text-[23px] md:mt-0 md:text-4xl lg:text-[44px]">
                 약속 장소 고민, <span className="text-[#5A45E8]">3초 만에 끝.</span>
               </span>
             </h1>
 
-            <p className="mx-auto mt-4 max-w-xl text-base font-bold leading-7 text-slate-600 sm:text-lg">
+            <p className="mx-auto mt-3 max-w-xl text-sm font-bold leading-6 text-slate-600 md:mt-4 md:text-lg md:leading-7">
               출발지만 입력하면 모두가 부담 적은 만나기 좋은 약속 장소를 추천해드려요.
             </p>
 
@@ -92,7 +92,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               type="button"
               onClick={onStart}
               disabled={isLeaving}
-              className="mt-6 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#5A45E8] px-7 text-base font-black text-white opacity-0 shadow-[0_14px_34px_rgba(90,69,232,0.30)] transition hover:-translate-y-0.5 hover:bg-[#4938D1] active:translate-y-0 disabled:cursor-wait disabled:bg-violet-300 sm:min-h-14"
+              className="mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#5A45E8] px-6 text-sm font-black text-white opacity-0 shadow-[0_14px_34px_rgba(90,69,232,0.30)] transition hover:-translate-y-0.5 hover:bg-[#4938D1] active:translate-y-0 disabled:cursor-wait disabled:bg-violet-300 md:mt-6 md:min-h-14 md:px-7 md:text-base"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{
                 opacity: 1,
@@ -142,7 +142,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               </div>
 
               <motion.div
-                className="mx-auto mt-4 w-full max-w-xl rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-[0_20px_55px_rgba(15,23,42,0.14)] md:p-6"
+                className="mx-auto mt-3 w-full max-w-xl rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-[0_20px_55px_rgba(15,23,42,0.14)] md:mt-4 md:rounded-3xl md:p-6"
                 initial={{ opacity: 0, y: 24, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ delay: 1.8, duration: 0.6, ease: EASE_OUT }}
@@ -153,35 +153,35 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                       <TrophyIcon className="h-3.5 w-3.5" />
                       추천 약속역
                     </span>
-                    <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+                    <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950 md:mt-4 md:text-4xl">
                       종로 3가역
                     </h2>
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-1.5 md:mt-4 md:gap-2">
                   {REASON_CHIPS.map((label, index) => (
                     <ReasonChip key={label} label={label} delay={2.3 + index * 0.1} />
                   ))}
                 </div>
               </motion.div>
 
-              <div className="mt-4 grid w-full items-stretch gap-3 md:grid-cols-3">
+              <div className="mt-3 grid w-full grid-cols-3 items-stretch gap-2 md:mt-4 md:gap-3">
                 {TRUST_ITEMS.map((item, index) => (
                   <motion.div
                     key={item.label}
-                    className="flex min-h-20 items-center rounded-2xl border border-slate-100 bg-white/92 p-3 text-left shadow-sm backdrop-blur md:min-h-24"
+                    className="flex min-h-20 items-center justify-center rounded-2xl border border-slate-100 bg-white/92 p-2 text-center shadow-sm backdrop-blur md:min-h-24 md:justify-start md:p-3 md:text-left"
                     initial={{ opacity: 0, x: -12, y: 8 }}
                     animate={{ opacity: 1, x: 0, y: 0 }}
                     transition={{ delay: 2.7 + index * 0.15, duration: 0.45, ease: EASE_OUT }}
                   >
-                    <div className="flex w-full items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-50 md:h-11 md:w-11">
+                    <div className="flex w-full flex-col items-center gap-2 md:flex-row md:gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-50 md:h-11 md:w-11">
                         <MaskedIcon src={item.icon} className="h-4.5 w-4.5 md:h-5 md:w-5" />
                       </span>
                       <div className="min-w-0">
-                        <h3 className="text-sm font-black text-slate-950">{item.label}</h3>
-                        <p className="mt-1 text-xs font-bold leading-5 text-slate-500 md:text-sm">{item.text}</p>
+                        <h3 className="text-[11px] font-black leading-4 text-slate-950 md:text-sm">{item.label}</h3>
+                        <p className="mt-1 hidden text-sm font-bold leading-5 text-slate-500 md:block">{item.text}</p>
                       </div>
                     </div>
                   </motion.div>

@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import AddressInput from './components/AddressInput'
-import { CheckCircle2, CircleHelp, Clipboard, Mail, Menu, MessageCircle, Send, Share2, X } from 'lucide-react'
+import { CheckCircle2, CircleHelp, Mail, Menu, MessageCircle, Send, Share2, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
@@ -487,19 +487,6 @@ function App() {
     }
   }
 
-  const handleResultLinkCopy = async () => {
-    const shareData = getResultShareData()
-    if (!shareData) return
-
-    try {
-      await copyTextToClipboard(shareData.url)
-      setResultShareOpen(false)
-      setShareNotice('추천 결과 링크를 복사했어요.')
-    } catch {
-      setShareNotice('결과 링크를 복사하지 못했어요. 다시 시도해주세요.')
-    }
-  }
-
   const handleInquiry = () => {
     setInquiryOpen(true)
     setMobileMenuOpen(false)
@@ -885,7 +872,6 @@ function App() {
               kakaoShareStatus={kakaoShareStatus}
               kakaoShareError={kakaoShareError}
               onKakaoShare={handleResultKakaoShare}
-              onCopy={handleResultLinkCopy}
               onClose={() => setResultShareOpen(false)}
             />,
             document.body,
@@ -953,7 +939,6 @@ function ResultShareDialog({
   kakaoShareStatus,
   kakaoShareError,
   onKakaoShare,
-  onCopy,
   onClose,
 }) {
   return (
@@ -1005,33 +990,28 @@ function ResultShareDialog({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 px-5 py-5 sm:px-6">
+        <div className="px-5 py-5 sm:px-6">
           <button
             type="button"
             onClick={onKakaoShare}
             disabled={kakaoShareStatus === 'loading'}
-            className="flex min-h-24 flex-col items-start justify-between rounded-xl bg-[#FEE500] p-4 text-left text-[#191919] transition hover:bg-[#F5DC00] active:scale-[0.99] disabled:cursor-wait disabled:bg-[#FFF4A8] disabled:text-black/45"
+            className="flex min-h-16 w-full items-center gap-3 rounded-xl bg-[#FEE500] px-4 py-3 text-left text-[#191919] shadow-[0_10px_24px_rgba(254,229,0,0.22)] transition hover:bg-[#F5DC00] active:scale-[0.99] disabled:cursor-wait disabled:bg-[#FFF4A8] disabled:text-black/45 disabled:shadow-none"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-black/10">
-              <MessageCircle className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/10">
+              <MessageCircle className="h-6 w-6" strokeWidth={2.2} aria-hidden="true" />
             </span>
-            <span className="mt-3 text-sm font-black">
-              {kakaoShareStatus === 'loading'
-                ? '카카오톡 연결 중'
-                : kakaoShareStatus === 'error'
-                  ? '카카오톡 다시 연결'
-                  : '카카오톡으로 보내기'}
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-black">
+                {kakaoShareStatus === 'loading'
+                  ? '카카오톡 연결 중'
+                  : kakaoShareStatus === 'error'
+                    ? '카카오톡 다시 연결'
+                    : '카카오톡으로 결과 보내기'}
+              </span>
+              <span className="mt-0.5 block text-xs font-semibold text-black/55">
+                친구에게 같은 추천 결과를 공유해요
+              </span>
             </span>
-          </button>
-          <button
-            type="button"
-            onClick={onCopy}
-            className="flex min-h-24 flex-col items-start justify-between rounded-xl border border-slate-200 bg-white p-4 text-left text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-[#5A45E8] active:scale-[0.99]"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
-              <Clipboard className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
-            </span>
-            <span className="mt-3 text-sm font-black">결과 링크 복사</span>
           </button>
         </div>
         {kakaoShareStatus === 'error' ? (
@@ -2161,25 +2141,6 @@ function roundShareNumber(value, digits = 2) {
 
   const scale = 10 ** digits
   return Math.round(value * scale) / scale
-}
-
-async function copyTextToClipboard(text) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text)
-    return
-  }
-
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.setAttribute('readonly', '')
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  const copied = document.execCommand('copy')
-  textarea.remove()
-
-  if (!copied) throw new Error('Clipboard copy failed')
 }
 
 function getLastInquirySubmittedAt() {
