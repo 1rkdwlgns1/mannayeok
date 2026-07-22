@@ -1,6 +1,7 @@
 const KAKAO_SHARE_SDK_ID = 'kakao-share-sdk'
 const KAKAO_SHARE_SDK_URL = 'https://t1.kakaocdn.net/kakao_js_sdk/2.8.1/kakao.min.js'
 const KAKAO_SHARE_LOAD_TIMEOUT_MS = 10_000
+const KAKAO_SHARE_IMAGE_URL = 'https://mannayeok.kr/mannayeok-share-logo.png'
 
 let sdkLoadingPromise = null
 
@@ -31,11 +32,17 @@ export function shareResultToKakao({ stationName, originNames, url }) {
   }
 
   Kakao.Share.sendDefault({
-    objectType: 'text',
-    text: `${originNames}에서 만난다면?\n만나역의 추천은 ${stationName}이에요.`,
-    link: {
-      mobileWebUrl: url,
-      webUrl: url,
+    objectType: 'feed',
+    content: {
+      title: `만나역 추천: ${stationName}`,
+      description: `${originNames}에서 만난다면? 만나기 좋은 중간역을 확인해보세요.`,
+      imageUrl: KAKAO_SHARE_IMAGE_URL,
+      imageWidth: 544,
+      imageHeight: 544,
+      link: {
+        mobileWebUrl: url,
+        webUrl: url,
+      },
     },
     buttons: [
       {
