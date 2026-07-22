@@ -44,15 +44,6 @@ export function shareResultToKakao({ stationName, originNames, url }) {
         webUrl: url,
       },
     },
-    buttons: [
-      {
-        title: '추천 결과 보기',
-        link: {
-          mobileWebUrl: url,
-          webUrl: url,
-        },
-      },
-    ],
   })
 }
 
