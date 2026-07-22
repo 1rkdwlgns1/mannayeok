@@ -434,29 +434,6 @@ function App() {
     }, 560)
   }
 
-  const handleShare = async () => {
-    const shareUrl = PUBLIC_APP_URL
-    const shareData = {
-      title: '만나역 - 만나기 좋은 중간역 찾기',
-      text: '어디서 만날지 고민될 때,\n만나역에서 모두에게 좋은\n약속역을 찾아보세요.',
-      url: shareUrl,
-    }
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData)
-        return
-      }
-
-      await copyTextToClipboard(shareUrl)
-      setShareNotice('만나역 주소를 복사했어요.')
-    } catch (shareError) {
-      if (shareError?.name !== 'AbortError') {
-        setShareNotice('링크를 복사하지 못했어요. 다시 시도해주세요.')
-      }
-    }
-  }
-
   const getResultShareData = () => {
     if (!primaryStation) return
 
@@ -597,13 +574,11 @@ function App() {
             </div>
 
             <nav className="mt-5 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
-              <HeaderAction icon={Share2} label="만나역 공유" onClick={handleShare} />
               <HeaderAction icon={Mail} label="문의하기" onClick={handleInquiry} />
               <HeaderAction icon={CircleHelp} label="이용안내" onClick={() => setGuideOpen(true)} />
             </nav>
 
             <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
-              <HeaderIconButton icon={Share2} label="만나역 공유" onClick={handleShare} />
               <HeaderIconButton
                 icon={mobileMenuOpen ? X : Menu}
                 label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
@@ -2098,7 +2073,14 @@ function pickSharedStation(station) {
 }
 
 function encodeSharePayload(payload) {
-  const bytes = new TextEncoder().encode(JSON.stringify(payload))
+  const compactPayload = [
+    2,
+    payload.origins.map(packSharedOrigin),
+    payload.recommendedStations.map(packSharedStation),
+    payload.fairStations.map(packSharedStation),
+    payload.selectedStationId,
+  ]
+  const bytes = new TextEncoder().encode(JSON.stringify(compactPayload))
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
 
   return window.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
@@ -2110,7 +2092,75 @@ function decodeSharePayload(encodedPayload) {
   const binary = window.atob(paddedBase64)
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
 
-  return JSON.parse(new TextDecoder().decode(bytes))
+  const payload = JSON.parse(new TextDecoder().decode(bytes))
+
+  if (!Array.isArray(payload) || payload[0] !== 2) return payload
+
+  return {
+    origins: (payload[1] || []).map(unpackSharedOrigin),
+    recommendedStations: (payload[2] || []).map(unpackSharedStation),
+    fairStations: (payload[3] || []).map(unpackSharedStation),
+    selectedStationId: payload[4],
+  }
+}
+
+function packSharedOrigin(origin) {
+  return [
+    origin.id,
+    origin.address,
+    origin.routeName,
+    roundShareNumber(origin.lat, 6),
+    roundShareNumber(origin.lng, 6),
+  ]
+}
+
+function unpackSharedOrigin(origin) {
+  return {
+    id: origin[0],
+    address: origin[1],
+    routeName: origin[2],
+    lat: origin[3],
+    lng: origin[4],
+  }
+}
+
+function packSharedStation(station) {
+  return [
+    station.id,
+    station.name,
+    roundShareNumber(station.lat, 6),
+    roundShareNumber(station.lng, 6),
+    roundShareNumber(station.distanceFromCenter),
+    roundShareNumber(station.hotPlaceCount),
+    roundShareNumber(station.hotPlaceSignal),
+    roundShareNumber(station.meetingPlaceScore),
+    roundShareNumber(station.middleHubScore),
+    roundShareNumber(station.fairnessScore),
+    roundShareNumber(station.transitCompatibilityScore),
+  ]
+}
+
+function unpackSharedStation(station) {
+  return {
+    id: station[0],
+    name: station[1],
+    lat: station[2],
+    lng: station[3],
+    distanceFromCenter: station[4],
+    hotPlaceCount: station[5],
+    hotPlaceSignal: station[6],
+    meetingPlaceScore: station[7],
+    middleHubScore: station[8],
+    fairnessScore: station[9],
+    transitCompatibilityScore: station[10],
+  }
+}
+
+function roundShareNumber(value, digits = 2) {
+  if (!Number.isFinite(value)) return value ?? null
+
+  const scale = 10 ** digits
+  return Math.round(value * scale) / scale
 }
 
 async function copyTextToClipboard(text) {
