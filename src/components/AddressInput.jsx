@@ -186,7 +186,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
               if (!origin.selected) setOpen(true)
             }}
             placeholder={`${label} 검색`}
-            className={`min-w-0 flex-1 bg-transparent py-0 text-sm font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 md:text-base ${
+            className={`min-w-0 flex-1 bg-transparent py-0 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 ${
               compact ? 'leading-6' : 'leading-6 md:text-base'
             }`}
           />
