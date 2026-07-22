@@ -1061,7 +1061,7 @@ function getMetricStatusTextClass(value) {
   if (value === '좋음') return 'text-[#947EFF]'
   if (value === '풍부') return 'text-[#947EFF]'
   if (value === '보통') return 'text-[#64748B]'
-  if (value === '충분') return 'text-[#64748B]'
+  if (value === '충분') return 'text-[#8A7BD8]'
   if (value === '아쉬움') return 'text-[#EF4444]'
   if (value === '적음') return 'text-[#EF4444]'
 

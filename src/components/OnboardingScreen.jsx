@@ -20,7 +20,7 @@ const TRUST_ITEMS = [
   },
 ]
 
-const REASON_CHIPS = ['위치 균형 우수', '상권 좋음', '환승 편리']
+const REASON_CHIPS = ['위치 균형 우수', '상권 풍부', '환승 편리']
 const BRAND_PURPLE = '#5A45E8'
 const EASE_OUT = [0.22, 1, 0.36, 1]
 
@@ -154,7 +154,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                       추천 약속역
                     </span>
                     <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
-                      왕십리역
+                      종로 3가역
                     </h2>
                   </div>
                 </div>
