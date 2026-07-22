@@ -438,7 +438,7 @@ function App() {
     const shareUrl = PUBLIC_APP_URL
     const shareData = {
       title: '만나역 - 만나기 좋은 중간역 찾기',
-      text: '어디서 만날지 고민될 땐,\n만나역에서 찾아보세요.',
+      text: '어디서 만날지 고민될 때,\n만나역에서 모두에게 좋은\n약속역을 찾아보세요.',
       url: shareUrl,
     }
 
