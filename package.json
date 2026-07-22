@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "framer-motion": "^12.40.0",
+    "kakao-js-sdk": "^1.2.3",
     "lucide-react": "^1.25.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"

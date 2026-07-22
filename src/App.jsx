@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import AddressInput from './components/AddressInput'
-import { CheckCircle2, CircleHelp, Mail, Menu, Send, Share2, X } from 'lucide-react'
+import { CheckCircle2, CircleHelp, Clipboard, Mail, Menu, MessageCircle, Send, Share2, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
@@ -10,6 +10,7 @@ import backgroundImage from './assets/background.png'
 import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
+import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateMidpoint } from './services/midpointCalculator'
 
 const PLACE_CATEGORY_LABELS = {
@@ -106,6 +107,10 @@ function App() {
   const [guideOpen, setGuideOpen] = useState(false)
   const [inquiryOpen, setInquiryOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [resultShareOpen, setResultShareOpen] = useState(false)
+  const [kakaoShareStatus, setKakaoShareStatus] = useState('idle')
+  const [kakaoShareAttempt, setKakaoShareAttempt] = useState(0)
+  const [kakaoShareError, setKakaoShareError] = useState('')
   const [shareNotice, setShareNotice] = useState('')
   const onboardingExitTimerRef = useRef(null)
 
@@ -226,7 +231,29 @@ function App() {
   }, [shareNotice])
 
   useEffect(() => {
-    if (!guideOpen && !inquiryOpen && !privacyOpen) return undefined
+    if (!resultShareOpen) return
+
+    let active = true
+    setKakaoShareStatus('loading')
+    setKakaoShareError('')
+    loadKakaoShareSdk()
+      .then(() => {
+        if (active) setKakaoShareStatus('ready')
+      })
+      .catch((error) => {
+        if (active) {
+          setKakaoShareStatus('error')
+          setKakaoShareError(error instanceof Error ? error.message : '카카오 SDK 연결에 실패했어요.')
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [resultShareOpen, kakaoShareAttempt])
+
+  useEffect(() => {
+    if (!guideOpen && !inquiryOpen && !privacyOpen && !resultShareOpen) return undefined
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -234,6 +261,8 @@ function App() {
           setPrivacyOpen(false)
         } else if (inquiryOpen) {
           setInquiryOpen(false)
+        } else if (resultShareOpen) {
+          setResultShareOpen(false)
         } else {
           setGuideOpen(false)
         }
@@ -242,7 +271,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [guideOpen, inquiryOpen, privacyOpen])
+  }, [guideOpen, inquiryOpen, privacyOpen, resultShareOpen])
 
   const handleAddressChange = (index, value) => {
     setOriginInputs((prev) =>
@@ -404,18 +433,10 @@ function App() {
   }
 
   const handleShare = async () => {
-    const shareUrl = createShareUrl({
-      origins,
-      recommendedStations,
-      fairStations,
-      selectedStationId,
-    })
-    const shareText = selectedStation
-      ? `${origins.map((origin) => origin.routeName || origin.address).join(' · ')}의 만나역은 ${selectedStation.name}이에요.`
-      : '우리의 중간 약속역을 만나역에서 찾아보세요.'
+    const shareUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
     const shareData = {
-      title: selectedStation ? `만나역 추천 결과 - ${selectedStation.name}` : '만나역',
-      text: shareText,
+      title: '만나역 - 만나기 좋은 중간역 찾기',
+      text: '어디서 만날지 고민될 때, 만나역에서 모두에게 좋은 약속역을 찾아보세요.',
       url: shareUrl,
     }
 
@@ -426,11 +447,77 @@ function App() {
       }
 
       await copyTextToClipboard(shareUrl)
-      setShareNotice(selectedStation ? '추천 결과 링크를 복사했어요.' : '웹사이트 링크를 복사했어요.')
+      setShareNotice('만나역 주소를 복사했어요.')
     } catch (shareError) {
       if (shareError?.name !== 'AbortError') {
         setShareNotice('링크를 복사하지 못했어요. 다시 시도해주세요.')
       }
+    }
+  }
+
+  const getResultShareData = () => {
+    if (!primaryStation) return
+
+    const shareUrl = createResultShareUrl({
+      origins,
+      recommendedStations,
+      fairStations,
+      selectedStationId,
+    })
+    const originNames = origins.map((origin) => origin.routeName || origin.address).join(' · ')
+    return {
+      title: `만나역 추천 결과 - ${primaryStation.name}`,
+      text: `${originNames}에서 만나기 좋은 역은 ${primaryStation.name}이에요.`,
+      url: shareUrl,
+    }
+  }
+
+  const handleResultShare = () => {
+    if (!primaryStation) return
+    setResultShareOpen(true)
+  }
+
+  const handleResultKakaoShare = () => {
+    const shareData = getResultShareData()
+    if (!shareData) return
+
+    if (kakaoShareStatus !== 'ready') {
+      if (kakaoShareStatus === 'error') {
+        setKakaoShareAttempt((attempt) => attempt + 1)
+        return
+      }
+
+      setShareNotice(
+        '카카오톡 공유 기능을 준비하고 있어요.',
+      )
+      return
+    }
+
+    try {
+      shareResultToKakao({
+        stationName: primaryStation.name,
+        originNames: origins.map((origin) => origin.routeName || origin.address).join(' · '),
+        url: shareData.url,
+      })
+      setResultShareOpen(false)
+    } catch (error) {
+      const kakaoErrorMessage =
+        error instanceof Error ? error.message : error?.message || '카카오톡 공유를 열지 못했어요.'
+
+      setShareNotice(kakaoErrorMessage)
+    }
+  }
+
+  const handleResultLinkCopy = async () => {
+    const shareData = getResultShareData()
+    if (!shareData) return
+
+    try {
+      await copyTextToClipboard(shareData.url)
+      setResultShareOpen(false)
+      setShareNotice('추천 결과 링크를 복사했어요.')
+    } catch {
+      setShareNotice('결과 링크를 복사하지 못했어요. 다시 시도해주세요.')
     }
   }
 
@@ -485,7 +572,7 @@ function App() {
 
   return (
     <main
-      className="app-enter min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:py-8"
+      className="app-enter min-h-screen overflow-x-hidden bg-[#F8FAFC] px-2.5 py-3 md:px-6 md:pb-6 md:pt-4"
       style={{
         backgroundImage: `linear-gradient(180deg, rgba(248,250,252,0.80) 0%, rgba(248,250,252,0.54) 50%, rgba(248,250,252,0.86) 100%), url(${backgroundImage})`,
         backgroundPosition: 'center bottom',
@@ -494,7 +581,7 @@ function App() {
       }}
     >
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
-        <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
+        <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-3">
           <div className="relative flex min-h-16 items-start justify-between px-0 py-0 md:min-h-20">
             <div className="relative flex min-w-0 items-start">
               <span className="block h-16 w-44 overflow-visible sm:w-64 md:h-20 md:w-72" aria-label="만나역" role="img">
@@ -507,14 +594,14 @@ function App() {
               <BetaBadge className="absolute left-32 top-3 sm:left-36 md:left-36 md:top-4" />
             </div>
 
-            <nav className="mt-3 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
-              <HeaderAction icon={Share2} label="공유하기" onClick={handleShare} />
+            <nav className="mt-5 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
+              <HeaderAction icon={Share2} label="만나역 공유" onClick={handleShare} />
               <HeaderAction icon={Mail} label="문의하기" onClick={handleInquiry} />
               <HeaderAction icon={CircleHelp} label="이용안내" onClick={() => setGuideOpen(true)} />
             </nav>
 
             <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
-              <HeaderIconButton icon={Share2} label="공유하기" onClick={handleShare} />
+              <HeaderIconButton icon={Share2} label="만나역 공유" onClick={handleShare} />
               <HeaderIconButton
                 icon={mobileMenuOpen ? X : Menu}
                 label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
@@ -596,15 +683,25 @@ function App() {
           <>
             {primaryStation ? (
               <section className={`relative grid items-start gap-3 lg:grid-cols-[1.08fr_0.92fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
-                <ResultTypeCard
-                  eyebrow="가장 만나기 좋은 장소"
-                  eyebrowIcon="trophy"
-                  station={primaryStation}
-                  description="위치, 접근성, 주변 장소를 종합해 추천한 역이에요."
-                  selected={primaryStation.id === selectedStation.id}
-                  onClick={() => handleStationSelect(primaryStation.id)}
-                  primary
-                />
+                <div className="relative">
+                  <ResultTypeCard
+                    eyebrow="가장 만나기 좋은 장소"
+                    eyebrowIcon="trophy"
+                    station={primaryStation}
+                    description="위치, 접근성, 주변 장소를 종합해 추천한 역이에요."
+                    selected={primaryStation.id === selectedStation.id}
+                    onClick={() => handleStationSelect(primaryStation.id)}
+                    primary
+                  />
+                  <button
+                    type="button"
+                    onClick={handleResultShare}
+                    className="absolute right-3 top-3 z-10 inline-flex h-9 items-center gap-1.5 rounded-lg border border-violet-200 bg-white/95 px-2.5 text-[11px] font-black text-[#5A45E8] shadow-sm backdrop-blur transition hover:border-violet-300 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                  >
+                    <Share2 className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden="true" />
+                    <span>결과 공유</span>
+                  </button>
+                </div>
                 {fairStation ? (
                   <>
                     <MobileFairStationCard
@@ -764,22 +861,25 @@ function App() {
           </section>
         )}
 
-        <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 py-3 text-[11px] font-bold text-slate-400">
-          <span>© 2026 만나역</span>
-          <button
-            type="button"
-            onClick={() => setPrivacyOpen(true)}
-            className="transition hover:text-[#5A45E8]"
-          >
-            개인정보처리방침
-          </button>
-          <button
-            type="button"
-            onClick={handleInquiry}
-            className="transition hover:text-[#5A45E8]"
-          >
-            문의하기
-          </button>
+        <footer className="mt-2 border-t border-slate-200/80 px-2 pb-2 pt-4 text-center text-[11px] font-bold text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <span>© 2026 만나역</span>
+            <button
+              type="button"
+              onClick={() => setPrivacyOpen(true)}
+              className="transition hover:text-[#5A45E8]"
+            >
+              개인정보처리방침
+            </button>
+            <button
+              type="button"
+              onClick={handleInquiry}
+              className="transition hover:text-[#5A45E8]"
+            >
+              문의하기
+            </button>
+          </div>
+          <p className="mt-2 font-medium text-slate-400">운영 문의: 1rkdwlgns1@gmail.com</p>
         </footer>
       </div>
 
@@ -799,6 +899,20 @@ function App() {
       ) : null}
       {privacyOpen
         ? createPortal(<PrivacyPolicyDialog onClose={() => setPrivacyOpen(false)} />, document.body)
+        : null}
+      {resultShareOpen
+        ? createPortal(
+            <ResultShareDialog
+              stationName={primaryStation?.name || ''}
+              originNames={origins.map((origin) => origin.routeName || origin.address)}
+              kakaoShareStatus={kakaoShareStatus}
+              kakaoShareError={kakaoShareError}
+              onKakaoShare={handleResultKakaoShare}
+              onCopy={handleResultLinkCopy}
+              onClose={() => setResultShareOpen(false)}
+            />,
+            document.body,
+          )
         : null}
 
       {shareNotice
@@ -853,6 +967,112 @@ function MobileMenuAction({ icon: ActionIcon, label, onClick }) {
       <ActionIcon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
       {label}
     </button>
+  )
+}
+
+function ResultShareDialog({
+  stationName,
+  originNames,
+  kakaoShareStatus,
+  kakaoShareError,
+  onKakaoShare,
+  onCopy,
+  onClose,
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[150] flex items-end justify-center bg-slate-950/35 p-3 backdrop-blur-[2px] sm:items-center"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <section
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-white/60 bg-white shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="result-share-title"
+      >
+        <div className="flex items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+          <div>
+            <p className="text-xs font-black text-[#5A45E8]">결과 공유</p>
+            <h2 id="result-share-title" className="mt-1 text-xl font-black text-slate-950">
+              약속 장소를 같이 정해보세요
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-500">친구가 같은 추천 결과를 바로 확인할 수 있어요.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            aria-label="공유창 닫기"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mx-5 rounded-xl border border-violet-100 bg-violet-50/60 p-4 sm:mx-6">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-500">
+            {originNames.map((originName, index) => (
+              <span key={`${originName}-${index}`} className="rounded-md bg-white px-2 py-1 shadow-sm">
+                {originName}
+              </span>
+            ))}
+          </div>
+          <div className="mt-3 flex items-end justify-between gap-4 border-t border-violet-100 pt-3">
+            <div>
+              <p className="text-[11px] font-bold text-slate-400">만나역 추천</p>
+              <p className="mt-0.5 text-2xl font-black text-slate-950">{stationName}</p>
+            </div>
+            <span className="rounded-lg bg-[#5A45E8] px-2.5 py-1.5 text-xs font-black text-white">최적 추천역</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 px-5 py-5 sm:px-6">
+          <button
+            type="button"
+            onClick={onKakaoShare}
+            disabled={kakaoShareStatus === 'loading'}
+            className="flex min-h-24 flex-col items-start justify-between rounded-xl bg-[#FEE500] p-4 text-left text-[#191919] transition hover:bg-[#F5DC00] active:scale-[0.99] disabled:cursor-wait disabled:bg-[#FFF4A8] disabled:text-black/45"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-black/10">
+              <MessageCircle className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
+            </span>
+            <span className="mt-3 text-sm font-black">
+              {kakaoShareStatus === 'loading'
+                ? '카카오톡 연결 중'
+                : kakaoShareStatus === 'error'
+                  ? '카카오톡 다시 연결'
+                  : '카카오톡으로 보내기'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onCopy}
+            className="flex min-h-24 flex-col items-start justify-between rounded-xl border border-slate-200 bg-white p-4 text-left text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-[#5A45E8] active:scale-[0.99]"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+              <Clipboard className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
+            </span>
+            <span className="mt-3 text-sm font-black">결과 링크 복사</span>
+          </button>
+        </div>
+        {kakaoShareStatus === 'error' ? (
+          <p className="mx-5 -mt-2 mb-4 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold leading-5 text-red-600 sm:mx-6">
+            {kakaoShareError}
+          </p>
+        ) : null}
+        <div className="border-t border-slate-100 px-5 py-3 sm:px-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 w-full rounded-lg text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            취소
+          </button>
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -1434,7 +1654,7 @@ function ResultTypeCard({
           selected ? 'ring-2 ring-violet-100' : ''
         } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 pr-24 sm:pr-28">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5A45E8] px-3 py-1.5 text-xs font-black text-white shadow-sm">
@@ -1820,11 +2040,8 @@ function hasSameOrigins(origins) {
   return origins.some((origin, index) => origins.slice(index + 1).some((nextOrigin) => isSameOrigin(origin, nextOrigin)))
 }
 
-function createShareUrl({ origins, recommendedStations, fairStations, selectedStationId }) {
+function createResultShareUrl({ origins, recommendedStations, fairStations, selectedStationId }) {
   const shareUrl = new URL(window.location.origin + window.location.pathname)
-
-  if (!recommendedStations.length) return shareUrl.toString()
-
   const payload = {
     origins: origins.map(pickSharedOrigin),
     recommendedStations: recommendedStations.slice(0, 4).map(pickSharedStation),
