@@ -16,7 +16,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
     <div>
       <div className="flex items-start justify-between gap-3 sm:items-center">
         <div>
-          <h2 className="text-lg font-black text-slate-950 sm:text-lg">출발지 입력</h2>
+          <h2 className="text-base font-black text-slate-950 md:text-lg">출발지 입력</h2>
           <p className="mt-1 hidden text-sm text-slate-500 sm:block">각자의 출발지를 검색해서 선택해주세요.</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -186,7 +186,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
               if (!origin.selected) setOpen(true)
             }}
             placeholder={`${label} 검색`}
-            className={`min-w-0 flex-1 bg-transparent py-0 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 ${
+            className={`min-w-0 flex-1 bg-transparent py-0 text-sm font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 md:text-base ${
               compact ? 'leading-6' : 'leading-6 md:text-base'
             }`}
           />

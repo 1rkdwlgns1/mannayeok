@@ -438,7 +438,7 @@ function App() {
     const shareUrl = PUBLIC_APP_URL
     const shareData = {
       title: '만나역 - 만나기 좋은 중간역 찾기',
-      text: '어디서 만날지 고민될 때, 만나역에서 모두에게 좋은 약속역을 찾아보세요.',
+      text: '어디서 만날지 고민될 때, 만나역에서 만나기 좋은 역을 찾아보세요.',
       url: shareUrl,
     }
 
@@ -583,7 +583,7 @@ function App() {
       }}
     >
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
-        <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-3">
+        <div className="mx-auto w-full max-w-4xl space-y-2 md:space-y-3">
           <div className="relative flex min-h-16 items-start justify-between px-0 py-0 md:min-h-20">
             <div className="relative flex min-w-0 items-start">
               <span className="block h-16 w-44 overflow-visible sm:w-64 md:h-20 md:w-72" aria-label="만나역" role="img">
@@ -593,7 +593,7 @@ function App() {
                   className="h-full w-full origin-left -translate-x-7 translate-y-1 scale-[1.6] object-contain object-left sm:-translate-x-10 sm:scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
                 />
               </span>
-              <BetaBadge className="absolute left-32 top-3 sm:left-36 md:left-36 md:top-4" />
+              <BetaBadge className="absolute left-24 top-3 md:left-36 md:top-4" />
             </div>
 
             <nav className="mt-5 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
@@ -852,18 +852,18 @@ function App() {
             ) : null}
           </>
         ) : (
-          <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-violet-50">
-              <div className="h-5 w-5 rounded-full border-4 border-[#5A45E8] bg-white shadow-sm" />
+          <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center md:px-5 md:py-8">
+            <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 md:mb-3 md:h-12 md:w-12">
+              <div className="h-4 w-4 rounded-full border-[3px] border-[#5A45E8] bg-white shadow-sm md:h-5 md:w-5 md:border-4" />
             </div>
-            <h2 className="text-base font-black text-slate-950">어디서 만날까요?</h2>
-            <p className="mx-auto mt-1.5 max-w-md text-sm leading-6 text-slate-500">
+            <h2 className="text-[15px] font-black text-slate-950 md:text-base">어디서 만날까요?</h2>
+            <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-5 text-slate-500 md:text-sm md:leading-6">
               출발지 사이의 위치 균형과 주변 상권을 함께 보고, 만나기 좋은 역을 추천해드려요.
             </p>
           </section>
         )}
 
-        <footer className="mt-2 border-t border-slate-200/80 px-2 pb-2 pt-4 text-center text-[11px] font-bold text-slate-400">
+        <footer className="mt-1 border-t border-slate-200/80 px-2 pb-1 pt-3 text-center text-[10px] font-bold text-slate-400 md:mt-2 md:pb-2 md:pt-4 md:text-[11px]">
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <span>© 2026 만나역</span>
             <button
