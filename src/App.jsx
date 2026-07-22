@@ -1,5 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import AddressInput from './components/AddressInput'
+import { CheckCircle2, CircleHelp, Mail, Menu, Send, Share2, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
 import OnboardingScreen from './components/OnboardingScreen'
@@ -55,6 +57,9 @@ const ICON_TONES = {
 const MIN_ORIGIN_COUNT = 2
 const MAX_ORIGIN_COUNT = 4
 const MIN_RECOMMENDATION_HOT_PLACE_COUNT = 50
+const INQUIRY_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyqk1NV6mSmOYtCL__PxAYtBxVJ8wE5usVISnbATiVv0OLzd9UOyFkI8Epiy9XjhWAS/exec'
+const INQUIRY_COOLDOWN_MS = 60_000
+const INQUIRY_TYPES = ['추천 오류', '역·상권 정보 오류', '기능 제안', '버그', '기타']
 
 let nextOriginInputId = 0
 
@@ -65,13 +70,25 @@ const createEmptyOrigin = () => ({
 })
 
 function App() {
+  const [sharedResult] = useState(readSharedResult)
   const [originInputs, setOriginInputs] = useState(
-    Array.from({ length: MIN_ORIGIN_COUNT }, createEmptyOrigin),
+    () =>
+      sharedResult?.origins?.length
+        ? sharedResult.origins.map((origin) => ({
+            id: createEmptyOrigin().id,
+            query: origin.address,
+            selected: origin,
+          }))
+        : Array.from({ length: MIN_ORIGIN_COUNT }, createEmptyOrigin),
   )
-  const [origins, setOrigins] = useState([])
-  const [recommendedStations, setRecommendedStations] = useState([])
-  const [fairStations, setFairStations] = useState([])
-  const [selectedStationId, setSelectedStationId] = useState(null)
+  const [origins, setOrigins] = useState(() => sharedResult?.origins || [])
+  const [recommendedStations, setRecommendedStations] = useState(
+    () => sharedResult?.recommendedStations || [],
+  )
+  const [fairStations, setFairStations] = useState(() => sharedResult?.fairStations || [])
+  const [selectedStationId, setSelectedStationId] = useState(
+    () => sharedResult?.selectedStationId || sharedResult?.recommendedStations?.[0]?.id || null,
+  )
   const [places, setPlaces] = useState([])
   const [selectedPlaceCategory, setSelectedPlaceCategory] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -83,8 +100,13 @@ function App() {
   const [mapCollapsed, setMapCollapsed] = useState(true)
   const [alternativeStationsCollapsed, setAlternativeStationsCollapsed] = useState(true)
   const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
-  const [hasStarted, setHasStarted] = useState(false)
+  const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult))
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [inquiryOpen, setInquiryOpen] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [shareNotice, setShareNotice] = useState('')
   const onboardingExitTimerRef = useRef(null)
 
   const selectableStations = useMemo(
@@ -195,6 +217,32 @@ function App() {
     },
     [],
   )
+
+  useEffect(() => {
+    if (!shareNotice) return undefined
+
+    const timeoutId = window.setTimeout(() => setShareNotice(''), 2200)
+    return () => window.clearTimeout(timeoutId)
+  }, [shareNotice])
+
+  useEffect(() => {
+    if (!guideOpen && !inquiryOpen && !privacyOpen) return undefined
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        if (privacyOpen) {
+          setPrivacyOpen(false)
+        } else if (inquiryOpen) {
+          setInquiryOpen(false)
+        } else {
+          setGuideOpen(false)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [guideOpen, inquiryOpen, privacyOpen])
 
   const handleAddressChange = (index, value) => {
     setOriginInputs((prev) =>
@@ -355,6 +403,82 @@ function App() {
     }, 560)
   }
 
+  const handleShare = async () => {
+    const shareUrl = createShareUrl({
+      origins,
+      recommendedStations,
+      fairStations,
+      selectedStationId,
+    })
+    const shareText = selectedStation
+      ? `${origins.map((origin) => origin.routeName || origin.address).join(' · ')}의 만나역은 ${selectedStation.name}이에요.`
+      : '우리의 중간 약속역을 만나역에서 찾아보세요.'
+    const shareData = {
+      title: selectedStation ? `만나역 추천 결과 - ${selectedStation.name}` : '만나역',
+      text: shareText,
+      url: shareUrl,
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        return
+      }
+
+      await copyTextToClipboard(shareUrl)
+      setShareNotice(selectedStation ? '추천 결과 링크를 복사했어요.' : '웹사이트 링크를 복사했어요.')
+    } catch (shareError) {
+      if (shareError?.name !== 'AbortError') {
+        setShareNotice('링크를 복사하지 못했어요. 다시 시도해주세요.')
+      }
+    }
+  }
+
+  const handleInquiry = () => {
+    setInquiryOpen(true)
+    setMobileMenuOpen(false)
+  }
+
+  const handleInquirySubmit = async ({ type, message, replyEmail, website }) => {
+    const lastSubmittedAt = getLastInquirySubmittedAt()
+    const elapsedTime = Date.now() - lastSubmittedAt
+
+    if (lastSubmittedAt && elapsedTime < INQUIRY_COOLDOWN_MS) {
+      const remainingSeconds = Math.ceil((INQUIRY_COOLDOWN_MS - elapsedTime) / 1000)
+      throw new Error(`${remainingSeconds}초 후에 다시 보낼 수 있어요.`)
+    }
+
+    const alternativeStationNames = selectableStations
+      .filter((station) => station.id !== selectedStation?.id)
+      .slice(0, 4)
+      .map((station) => station.name)
+      .join(', ')
+    const body = new URLSearchParams({
+      type,
+      message,
+      replyEmail,
+      website,
+      origins: origins.map((origin) => origin.routeName || origin.address).join(' / '),
+      recommendedStation: selectedStation?.name || '',
+      alternativeStations: alternativeStationNames,
+      pageUrl: `${window.location.origin}${window.location.pathname}`,
+      browser: navigator.userAgent,
+      appVersion: import.meta.env.VITE_APP_VERSION || 'beta',
+    })
+
+    await fetch(INQUIRY_ENDPOINT, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body,
+      keepalive: true,
+    })
+
+    setLastInquirySubmittedAt(Date.now())
+  }
+
   if (!hasStarted) {
     return <OnboardingScreen onStart={handleStartApp} isLeaving={isOnboardingLeaving} />
   }
@@ -371,15 +495,45 @@ function App() {
     >
       <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
         <div className="mx-auto w-full max-w-4xl space-y-4 md:space-y-5">
-          <div className="relative flex items-start justify-between px-0 py-0">
-            <span className="block h-16 w-64 overflow-visible md:h-20 md:w-72" aria-label="만나역" role="img">
-              <img
-                src={logoImage}
-                alt=""
-                className="h-full w-full origin-left -translate-x-10 translate-y-1 scale-[1.95] object-contain object-left md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
+          <div className="relative flex min-h-16 items-start justify-between px-0 py-0 md:min-h-20">
+            <div className="relative flex min-w-0 items-start">
+              <span className="block h-16 w-44 overflow-visible sm:w-64 md:h-20 md:w-72" aria-label="만나역" role="img">
+                <img
+                  src={logoImage}
+                  alt=""
+                  className="h-full w-full origin-left -translate-x-7 translate-y-1 scale-[1.6] object-contain object-left sm:-translate-x-10 sm:scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
+                />
+              </span>
+              <BetaBadge className="absolute left-32 top-3 sm:left-36 md:left-36 md:top-4" />
+            </div>
+
+            <nav className="mt-3 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
+              <HeaderAction icon={Share2} label="공유하기" onClick={handleShare} />
+              <HeaderAction icon={Mail} label="문의하기" onClick={handleInquiry} />
+              <HeaderAction icon={CircleHelp} label="이용안내" onClick={() => setGuideOpen(true)} />
+            </nav>
+
+            <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
+              <HeaderIconButton icon={Share2} label="공유하기" onClick={handleShare} />
+              <HeaderIconButton
+                icon={mobileMenuOpen ? X : Menu}
+                label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+                onClick={() => setMobileMenuOpen((open) => !open)}
               />
-            </span>
-            <BetaBadge className="mt-3 md:mt-4" />
+              {mobileMenuOpen ? (
+                <div className="absolute right-0 top-11 z-[120] w-40 overflow-hidden rounded-xl border border-slate-100 bg-white p-1.5 shadow-xl">
+                  <MobileMenuAction icon={Mail} label="문의하기" onClick={handleInquiry} />
+                  <MobileMenuAction
+                    icon={CircleHelp}
+                    label="이용안내"
+                    onClick={() => {
+                      setGuideOpen(true)
+                      setMobileMenuOpen(false)
+                    }}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <header className="hidden">
@@ -558,14 +712,14 @@ function App() {
                   </p>
                 </div>
 
-                <div className="flex gap-7 overflow-x-auto border-b border-slate-100 pt-2 [scrollbar-width:none] md:gap-9 [&::-webkit-scrollbar]:hidden">
+                <div className="ml-2 inline-flex max-w-full gap-7 overflow-x-auto border-y border-slate-100 pr-2 [scrollbar-width:none] md:ml-3 md:gap-9 md:pr-3 [&::-webkit-scrollbar]:hidden">
                   {PLACE_CATEGORY_KEYS.map((category) => (
                     <button
                       key={category}
                       type="button"
                       onClick={() => handlePlaceRecommendation(category)}
                       disabled={placeLoading}
-                      className={`relative shrink-0 pb-2.5 text-[15px] font-black transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
+                      className={`relative shrink-0 py-3 text-[15px] font-black leading-none transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
                         selectedPlaceCategory === category
                           ? 'text-[#5A45E8] after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-[#5A45E8] after:transition-all after:duration-200'
                           : 'text-slate-500 hover:text-slate-700'
@@ -609,8 +763,473 @@ function App() {
             </p>
           </section>
         )}
+
+        <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 py-3 text-[11px] font-bold text-slate-400">
+          <span>© 2026 만나역</span>
+          <button
+            type="button"
+            onClick={() => setPrivacyOpen(true)}
+            className="transition hover:text-[#5A45E8]"
+          >
+            개인정보처리방침
+          </button>
+          <button
+            type="button"
+            onClick={handleInquiry}
+            className="transition hover:text-[#5A45E8]"
+          >
+            문의하기
+          </button>
+        </footer>
       </div>
+
+      {guideOpen
+        ? createPortal(<UsageGuideDialog onClose={() => setGuideOpen(false)} />, document.body)
+        : null}
+      {inquiryOpen ? (
+        createPortal(
+          <InquiryDialog
+            hasResult={Boolean(selectedStation)}
+            onClose={() => setInquiryOpen(false)}
+            onOpenPrivacy={() => setPrivacyOpen(true)}
+            onSubmit={handleInquirySubmit}
+          />,
+          document.body,
+        )
+      ) : null}
+      {privacyOpen
+        ? createPortal(<PrivacyPolicyDialog onClose={() => setPrivacyOpen(false)} />, document.body)
+        : null}
+
+      {shareNotice
+        ? createPortal(
+            <div
+              className="fixed bottom-5 left-1/2 z-[160] -translate-x-1/2 whitespace-nowrap rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-xl"
+              role="status"
+            >
+              {shareNotice}
+            </div>,
+            document.body,
+          )
+        : null}
     </main>
+  )
+}
+
+function HeaderAction({ icon: ActionIcon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs font-black text-slate-600 transition hover:bg-white hover:text-[#5A45E8] hover:shadow-sm"
+    >
+      <ActionIcon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
+      <span>{label}</span>
+    </button>
+  )
+}
+
+function HeaderIconButton({ icon: ActionIcon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-white hover:text-[#5A45E8]"
+      aria-label={label}
+      title={label}
+    >
+      <ActionIcon className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden="true" />
+    </button>
+  )
+}
+
+function MobileMenuAction({ icon: ActionIcon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-bold text-slate-700 transition hover:bg-violet-50 hover:text-[#5A45E8]"
+    >
+      <ActionIcon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
+      {label}
+    </button>
+  )
+}
+
+function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
+  const [type, setType] = useState(hasResult ? '추천 오류' : '기능 제안')
+  const [message, setMessage] = useState('')
+  const [replyEmail, setReplyEmail] = useState('')
+  const [privacyConsent, setPrivacyConsent] = useState(false)
+  const [status, setStatus] = useState({ phase: 'idle', message: '' })
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (status.phase === 'sending') return
+    if (!privacyConsent) {
+      setStatus({ phase: 'error', message: '개인정보 수집 및 이용에 동의해주세요.' })
+      return
+    }
+
+    const formData = new FormData(event.currentTarget)
+    setStatus({ phase: 'sending', message: '' })
+
+    try {
+      await onSubmit({
+        type,
+        message: message.trim(),
+        replyEmail: replyEmail.trim(),
+        website: String(formData.get('website') || ''),
+      })
+      setStatus({ phase: 'success', message: '소중한 의견을 보내주셔서 감사해요.' })
+    } catch (error) {
+      setStatus({
+        phase: 'error',
+        message: error instanceof Error ? error.message : '문의 전송에 실패했어요. 다시 시도해주세요.',
+      })
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto bg-slate-950/35 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-10"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && status.phase !== 'sending') onClose()
+      }}
+    >
+      <section
+        className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/60 bg-white p-4 shadow-2xl md:p-5"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="inquiry-dialog-title"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black text-[#5A45E8]">개발자에게 문의하기</p>
+            <h2 id="inquiry-dialog-title" className="mt-1 text-xl font-black tracking-tight text-slate-950">
+              만나역을 더 좋게 만들어주세요
+            </h2>
+            <p className="mt-1 break-keep text-xs leading-5 text-slate-500">
+              불편했던 점이나 개선 아이디어를 남겨주시면 확인할게요.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={status.phase === 'sending'}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"
+            aria-label="문의하기 닫기"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        {status.phase === 'success' ? (
+          <div className="py-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-lg font-black text-slate-950">문의가 접수됐어요</h3>
+            <p className="mt-1 text-sm text-slate-500">{status.message}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-6 h-11 w-full rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4]"
+            >
+              닫기
+            </button>
+          </div>
+        ) : (
+          <form className="mt-4" onSubmit={handleSubmit}>
+            <fieldset>
+              <legend className="text-sm font-black text-slate-800">문의 유형</legend>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {INQUIRY_TYPES.map((inquiryType) => (
+                  <label
+                    key={inquiryType}
+                    className={`flex min-h-10 cursor-pointer items-center justify-center rounded-lg border px-2 py-2 text-center text-xs font-bold transition ${
+                      type === inquiryType
+                        ? 'border-violet-300 bg-violet-50 text-[#5A45E8]'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-violet-200'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="type"
+                      value={inquiryType}
+                      checked={type === inquiryType}
+                      onChange={() => setType(inquiryType)}
+                      className="sr-only"
+                    />
+                    {inquiryType}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <label className="mt-4 block text-sm font-black text-slate-800" htmlFor="inquiry-message">
+              문의 내용
+            </label>
+            <textarea
+              id="inquiry-message"
+              name="message"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              required
+              minLength={1}
+              maxLength={600}
+              rows={4}
+              placeholder="불편했던 점이나 개선했으면 하는 내용을 적어주세요."
+              className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100"
+            />
+            <p className="mt-1 text-right text-[11px] font-medium text-slate-400">{message.length}/600</p>
+
+            <label className="mt-3 block text-sm font-black text-slate-800" htmlFor="inquiry-email">
+              답변받을 이메일 <span className="font-medium text-slate-400">(선택)</span>
+            </label>
+            <input
+              id="inquiry-email"
+              name="replyEmail"
+              type="email"
+              value={replyEmail}
+              onChange={(event) => setReplyEmail(event.target.value)}
+              maxLength={200}
+              placeholder="답변이 필요한 경우에만 입력해주세요."
+              className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100"
+            />
+
+            <div className="absolute -left-[9999px]" aria-hidden="true">
+              <label htmlFor="inquiry-website">웹사이트</label>
+              <input id="inquiry-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+            </div>
+
+            {hasResult ? (
+              <p className="mt-4 rounded-xl bg-violet-50 px-3 py-2 text-[11px] font-bold leading-5 text-[#7868C8]">
+                현재 출발지와 추천 결과가 문의에 자동으로 첨부돼요.
+              </p>
+            ) : null}
+
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={privacyConsent}
+                  onChange={(event) => setPrivacyConsent(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#5A45E8]"
+                  required
+                />
+                <span className="text-xs font-black leading-5 text-slate-700">
+                  [필수] 개인정보 수집 및 이용에 동의합니다.
+                </span>
+              </label>
+              <div className="ml-6 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-slate-500">
+                <span>문의·검색·접속 정보</span>
+                <span aria-hidden="true">·</span>
+                <span>접수일로부터 1년 보관</span>
+                <button
+                  type="button"
+                  onClick={onOpenPrivacy}
+                  className="font-black text-[#5A45E8] underline underline-offset-2"
+                >
+                  전문 보기
+                </button>
+              </div>
+            </div>
+
+            {status.phase === 'error' ? (
+              <p className="mt-3 text-sm font-bold text-red-500" role="alert">
+                {status.message}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={status.phase === 'sending' || !privacyConsent}
+              className="sticky bottom-0 mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#5A45E8] text-sm font-black text-white shadow-[0_-8px_18px_rgba(255,255,255,0.96)] transition hover:bg-[#4D39D4] disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+              {status.phase === 'sending' ? '보내는 중...' : '문의 보내기'}
+            </button>
+          </form>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function PrivacyPolicyDialog({ onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[170] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-8"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <section
+        className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:p-7"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="privacy-policy-title"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <p className="text-xs font-black text-[#5A45E8]">만나역</p>
+            <h2 id="privacy-policy-title" className="mt-1 text-xl font-black tracking-tight text-slate-950 md:text-2xl">
+              개인정보처리방침
+            </h2>
+            <p className="mt-1 text-xs text-slate-400">시행일: 2026년 7월 22일</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="개인정보처리방침 닫기"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        <p className="mt-5 break-keep text-sm leading-6 text-slate-600">
+          만나역은 문의 처리와 서비스 개선에 필요한 최소한의 개인정보만 처리하며, 관련 정보를 안전하게 관리하기 위해 노력합니다.
+        </p>
+
+        <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
+          <PrivacyPolicySection title="1. 처리 목적 및 항목">
+            <p><strong>처리 목적:</strong> 문의 접수·확인, 추천 및 상권 정보 오류 분석, 서비스 개선, 답변 제공</p>
+            <p><strong>필수 항목:</strong> 문의 유형과 내용, 출발지, 추천역과 후보역, 접속 페이지 주소, 브라우저 정보, 접수 시각</p>
+            <p><strong>선택 항목:</strong> 답변받을 이메일 주소</p>
+          </PrivacyPolicySection>
+
+          <PrivacyPolicySection title="2. 보유 및 이용 기간">
+            <p>문의 정보는 접수일로부터 1년 동안 보관한 뒤 지체 없이 삭제합니다.</p>
+            <p>이용자가 삭제를 요청하거나 처리 목적이 먼저 달성된 경우에는 확인 후 지체 없이 삭제합니다.</p>
+          </PrivacyPolicySection>
+
+          <PrivacyPolicySection title="3. 개인정보 처리와 외부 서비스">
+            <p>만나역은 원칙적으로 이용자의 개인정보를 제3자에게 제공하지 않습니다.</p>
+            <p>문의 저장과 시스템 운영을 위해 Google Apps Script 및 Google Sheets를 이용하며, 이 과정에서 Google LLC의 인프라를 통해 정보가 처리될 수 있습니다.</p>
+            <a
+              href="https://policies.google.com/privacy?hl=ko"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block font-bold text-[#5A45E8] underline underline-offset-2"
+            >
+              Google 개인정보처리방침 보기
+            </a>
+          </PrivacyPolicySection>
+
+          <PrivacyPolicySection title="4. 파기 절차 및 방법">
+            <p>보유기간이 끝난 문의는 관리 중인 Google Sheet에서 삭제하며, 별도 보관본이 있는 경우에도 같은 기준으로 삭제합니다.</p>
+            <p>전자적 파일은 복구하기 어려운 방법으로 삭제합니다.</p>
+          </PrivacyPolicySection>
+
+          <PrivacyPolicySection title="5. 이용자의 권리">
+            <p>이용자는 자신의 개인정보에 대해 열람, 정정, 삭제 및 처리정지를 요청할 수 있습니다.</p>
+            <p>선택 항목인 이메일을 입력하지 않아도 문의를 남길 수 있지만 개별 답변은 받을 수 없습니다. 필수 항목의 수집에 동의하지 않으면 문의 접수가 제한됩니다.</p>
+          </PrivacyPolicySection>
+
+          <PrivacyPolicySection title="6. 브라우저 저장 정보">
+            <p>최근 출발지와 검색 성능 개선용 캐시는 이용자의 브라우저 로컬 저장소에 저장됩니다. 문의 제출 시 현재 선택된 출발지가 첨부되는 경우를 제외하면 이 정보는 자동 전송되지 않습니다.</p>
+            <p>문의 연속 전송 방지를 위해 마지막 전송 시각을 브라우저에 저장하며, 1분 전송 제한 판단에만 사용합니다.</p>
+          </PrivacyPolicySection>
+
+          <PrivacyPolicySection title="7. 개인정보 관련 문의">
+            <p><strong>담당:</strong> 만나역 운영자</p>
+            <p>
+              <strong>이메일:</strong>{' '}
+              <a href="mailto:1rkdwlgns1@gmail.com" className="font-bold text-[#5A45E8] underline underline-offset-2">
+                1rkdwlgns1@gmail.com
+              </a>
+            </p>
+          </PrivacyPolicySection>
+
+          <PrivacyPolicySection title="8. 처리방침 변경">
+            <p>내용이 변경되는 경우 시행 전에 서비스 화면을 통해 안내합니다.</p>
+          </PrivacyPolicySection>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 h-11 w-full rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4]"
+        >
+          확인했어요
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function PrivacyPolicySection({ title, children }) {
+  return (
+    <section className="py-4">
+      <h3 className="text-sm font-black text-slate-900">{title}</h3>
+      <div className="mt-2 space-y-1.5 break-keep text-xs leading-5 text-slate-600">{children}</div>
+    </section>
+  )
+}
+
+function UsageGuideDialog({ onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto bg-slate-950/35 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-10"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <section
+        className="w-full max-w-md rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="usage-guide-title"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black text-[#5A45E8]">만나역 이용안내</p>
+            <h2 id="usage-guide-title" className="mt-1 text-xl font-black tracking-tight text-slate-950">
+              추천 결과는 이렇게 계산해요
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="이용안내 닫기"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
+          <GuideItem title="위치 균형" description="각 출발지에서 한쪽으로 치우치지 않는 역을 살펴봐요." />
+          <GuideItem title="주변 상권" description="역 반경 600m 안의 카페, 식당, 문화시설을 기준으로 비교해요." />
+          <GuideItem title="노선 접근성" description="이용 가능한 노선과 환승 편의성을 함께 반영해요." />
+        </div>
+
+        <p className="mt-4 break-keep text-xs leading-5 text-slate-500">
+          실제 이동 시간과 영업 정보는 달라질 수 있으니, 최종 약속 전 지도와 길찾기를 확인해주세요.
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 h-11 w-full rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4]"
+        >
+          확인했어요
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function GuideItem({ title, description }) {
+  return (
+    <div className="py-3">
+      <p className="text-sm font-black text-slate-800">{title}</p>
+      <p className="mt-1 break-keep text-xs leading-5 text-slate-500">{description}</p>
+    </div>
   )
 }
 
@@ -1199,6 +1818,115 @@ function isSameOrigin(a, b) {
 
 function hasSameOrigins(origins) {
   return origins.some((origin, index) => origins.slice(index + 1).some((nextOrigin) => isSameOrigin(origin, nextOrigin)))
+}
+
+function createShareUrl({ origins, recommendedStations, fairStations, selectedStationId }) {
+  const shareUrl = new URL(window.location.origin + window.location.pathname)
+
+  if (!recommendedStations.length) return shareUrl.toString()
+
+  const payload = {
+    origins: origins.map(pickSharedOrigin),
+    recommendedStations: recommendedStations.slice(0, 4).map(pickSharedStation),
+    fairStations: fairStations.slice(0, 1).map(pickSharedStation),
+    selectedStationId,
+  }
+
+  shareUrl.searchParams.set('result', encodeSharePayload(payload))
+  return shareUrl.toString()
+}
+
+function readSharedResult() {
+  try {
+    const encodedPayload = new URLSearchParams(window.location.search).get('result')
+    if (!encodedPayload) return null
+
+    const payload = decodeSharePayload(encodedPayload)
+    const hasValidOrigins = Array.isArray(payload.origins) && payload.origins.length >= MIN_ORIGIN_COUNT
+    const hasValidStations =
+      Array.isArray(payload.recommendedStations) && payload.recommendedStations.length > 0
+
+    return hasValidOrigins && hasValidStations ? payload : null
+  } catch {
+    return null
+  }
+}
+
+function pickSharedOrigin(origin) {
+  return {
+    id: origin.id,
+    address: origin.address,
+    routeName: origin.routeName,
+    lat: origin.lat,
+    lng: origin.lng,
+  }
+}
+
+function pickSharedStation(station) {
+  return {
+    id: station.id,
+    name: station.name,
+    lat: station.lat,
+    lng: station.lng,
+    distanceFromCenter: station.distanceFromCenter,
+    hotPlaceCount: station.hotPlaceCount,
+    hotPlaceSignal: station.hotPlaceSignal,
+    meetingPlaceScore: station.meetingPlaceScore,
+    middleHubScore: station.middleHubScore,
+    fairnessScore: station.fairnessScore,
+    transitCompatibilityScore: station.transitCompatibilityScore,
+  }
+}
+
+function encodeSharePayload(payload) {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload))
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
+
+  return window.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+}
+
+function decodeSharePayload(encodedPayload) {
+  const base64 = encodedPayload.replaceAll('-', '+').replaceAll('_', '/')
+  const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+  const binary = window.atob(paddedBase64)
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+
+  return JSON.parse(new TextDecoder().decode(bytes))
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+
+  if (!copied) throw new Error('Clipboard copy failed')
+}
+
+function getLastInquirySubmittedAt() {
+  try {
+    return Number(window.localStorage.getItem('mannayeok:last-inquiry-at')) || 0
+  } catch {
+    return 0
+  }
+}
+
+function setLastInquirySubmittedAt(timestamp) {
+  try {
+    window.localStorage.setItem('mannayeok:last-inquiry-at', String(timestamp))
+  } catch {
+    // The inquiry was still sent even if private browsing blocks local storage.
+  }
 }
 
 async function searchPlacesWithCategory(station, category) {
