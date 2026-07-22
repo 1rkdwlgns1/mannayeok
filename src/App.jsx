@@ -1081,7 +1081,8 @@ function getCommercialMetricStatus(station) {
 
   if (count >= 1100 || signal >= 1450) return '매우 풍부'
   if (count >= 750 || signal >= 980) return '풍부'
-  if (count >= 180 || signal >= 240) return '충분'
+  if (count >= 450 || signal >= 590) return '충분'
+  if (count >= 180 || signal >= 240) return '보통'
   return '적음'
 }
 
@@ -1104,6 +1105,8 @@ function getRecommendationReasons(station, scores, primary = false) {
     reasons.push('식사, 카페, 편의시설 선택지가 넉넉해 약속 장소로 좋아요.')
   } else if (hotPlaceCount >= 750 || hotPlaceSignal >= 980) {
     reasons.push('주변 상권이 풍부해서 약속 장소를 고르기 좋아요.')
+  } else if (hotPlaceCount >= 450 || hotPlaceSignal >= 590) {
+    reasons.push('식사와 카페 선택지가 충분해서 약속 장소를 정하기 무난해요.')
   } else if (hotPlaceCount >= 180 || hotPlaceSignal >= 240) {
     reasons.push('기본적인 식사와 카페 선택지는 있는 편이에요.')
   }
