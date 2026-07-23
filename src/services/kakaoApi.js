@@ -14,7 +14,7 @@ import hubStationCoordinates from '../data/hubStationCoordinates.json'
 const KAKAO_SCRIPT_ID = 'kakao-map-sdk-script'
 const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services'
 const KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
-const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache'
+const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache:v2'
 const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 const HUB_STATIONS_CACHE_KEY = 'mannayeok:hub-stations-cache'
 const HUB_STATIONS_CACHE_TTL = 1000 * 60 * 60 * 24 * 30
@@ -47,12 +47,6 @@ const PLACE_CATEGORIES = {
 const COMMERCIAL_CATEGORY_CODES = ['CT1']
 
 let scriptLoadingPromise = null
-
-function shouldUseLocalApiProxy() {
-  if (typeof window === 'undefined') return false
-
-  return !['localhost', '127.0.0.1'].includes(window.location.hostname)
-}
 
 export function loadKakaoMapSdk() {
   if (window.kakao?.maps?.services) {
@@ -89,70 +83,22 @@ export function loadKakaoMapSdk() {
 }
 
 async function searchLocalCategory(kakao, categoryCode, options, errorMessage) {
-  if (shouldUseLocalApiProxy()) {
-    return requestLocalApi('category', {
-      category_group_code: categoryCode,
-      ...formatLocalSearchOptions(options),
-    })
-  }
+  void kakao
+  void errorMessage
 
-  return new Promise((resolve, reject) => {
-    const places = new kakao.maps.services.Places()
-
-    places.categorySearch(
-      categoryCode,
-      (result, status, pagination) => {
-        if (status === kakao.maps.services.Status.ZERO_RESULT) {
-          resolve({ documents: [], meta: { total_count: 0 } })
-          return
-        }
-
-        if (status !== kakao.maps.services.Status.OK) {
-          reject(new Error(errorMessage))
-          return
-        }
-
-        resolve({
-          documents: result,
-          meta: { total_count: pagination?.totalCount || result.length },
-        })
-      },
-      options,
-    )
+  return requestLocalApi('category', {
+    category_group_code: categoryCode,
+    ...formatLocalSearchOptions(options),
   })
 }
 
 async function searchLocalKeyword(kakao, keyword, options, errorMessage) {
-  if (shouldUseLocalApiProxy()) {
-    return requestLocalApi('keyword', {
-      query: keyword,
-      ...formatLocalSearchOptions(options),
-    })
-  }
+  void kakao
+  void errorMessage
 
-  return new Promise((resolve, reject) => {
-    const places = new kakao.maps.services.Places()
-
-    places.keywordSearch(
-      keyword,
-      (result, status, pagination) => {
-        if (status === kakao.maps.services.Status.ZERO_RESULT) {
-          resolve({ documents: [], meta: { total_count: 0 } })
-          return
-        }
-
-        if (status !== kakao.maps.services.Status.OK) {
-          reject(new Error(errorMessage))
-          return
-        }
-
-        resolve({
-          documents: result,
-          meta: { total_count: pagination?.totalCount || result.length },
-        })
-      },
-      options,
-    )
+  return requestLocalApi('keyword', {
+    query: keyword,
+    ...formatLocalSearchOptions(options),
   })
 }
 
@@ -460,9 +406,9 @@ export async function getRoadRoutePath(origin, destination) {
     priority: 'RECOMMEND',
   })
 
-  const response = shouldUseLocalApiProxy()
-    ? await fetch(`/api/kakao-directions?${params.toString()}`)
-    : await fetchDevKakaoDirections(params)
+  const response = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? await fetchDevKakaoDirections(params)
+    : await fetch(`/api/kakao-directions?${params.toString()}`)
 
   if (!response) return null
 
