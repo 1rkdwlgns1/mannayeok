@@ -65,7 +65,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               imageClassName="origin-left -translate-x-7 translate-y-1 scale-[1.6] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
             />
           </motion.div>
-          <motion.div className="-ml-12 mt-3 md:ml-0 md:mt-4" {...fadeIn(0.1, 0.5)}>
+          <motion.div className="hidden md:mt-4 md:block" {...fadeIn(0.1, 0.5)}>
             <BetaBadge />
           </motion.div>
         </header>
@@ -100,9 +100,9 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
                 y: [0, -4, 0],
               }}
               transition={{
-                opacity: { delay: 3.4, duration: 0.4, ease: EASE_OUT },
-                scale: { delay: 3.4, duration: 0.4, ease: EASE_OUT },
-                y: { delay: 3.9, duration: 1.7, repeat: Infinity, repeatType: 'loop', ease: 'easeInOut' },
+                opacity: { delay: 1.4, duration: 0.4, ease: EASE_OUT },
+                scale: { delay: 1.4, duration: 0.4, ease: EASE_OUT },
+                y: { delay: 2, duration: 1.7, repeat: Infinity, repeatType: 'loop', ease: 'easeInOut' },
               }}
             >
               약속 장소 찾기

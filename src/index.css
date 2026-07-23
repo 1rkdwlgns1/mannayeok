@@ -20,11 +20,22 @@ body {
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 button,
-a {
+a,
+label {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  input:not([type='radio']):not([type='checkbox']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 .onboarding-screen {
@@ -35,24 +46,6 @@ a {
 .onboarding-screen.is-leaving {
   pointer-events: none;
   animation: onboarding-out 560ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-.onboarding-screen h1,
-.onboarding-screen p,
-.onboarding-screen button {
-  animation: onboarding-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.onboarding-screen h1 {
-  animation-delay: 70ms;
-}
-
-.onboarding-screen p {
-  animation-delay: 120ms;
-}
-
-.onboarding-screen button {
-  animation-delay: 170ms;
 }
 
 .onboarding-screen button:disabled {
@@ -165,9 +158,6 @@ a {
 
   .onboarding-screen,
   .onboarding-screen.is-leaving,
-  .onboarding-screen h1,
-  .onboarding-screen p,
-  .onboarding-screen button,
   .hero-preview-card,
   .hero-feature-card,
   .app-enter {

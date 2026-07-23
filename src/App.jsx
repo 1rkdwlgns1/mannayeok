@@ -1175,12 +1175,12 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
               onChange={(event) => setMessage(event.target.value)}
               required
               minLength={1}
-              maxLength={600}
+              maxLength={250}
               rows={4}
               placeholder="불편했던 점이나 개선했으면 하는 내용을 적어주세요."
               className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100"
             />
-            <p className="mt-1 text-right text-[11px] font-medium text-slate-400">{message.length}/600</p>
+            <p className="mt-1 text-right text-[11px] font-medium text-slate-400">{message.length}/250</p>
 
             <label className="mt-3 block text-sm font-black text-slate-800" htmlFor="inquiry-email">
               답변받을 이메일 <span className="font-medium text-slate-400">(선택)</span>
