@@ -40,7 +40,6 @@ export function shareResultToKakao({ stationName, originNames, url }) {
       imageWidth: 544,
       imageHeight: 544,
       link: {
-        mobileWebUrl: url,
         webUrl: url,
       },
     },
