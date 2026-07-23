@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate'
 import AddressInput from './components/AddressInput'
 import { CheckCircle2, CircleHelp, Mail, Menu, MessageCircle, Send, Share2, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
@@ -2172,19 +2173,21 @@ function encodeSharePayload(payload) {
     payload.fairStations.map(packSharedStationV4),
     selection,
   ]
-  const bytes = new TextEncoder().encode(JSON.stringify(compactPayload))
-  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
+  const compressedBytes = gzipSync(strToU8(JSON.stringify(compactPayload)), { level: 9 })
+  const binary = Array.from(compressedBytes, (byte) => String.fromCharCode(byte)).join('')
 
-  return window.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+  return `z${window.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')}`
 }
 
 function decodeSharePayload(encodedPayload) {
-  const base64 = encodedPayload.replaceAll('-', '+').replaceAll('_', '/')
+  const isCompressed = encodedPayload.startsWith('z')
+  const payloadBase64 = isCompressed ? encodedPayload.slice(1) : encodedPayload
+  const base64 = payloadBase64.replaceAll('-', '+').replaceAll('_', '/')
   const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
   const binary = window.atob(paddedBase64)
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
-
-  const payload = JSON.parse(new TextDecoder().decode(bytes))
+  const json = isCompressed ? strFromU8(gunzipSync(bytes)) : new TextDecoder().decode(bytes)
+  const payload = JSON.parse(json)
 
   if (!Array.isArray(payload)) return payload
 

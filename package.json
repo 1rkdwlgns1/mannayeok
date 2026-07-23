@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "framer-motion": "^12.40.0",
     "kakao-js-sdk": "^1.2.3",
     "lucide-react": "^1.25.0",
