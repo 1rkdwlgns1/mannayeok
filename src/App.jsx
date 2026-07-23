@@ -687,7 +687,11 @@ function App() {
             ) : null}
 
             {primaryStation ? (
-              <section className={`relative grid items-start gap-3 lg:grid-cols-[1.08fr_0.92fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
+              <section
+                className={`relative grid items-start gap-3 ${
+                  fairStation ? 'lg:grid-cols-[1.08fr_0.92fr]' : 'lg:grid-cols-1'
+                } ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}
+              >
                 <div className="relative">
                   <ResultTypeCard
                     station={primaryStation}
