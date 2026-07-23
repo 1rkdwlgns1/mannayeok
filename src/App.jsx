@@ -10,7 +10,7 @@ import backgroundImage from './assets/background.png'
 import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
-import { loadKakaoShareSdk, shareKakaoDebugTest, shareResultToKakao } from './services/kakaoShare'
+import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
 
 const PUBLIC_APP_URL = 'https://mannayeok.kr/'
@@ -74,8 +74,6 @@ const createEmptyOrigin = () => ({
 })
 
 function App() {
-  const kakaoShareDebugEnabled =
-    new URLSearchParams(window.location.search).get('debugShare') === '1'
   const [sharedResult] = useState(readSharedResult)
   const [originInputs, setOriginInputs] = useState(
     () =>
@@ -112,6 +110,8 @@ function App() {
   const [guideOpen, setGuideOpen] = useState(false)
   const [inquiryOpen, setInquiryOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [serviceInfoOpen, setServiceInfoOpen] = useState(false)
+  const [dataSourcesOpen, setDataSourcesOpen] = useState(false)
   const [resultShareOpen, setResultShareOpen] = useState(false)
   const [kakaoShareStatus, setKakaoShareStatus] = useState('idle')
   const [kakaoShareAttempt, setKakaoShareAttempt] = useState(0)
@@ -260,11 +260,24 @@ function App() {
   }, [resultShareOpen, kakaoShareAttempt])
 
   useEffect(() => {
-    if (!guideOpen && !inquiryOpen && !privacyOpen && !resultShareOpen) return undefined
+    if (
+      !guideOpen &&
+      !inquiryOpen &&
+      !privacyOpen &&
+      !serviceInfoOpen &&
+      !dataSourcesOpen &&
+      !resultShareOpen
+    ) {
+      return undefined
+    }
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        if (privacyOpen) {
+        if (dataSourcesOpen) {
+          setDataSourcesOpen(false)
+        } else if (serviceInfoOpen) {
+          setServiceInfoOpen(false)
+        } else if (privacyOpen) {
           setPrivacyOpen(false)
         } else if (inquiryOpen) {
           setInquiryOpen(false)
@@ -278,7 +291,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [guideOpen, inquiryOpen, privacyOpen, resultShareOpen])
+  }, [dataSourcesOpen, guideOpen, inquiryOpen, privacyOpen, resultShareOpen, serviceInfoOpen])
 
   const handleAddressChange = (index, value) => {
     setOriginInputs((prev) =>
@@ -489,33 +502,6 @@ function App() {
         error instanceof Error ? error.message : error?.message || '카카오톡 공유를 열지 못했어요.'
 
       setShareNotice(kakaoErrorMessage)
-    }
-  }
-
-  const handleKakaoShareDebugTest = (testCase) => {
-    const shareData = getResultShareData()
-    if (!shareData) return
-
-    if (kakaoShareStatus !== 'ready') {
-      setShareNotice(
-        kakaoShareStatus === 'error'
-          ? kakaoShareError || '카카오톡 공유 SDK 연결에 실패했어요.'
-          : '카카오톡 공유 기능을 준비하고 있어요.',
-      )
-      return
-    }
-
-    try {
-      shareKakaoDebugTest({
-        testCase,
-        stationName: primaryStation.name,
-        originNames: origins.map((origin) => origin.routeName || origin.address).join(' · '),
-        resultUrl: shareData.url,
-      })
-    } catch (error) {
-      setShareNotice(
-        error instanceof Error ? error.message : error?.message || '공유 테스트를 열지 못했어요.',
-      )
     }
   }
 
@@ -879,10 +865,24 @@ function App() {
             <span>© 2026 만나역</span>
             <button
               type="button"
+              onClick={() => setServiceInfoOpen(true)}
+              className="transition hover:text-[#5A45E8]"
+            >
+              서비스 이용안내
+            </button>
+            <button
+              type="button"
               onClick={() => setPrivacyOpen(true)}
               className="transition hover:text-[#5A45E8]"
             >
               개인정보처리방침
+            </button>
+            <button
+              type="button"
+              onClick={() => setDataSourcesOpen(true)}
+              className="transition hover:text-[#5A45E8]"
+            >
+              데이터 출처
             </button>
             <button
               type="button"
@@ -892,6 +892,9 @@ function App() {
               문의하기
             </button>
           </div>
+          <p className="mt-2 font-medium text-slate-400">
+            국토교통부·서울교통공사 공공데이터와 카카오맵 API를 활용합니다.
+          </p>
           <p className="mt-2 font-medium text-slate-400">운영 문의: 1rkdwlgns1@gmail.com</p>
         </footer>
       </div>
@@ -913,6 +916,18 @@ function App() {
       {privacyOpen
         ? createPortal(<PrivacyPolicyDialog onClose={() => setPrivacyOpen(false)} />, document.body)
         : null}
+      {serviceInfoOpen
+        ? createPortal(
+            <FooterInfoDialog type="service" onClose={() => setServiceInfoOpen(false)} />,
+            document.body,
+          )
+        : null}
+      {dataSourcesOpen
+        ? createPortal(
+            <FooterInfoDialog type="sources" onClose={() => setDataSourcesOpen(false)} />,
+            document.body,
+          )
+        : null}
       {resultShareOpen
         ? createPortal(
             <ResultShareDialog
@@ -921,8 +936,6 @@ function App() {
               kakaoShareStatus={kakaoShareStatus}
               kakaoShareError={kakaoShareError}
               onKakaoShare={handleResultKakaoShare}
-              debugEnabled={kakaoShareDebugEnabled}
-              onDebugShare={handleKakaoShareDebugTest}
               onClose={() => setResultShareOpen(false)}
             />,
             document.body,
@@ -990,8 +1003,6 @@ function ResultShareDialog({
   kakaoShareStatus,
   kakaoShareError,
   onKakaoShare,
-  debugEnabled,
-  onDebugShare,
   onClose,
 }) {
   return (
@@ -1024,44 +1035,6 @@ function ResultShareDialog({
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
-          {debugEnabled ? (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs font-black text-amber-800">카카오 공유 원인 확인</p>
-              <p className="mt-1 text-[11px] font-semibold leading-4 text-amber-700">
-                모바일에서 1 → 2 → 3 순서로 눌러 결과를 확인하세요.
-              </p>
-              <div className="mt-3 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => onDebugShare('fixed')}
-                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
-                >
-                  1. 고정 문구 + 메인 주소
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDebugShare('real-content')}
-                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
-                >
-                  2. 실제 문구 + 메인 주소
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDebugShare('real-url')}
-                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
-                >
-                  3. 고정 문구 + 실제 결과 URL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDebugShare('real-url-once')}
-                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
-                >
-                  4. 실제 결과 URL 한 번만 전달
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <div className="mx-5 rounded-xl border border-violet-100 bg-violet-50/60 p-4 sm:mx-6">
@@ -1323,6 +1296,140 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
         )}
       </section>
     </div>
+  )
+}
+
+function FooterInfoDialog({ type, onClose }) {
+  const isSources = type === 'sources'
+  const title = isSources ? '데이터 출처' : '서비스 이용안내'
+  const titleId = isSources ? 'data-sources-title' : 'service-info-title'
+
+  return (
+    <div
+      className="fixed inset-0 z-[170] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-8"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <section
+        className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:p-7"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <p className="text-xs font-black text-[#5A45E8]">만나역</p>
+            <h2 id={titleId} className="mt-1 text-xl font-black tracking-tight text-slate-950 md:text-2xl">
+              {title}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label={`${title} 닫기`}
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        {isSources ? <DataSourcesContent /> : <ServiceInfoContent />}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 h-11 w-full rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4]"
+        >
+          확인했어요
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function ServiceInfoContent() {
+  return (
+    <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
+      <PrivacyPolicySection title="1. 추천 결과 안내">
+        <p>만나역은 출발지 간 거리 균형, 교통 접근성 및 주변 상권을 종합해 만나기 좋은 역을 추천합니다.</p>
+        <p>추천 결과는 약속 장소 선택을 돕기 위한 참고 정보이며, 특정 이동 경로나 장소의 최적성을 보장하지 않습니다.</p>
+      </PrivacyPolicySection>
+      <PrivacyPolicySection title="2. 실제 정보와의 차이">
+        <p>이동시간, 운행 노선, 환승 경로와 장소 정보는 교통 상황, 운행 변경 및 외부 데이터 갱신 시점에 따라 실제와 다를 수 있습니다.</p>
+        <p>중요한 약속 전에는 연결된 지도와 해당 교통 운영기관의 최신 정보를 함께 확인해주세요.</p>
+      </PrivacyPolicySection>
+      <PrivacyPolicySection title="3. 서비스 변경 및 문의">
+        <p>서비스 품질 개선을 위해 추천 기준과 제공 기능은 변경될 수 있습니다.</p>
+        <p>
+          오류 제보와 이용 문의는 서비스 내 문의하기 또는{' '}
+          <a href="mailto:1rkdwlgns1@gmail.com" className="font-bold text-[#5A45E8] underline underline-offset-2">
+            1rkdwlgns1@gmail.com
+          </a>
+          으로 보내주세요.
+        </p>
+      </PrivacyPolicySection>
+    </div>
+  )
+}
+
+function DataSourcesContent() {
+  const linkClass = 'font-bold text-[#5A45E8] underline underline-offset-2'
+
+  return (
+    <>
+      <p className="mt-5 break-keep text-sm leading-6 text-slate-600">
+        만나역은 아래 공공데이터와 외부 API를 가공해 추천 및 지도 정보를 제공합니다.
+      </p>
+      <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
+        <PrivacyPolicySection title="공공데이터">
+          <ul className="list-disc space-y-2 pl-5">
+            <li>국토교통부 도시철도 전체노선</li>
+            <li>
+              <a
+                href="https://data.seoul.go.kr/dataList/OA-15442/A/1/datasetView.do"
+                target="_blank"
+                rel="noreferrer"
+                className={linkClass}
+              >
+                서울교통공사 노선별 지하철역 정보
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://data.seoul.go.kr/dataList/OA-12034/S/1/datasetView.do"
+                target="_blank"
+                rel="noreferrer"
+                className={linkClass}
+              >
+                서울교통공사 역간거리 및 소요시간
+              </a>
+            </li>
+            <li>서울특별시 철도역 구간</li>
+          </ul>
+          <p>공공데이터는 출처표시 조건에 따라 가공·활용되며, 원 제공기관의 최신 자료와 차이가 있을 수 있습니다.</p>
+        </PrivacyPolicySection>
+        <PrivacyPolicySection title="외부 API">
+          <ul className="list-disc space-y-2 pl-5">
+            <li>카카오맵·카카오 Local API: 주소 검색, 역 좌표, 지도 및 주변 장소 정보</li>
+            <li>카카오 Mobility API: 출발지와 추천역 간 경로 및 이동시간 정보</li>
+          </ul>
+          <a
+            href="https://developers.kakao.com/docs/ko/kakaomap/common"
+            target="_blank"
+            rel="noreferrer"
+            className={linkClass}
+          >
+            카카오맵 API 안내 보기
+          </a>
+        </PrivacyPolicySection>
+        <PrivacyPolicySection title="데이터 이용 안내">
+          <p>상권 지표는 역 주변의 카페, 음식점 및 편의·문화시설 검색 결과를 만나역의 기준으로 가공한 참고 지표입니다.</p>
+          <p>데이터의 저작권과 권리는 각 제공기관에 있으며, 만나역은 각 제공기관을 대표하거나 보증하지 않습니다.</p>
+        </PrivacyPolicySection>
+      </div>
+    </>
   )
 }
 
@@ -2037,12 +2144,24 @@ function pickSharedStation(station) {
 }
 
 function encodeSharePayload(payload) {
+  const recommendedSelectionIndex = payload.recommendedStations.findIndex(
+    (station) => station.id === payload.selectedStationId,
+  )
+  const fairSelectionIndex = payload.fairStations.findIndex(
+    (station) => station.id === payload.selectedStationId,
+  )
+  const selection =
+    recommendedSelectionIndex >= 0
+      ? [0, recommendedSelectionIndex]
+      : fairSelectionIndex >= 0
+        ? [1, fairSelectionIndex]
+        : [0, 0]
   const compactPayload = [
-    2,
-    payload.origins.map(packSharedOrigin),
-    payload.recommendedStations.map(packSharedStation),
-    payload.fairStations.map(packSharedStation),
-    payload.selectedStationId,
+    3,
+    payload.origins.map(packSharedOriginV3),
+    payload.recommendedStations.map(packSharedStationV3),
+    payload.fairStations.map(packSharedStationV3),
+    selection,
   ]
   const bytes = new TextEncoder().encode(JSON.stringify(compactPayload))
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
@@ -2058,7 +2177,29 @@ function decodeSharePayload(encodedPayload) {
 
   const payload = JSON.parse(new TextDecoder().decode(bytes))
 
-  if (!Array.isArray(payload) || payload[0] !== 2) return payload
+  if (!Array.isArray(payload)) return payload
+
+  if (payload[0] === 3) {
+    const recommendedStations = (payload[2] || []).map((station, index) =>
+      unpackSharedStationV3(station, `shared-recommended-${index}`),
+    )
+    const fairStations = (payload[3] || []).map((station, index) =>
+      unpackSharedStationV3(station, `shared-fair-${index}`),
+    )
+    const [selectionGroup = 0, selectionIndex = 0] = payload[4] || []
+    const selectedStation =
+      (selectionGroup === 1 ? fairStations : recommendedStations)[selectionIndex] ||
+      recommendedStations[0]
+
+    return {
+      origins: (payload[1] || []).map(unpackSharedOriginV3),
+      recommendedStations,
+      fairStations,
+      selectedStationId: selectedStation?.id || null,
+    }
+  }
+
+  if (payload[0] !== 2) return payload
 
   return {
     origins: (payload[1] || []).map(unpackSharedOrigin),
@@ -2068,29 +2209,26 @@ function decodeSharePayload(encodedPayload) {
   }
 }
 
-function packSharedOrigin(origin) {
+function packSharedOriginV3(origin) {
   return [
-    origin.id,
-    origin.address,
-    origin.routeName,
+    origin.routeName || origin.address,
     roundShareNumber(origin.lat, 6),
     roundShareNumber(origin.lng, 6),
   ]
 }
 
-function unpackSharedOrigin(origin) {
+function unpackSharedOriginV3(origin, index) {
   return {
-    id: origin[0],
-    address: origin[1],
-    routeName: origin[2],
-    lat: origin[3],
-    lng: origin[4],
+    id: `shared-origin-${index}`,
+    address: origin[0],
+    routeName: origin[0],
+    lat: origin[1],
+    lng: origin[2],
   }
 }
 
-function packSharedStation(station) {
+function packSharedStationV3(station) {
   return [
-    station.id,
     station.name,
     roundShareNumber(station.lat, 6),
     roundShareNumber(station.lng, 6),
@@ -2102,6 +2240,32 @@ function packSharedStation(station) {
     roundShareNumber(station.fairnessScore),
     roundShareNumber(station.transitCompatibilityScore),
   ]
+}
+
+function unpackSharedStationV3(station, id) {
+  return {
+    id,
+    name: station[0],
+    lat: station[1],
+    lng: station[2],
+    distanceFromCenter: station[3],
+    hotPlaceCount: station[4],
+    hotPlaceSignal: station[5],
+    meetingPlaceScore: station[6],
+    middleHubScore: station[7],
+    fairnessScore: station[8],
+    transitCompatibilityScore: station[9],
+  }
+}
+
+function unpackSharedOrigin(origin) {
+  return {
+    id: origin[0],
+    address: origin[1],
+    routeName: origin[2],
+    lat: origin[3],
+    lng: origin[4],
+  }
 }
 
 function unpackSharedStation(station) {

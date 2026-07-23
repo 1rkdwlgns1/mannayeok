@@ -47,39 +47,6 @@ export function shareResultToKakao({ stationName, originNames, url }) {
   })
 }
 
-export function shareKakaoDebugTest({ testCase, stationName, originNames, resultUrl }) {
-  const Kakao = window.Kakao
-
-  if (!Kakao?.Share || !Kakao.isInitialized()) {
-    throw new Error('카카오톡 공유 SDK가 연결되지 않았어요.')
-  }
-
-  const usesRealContent = testCase === 'real-content'
-  const usesResultUrl = testCase === 'real-url' || testCase === 'real-url-once'
-  const usesResultUrlOnce = testCase === 'real-url-once'
-  const url = usesResultUrl ? resultUrl : 'https://mannayeok.kr'
-  const link = usesResultUrlOnce
-    ? { mobileWebUrl: url }
-    : {
-        mobileWebUrl: url,
-        webUrl: url,
-      }
-
-  Kakao.Share.sendDefault({
-    objectType: 'feed',
-    content: {
-      title: usesRealContent ? `만나역 추천: ${stationName}` : '테스트',
-      description: usesRealContent
-        ? `${originNames}에서 만난다면? 만나기 좋은 중간역을 확인해보세요.`
-        : '테스트입니다.',
-      imageUrl: KAKAO_SHARE_IMAGE_URL,
-      imageWidth: 544,
-      imageHeight: 544,
-      link,
-    },
-  })
-}
-
 function ensureKakaoShareScript() {
   if (window.Kakao) {
     return Promise.resolve(window.Kakao)
