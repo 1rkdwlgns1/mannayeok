@@ -1052,6 +1052,13 @@ function ResultShareDialog({
                 >
                   3. 고정 문구 + 실제 결과 URL
                 </button>
+                <button
+                  type="button"
+                  onClick={() => onDebugShare('real-url-once')}
+                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
+                >
+                  4. 실제 결과 URL 한 번만 전달
+                </button>
               </div>
             </div>
           ) : null}

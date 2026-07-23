@@ -55,8 +55,15 @@ export function shareKakaoDebugTest({ testCase, stationName, originNames, result
   }
 
   const usesRealContent = testCase === 'real-content'
-  const usesResultUrl = testCase === 'real-url'
+  const usesResultUrl = testCase === 'real-url' || testCase === 'real-url-once'
+  const usesResultUrlOnce = testCase === 'real-url-once'
   const url = usesResultUrl ? resultUrl : 'https://mannayeok.kr'
+  const link = usesResultUrlOnce
+    ? { mobileWebUrl: url }
+    : {
+        mobileWebUrl: url,
+        webUrl: url,
+      }
 
   Kakao.Share.sendDefault({
     objectType: 'feed',
@@ -68,10 +75,7 @@ export function shareKakaoDebugTest({ testCase, stationName, originNames, result
       imageUrl: KAKAO_SHARE_IMAGE_URL,
       imageWidth: 544,
       imageHeight: 544,
-      link: {
-        mobileWebUrl: url,
-        webUrl: url,
-      },
+      link,
     },
   })
 }
