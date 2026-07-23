@@ -458,7 +458,6 @@ function App() {
     const shareUrl = createResultShareUrl({
       origins,
       recommendedStations,
-      fairStations,
       selectedStationId,
     })
     const originNames = origins.map((origin) => origin.routeName || origin.address).join(' · ')
@@ -2088,13 +2087,14 @@ function getMaximumOriginDistance(origins) {
   return maximumDistance
 }
 
-function createResultShareUrl({ origins, recommendedStations, fairStations, selectedStationId }) {
+function createResultShareUrl({ origins, recommendedStations, selectedStationId }) {
   const shareUrl = new URL(PUBLIC_APP_URL)
+  const primaryStation = recommendedStations[0]
   const payload = {
     origins: origins.map(pickSharedOrigin),
-    recommendedStations: recommendedStations.slice(0, 4).map(pickSharedStation),
-    fairStations: fairStations.slice(0, 1).map(pickSharedStation),
-    selectedStationId,
+    recommendedStations: primaryStation ? [pickSharedStation(primaryStation)] : [],
+    fairStations: [],
+    selectedStationId: primaryStation?.id || selectedStationId,
   }
 
   shareUrl.searchParams.set('result', encodeSharePayload(payload))
