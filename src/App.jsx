@@ -458,6 +458,7 @@ function App() {
     const shareUrl = createResultShareUrl({
       origins,
       recommendedStations,
+      fairStations,
       selectedStationId,
     })
     const originNames = origins.map((origin) => origin.routeName || origin.address).join(' · ')
@@ -2091,14 +2092,20 @@ function getMaximumOriginDistance(origins) {
   return maximumDistance
 }
 
-function createResultShareUrl({ origins, recommendedStations, selectedStationId }) {
+function createResultShareUrl({
+  origins,
+  recommendedStations,
+  fairStations,
+  selectedStationId,
+}) {
   const shareUrl = new URL(PUBLIC_APP_URL)
-  const primaryStation = recommendedStations[0]
+  const sharedRecommendedStations = recommendedStations.slice(0, 4).map(pickSharedStation)
+  const sharedFairStations = fairStations.slice(0, 1).map(pickSharedStation)
   const payload = {
     origins: origins.map(pickSharedOrigin),
-    recommendedStations: primaryStation ? [pickSharedStation(primaryStation)] : [],
-    fairStations: [],
-    selectedStationId: primaryStation?.id || selectedStationId,
+    recommendedStations: sharedRecommendedStations,
+    fairStations: sharedFairStations,
+    selectedStationId,
   }
 
   shareUrl.searchParams.set('result', encodeSharePayload(payload))
@@ -2139,8 +2146,6 @@ function pickSharedStation(station) {
     lng: station.lng,
     distanceFromCenter: station.distanceFromCenter,
     hotPlaceCount: station.hotPlaceCount,
-    hotPlaceSignal: station.hotPlaceSignal,
-    meetingPlaceScore: station.meetingPlaceScore,
     middleHubScore: station.middleHubScore,
     fairnessScore: station.fairnessScore,
     transitCompatibilityScore: station.transitCompatibilityScore,
@@ -2161,10 +2166,10 @@ function encodeSharePayload(payload) {
         ? [1, fairSelectionIndex]
         : [0, 0]
   const compactPayload = [
-    3,
+    4,
     payload.origins.map(packSharedOriginV3),
-    payload.recommendedStations.map(packSharedStationV3),
-    payload.fairStations.map(packSharedStationV3),
+    payload.recommendedStations.map(packSharedStationV4),
+    payload.fairStations.map(packSharedStationV4),
     selection,
   ]
   const bytes = new TextEncoder().encode(JSON.stringify(compactPayload))
@@ -2182,6 +2187,26 @@ function decodeSharePayload(encodedPayload) {
   const payload = JSON.parse(new TextDecoder().decode(bytes))
 
   if (!Array.isArray(payload)) return payload
+
+  if (payload[0] === 4) {
+    const recommendedStations = (payload[2] || []).map((station, index) =>
+      unpackSharedStationV4(station, `shared-recommended-${index}`),
+    )
+    const fairStations = (payload[3] || []).map((station, index) =>
+      unpackSharedStationV4(station, `shared-fair-${index}`),
+    )
+    const [selectionGroup = 0, selectionIndex = 0] = payload[4] || []
+    const selectedStation =
+      (selectionGroup === 1 ? fairStations : recommendedStations)[selectionIndex] ||
+      recommendedStations[0]
+
+    return {
+      origins: (payload[1] || []).map(unpackSharedOriginV3),
+      recommendedStations,
+      fairStations,
+      selectedStationId: selectedStation?.id || null,
+    }
+  }
 
   if (payload[0] === 3) {
     const recommendedStations = (payload[2] || []).map((station, index) =>
@@ -2231,19 +2256,31 @@ function unpackSharedOriginV3(origin, index) {
   }
 }
 
-function packSharedStationV3(station) {
+function packSharedStationV4(station) {
   return [
     station.name,
     roundShareNumber(station.lat, 6),
     roundShareNumber(station.lng, 6),
     roundShareNumber(station.distanceFromCenter),
     roundShareNumber(station.hotPlaceCount),
-    roundShareNumber(station.hotPlaceSignal),
-    roundShareNumber(station.meetingPlaceScore),
     roundShareNumber(station.middleHubScore),
     roundShareNumber(station.fairnessScore),
     roundShareNumber(station.transitCompatibilityScore),
   ]
+}
+
+function unpackSharedStationV4(station, id) {
+  return {
+    id,
+    name: station[0],
+    lat: station[1],
+    lng: station[2],
+    distanceFromCenter: station[3],
+    hotPlaceCount: station[4],
+    middleHubScore: station[5],
+    fairnessScore: station[6],
+    transitCompatibilityScore: station[7],
+  }
 }
 
 function unpackSharedStationV3(station, id) {
