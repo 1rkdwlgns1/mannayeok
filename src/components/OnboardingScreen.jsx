@@ -88,7 +88,7 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               출발지만 입력하면 모두가 부담 적은 만나기 좋은 약속 장소를 추천해드려요.
             </p>
             <p className="mx-auto mt-1.5 text-[11px] font-bold text-slate-400 md:mt-2 md:text-xs">
-              현재 베타 서비스는 수도권 전철망 이용 지역을 지원합니다.
+              [현재 베타 서비스는 수도권 전철망 이용 지역을 지원합니다.]
             </p>
 
             <motion.button
