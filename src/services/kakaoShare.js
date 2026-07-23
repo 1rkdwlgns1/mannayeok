@@ -31,6 +31,10 @@ export function shareResultToKakao({ stationName, originNames, url }) {
     throw new Error('카카오톡 공유 SDK가 연결되지 않았어요.')
   }
 
+  const link = isMobileShareEnvironment()
+    ? { mobileWebUrl: url }
+    : { webUrl: url }
+
   Kakao.Share.sendDefault({
     objectType: 'feed',
     content: {
@@ -39,12 +43,18 @@ export function shareResultToKakao({ stationName, originNames, url }) {
       imageUrl: KAKAO_SHARE_IMAGE_URL,
       imageWidth: 544,
       imageHeight: 544,
-      link: {
-        mobileWebUrl: url,
-        webUrl: url,
-      },
+      link,
     },
   })
+}
+
+function isMobileShareEnvironment() {
+  if (navigator.userAgentData?.mobile) return true
+
+  const isMobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  const isTouchOnlyDevice = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches
+
+  return isMobileUserAgent || Boolean(isTouchOnlyDevice)
 }
 
 function ensureKakaoShareScript() {
