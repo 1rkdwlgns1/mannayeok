@@ -1735,7 +1735,7 @@ function ResultTypeCard({
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-          className={`flex w-full flex-col rounded-2xl border border-violet-100 bg-white p-4 text-left shadow-[0_14px_36px_rgba(90,69,232,0.10)] transition active:scale-[0.99] md:p-4 ${
+          className={`flex w-full flex-col rounded-2xl border border-violet-100 bg-white px-4 pb-2.5 pt-4 text-left shadow-[0_14px_36px_rgba(90,69,232,0.10)] transition active:scale-[0.99] md:p-4 ${
           selected ? 'ring-2 ring-violet-100' : ''
         } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
       >
@@ -1768,7 +1768,7 @@ function ResultTypeCard({
             </ul>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 border-t border-slate-100 pt-3">
+          <div className="mt-3 grid grid-cols-3 border-t border-slate-100 pb-0.5 pt-2.5 md:pb-0 md:pt-3">
             <MetricSummaryItem label="접근 조건" value={getMetricStatus(scores.fairness)} />
             <MetricSummaryItem label="주변 상권" value={getCommercialMetricStatus(station)} />
             <MetricSummaryItem label="노선 접근성" value={getMetricStatus(scores.transit)} />
