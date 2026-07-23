@@ -5,11 +5,13 @@ import {
   getRouteStationSearchAreas,
   getStationSearchAreas,
   isSeoulMetroArea,
+  normalizeStationName,
   rankMeetingStations,
   shouldIncludeHubStation,
 } from './meetingRecommender'
 import { getStationLines } from '../data/subwayStationLines'
 import hubStationCoordinates from '../data/hubStationCoordinates.json'
+import hubStationCommercialMetrics from '../data/hubStationCommercialMetrics.json'
 
 const KAKAO_SCRIPT_ID = 'kakao-map-sdk-script'
 const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services'
@@ -19,7 +21,7 @@ const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 const HUB_STATIONS_CACHE_KEY = 'mannayeok:hub-stations-cache'
 const HUB_STATIONS_CACHE_TTL = 1000 * 60 * 60 * 24 * 30
 const LOCAL_SEARCH_CONCURRENCY = 5
-const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 8
+const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 12
 
 const PLACE_CATEGORIES = {
   cafe: {
@@ -376,7 +378,11 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
     ).values(),
   ]
 
-  const candidatesForCommercialScoring = selectCandidatesForCommercialScoring(candidates, enrichedOrigins)
+  const candidatesWithKnownCommercialMetrics = candidates.map(applyKnownCommercialMetrics)
+  const candidatesForCommercialScoring = selectCandidatesForCommercialScoring(
+    candidatesWithKnownCommercialMetrics,
+    enrichedOrigins,
+  )
   const scoredStations = await mapWithConcurrency(candidatesForCommercialScoring, LOCAL_SEARCH_CONCURRENCY, (station) =>
     addStationCounts(kakao, station),
   )
@@ -387,16 +393,65 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
 function selectCandidatesForCommercialScoring(candidates, origins) {
   const preliminaryRank = rankMeetingStations(candidates, origins, candidates.length)
   const selectedNames = new Set()
+  const selected = []
+  const allRankedStations = [...preliminaryRank.meetingStations, ...preliminaryRank.fairStations]
+  const commercialStations = [...allRankedStations]
+    .filter(hasCommercialMetrics)
+    .sort((a, b) => (b.hotPlaceSignal || 0) - (a.hotPlaceSignal || 0))
+  const transitStations = [...allRankedStations]
+    .sort((a, b) => (b.transitCompatibilityScore || 0) - (a.transitCompatibilityScore || 0))
 
-  return [...preliminaryRank.meetingStations, ...preliminaryRank.fairStations]
-    .sort((a, b) => Math.max(b.meetingScore, b.fairScore) - Math.max(a.meetingScore, a.fairScore))
-    .filter((station) => {
-      if (selectedNames.has(station.name)) return false
+  const addUnique = (stations, limit) => {
+    let added = 0
 
-      selectedNames.add(station.name)
-      return true
-    })
-    .slice(0, COMMERCIAL_SCORING_CANDIDATE_LIMIT)
+    for (const station of stations) {
+      if (added >= limit || selected.length >= COMMERCIAL_SCORING_CANDIDATE_LIMIT) break
+
+      const normalizedName = normalizeStationName(station.name)
+      if (selectedNames.has(normalizedName)) continue
+
+      selectedNames.add(normalizedName)
+      selected.push(station)
+      added += 1
+    }
+  }
+
+  addUnique(preliminaryRank.meetingStations, 5)
+  addUnique(preliminaryRank.fairStations, 3)
+  addUnique(commercialStations, 3)
+  addUnique(transitStations, 1)
+  addUnique(
+    allRankedStations.sort(
+      (a, b) => Math.max(b.meetingScore, b.fairScore) - Math.max(a.meetingScore, a.fairScore),
+    ),
+    COMMERCIAL_SCORING_CANDIDATE_LIMIT,
+  )
+
+  return selected
+}
+
+function applyKnownCommercialMetrics(station) {
+  const normalizedName = normalizeStationName(station.name)
+  const metrics = hubStationCommercialMetrics[normalizedName]
+
+  if (!metrics) return station
+
+  return {
+    ...station,
+    cafeCount: metrics.cafeCount,
+    restaurantCount: metrics.restaurantCount,
+    commercialCount: metrics.commercialCount,
+    hotPlaceCount: metrics.hotPlaceCount,
+    hotPlaceSignal: metrics.hotPlaceSignal,
+  }
+}
+
+function hasCommercialMetrics(station) {
+  return (
+    Number.isFinite(station?.cafeCount) &&
+    Number.isFinite(station?.restaurantCount) &&
+    Number.isFinite(station?.commercialCount)
+  )
 }
 
 export async function getRoadRoutePath(origin, destination) {

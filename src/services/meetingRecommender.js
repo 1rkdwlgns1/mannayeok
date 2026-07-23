@@ -210,7 +210,8 @@ function rankMultiPersonStations(stations, origins, limit) {
     const originDistances = origins.map((origin) => calculateDistanceInMeters(origin, station))
     const avgDistance = originDistances.reduce((sum, distance) => sum + distance, 0) / originDistances.length
     const centerScore = getCenterDistanceScore(station.distanceFromCenter)
-    const commercialScore = getCommercialScore(station)
+    const hasKnownCommercialData = hasCommercialData(station)
+    const commercialScore = hasKnownCommercialData ? getCommercialScore(station) : 50
     const transitCompatibilityScore = getTransitCompatibilityScore(origins, normalizedName)
     const transitTimeProfile = getStationTransitTimeProfile(origins, normalizedName)
     const minDistance = Math.min(...originDistances)
@@ -231,7 +232,9 @@ function rankMultiPersonStations(stations, origins, limit) {
     const hasStationScore = Boolean(STATION_SCORE_DB[normalizedName])
     const unknownStationPenalty = hasStationScore ? 0 : 12
     const farMeetingPenalty = getFarMeetingPenalty(station.distanceFromCenter)
-    const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceSignal || 0)
+    const lowCommercialPenalty = hasKnownCommercialData
+      ? getLowCommercialPenalty(station.hotPlaceSignal || 0)
+      : 0
     const lowMeetingPlacePenalty = getLowMeetingPlacePenalty(stationScores.meetingPlaceScore)
     const affinityBonus = pairAffinity[normalizedName] || 0
     const transitTimeBalanceAdjustment = getTransitTimeBalanceAdjustment(transitTimeProfile)
@@ -324,7 +327,8 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
   const centerScore = getCenterDistanceScore(station.distanceFromCenter)
   const fairnessScore = getFairnessScore(originDistances)
   const travelScore = getTravelScore(originDistances)
-  const commercialScore = getCommercialScore(station)
+  const hasKnownCommercialData = hasCommercialData(station)
+  const commercialScore = hasKnownCommercialData ? getCommercialScore(station) : 50
   const transitCompatibilityScore = getTransitCompatibilityScore(origins, normalizedName)
   const transitTimeProfile = getStationTransitTimeProfile(origins, normalizedName)
   const localRailPenalty = LOCAL_LIGHT_RAIL_KEYWORDS.some((keyword) => normalizedName.includes(keyword)) ? 28 : 0
@@ -332,7 +336,9 @@ function getStationScoreProfile(station, origins, normalizedName, pairAffinity) 
   const unknownStationPenalty = hasStationScore ? 0 : 14
   const affinityBonus = pairAffinity[normalizedName] || 0
 
-  const lowCommercialPenalty = getLowCommercialPenalty(station.hotPlaceSignal || 0)
+  const lowCommercialPenalty = hasKnownCommercialData
+    ? getLowCommercialPenalty(station.hotPlaceSignal || 0)
+    : 0
   const lowMeetingPlacePenalty = getLowMeetingPlacePenalty(stationScores.meetingPlaceScore)
   const meetingWeights = getMeetingScoreWeights(routeDistance)
   const transitTimeBalanceAdjustment = getTransitTimeBalanceAdjustment(transitTimeProfile)
@@ -716,6 +722,14 @@ function getCommercialScore(station) {
   const rawScore = cafeCount * 0.75 + restaurantCount * 0.85 + commercialCount * 0.08
 
   return clamp(rawScore / 2.6, 0, 100)
+}
+
+function hasCommercialData(station) {
+  return (
+    Number.isFinite(station?.cafeCount) &&
+    Number.isFinite(station?.restaurantCount) &&
+    Number.isFinite(station?.commercialCount)
+  )
 }
 
 function getLowCommercialPenalty(hotPlaceSignal) {
