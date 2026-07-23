@@ -64,23 +64,6 @@ export function getStationTransitTimeProfile(origins, stationName) {
   }
 }
 
-export function debugSubwayTravelTimeCases() {
-  const cases = [
-    ['우장산역', '노원역'],
-    ['우장산역', '의정부역'],
-    ['덕정역', '노원역'],
-    ['덕정역', '의정부역'],
-    ['덕계역', '잠실역'],
-    ['연천역', '강남역'],
-  ]
-
-  return cases.map(([from, to]) => ({
-    from,
-    to,
-    ...formatDebugResult(estimateSubwayTravel(from, to)),
-  }))
-}
-
 function createTravelTimeGraph() {
   const graph = new Map()
   const stationNodes = new Map()
@@ -415,22 +398,4 @@ function average(values) {
 
 function roundMinutes(value) {
   return Math.round(value * 10) / 10
-}
-
-function formatDebugResult(result) {
-  if (!result) {
-    return {
-      minutes: null,
-      transfers: null,
-      path: [],
-      status: 'unreachable',
-    }
-  }
-
-  return {
-    minutes: result.minutes,
-    transfers: result.transfers,
-    path: result.path,
-    status: 'ok',
-  }
 }

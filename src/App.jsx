@@ -649,10 +649,7 @@ function App() {
               <section className={`relative grid items-start gap-3 lg:grid-cols-[1.08fr_0.92fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
                 <div className="relative">
                   <ResultTypeCard
-                    eyebrow="가장 만나기 좋은 장소"
-                    eyebrowIcon="trophy"
                     station={primaryStation}
-                    description="위치, 접근성, 주변 장소를 종합해 추천한 역이에요."
                     selected={primaryStation.id === selectedStation.id}
                     onClick={() => handleStationSelect(primaryStation.id)}
                     primary
@@ -675,11 +672,7 @@ function App() {
                     />
                     <div className="hidden lg:block">
                       <ResultTypeCard
-                        eyebrow="위치상 가장 중간인 역"
-                        eyebrowMeta="지도상 중간 기준"
-                        eyebrowIcon="scales"
                         station={fairStation}
-                        description="출발지 위치를 기준으로 가장 중간에 가까운 역이에요."
                         selected={fairStation.id === selectedStation.id}
                         onClick={() => handleStationSelect(fairStation.id)}
                       />
@@ -1426,16 +1419,6 @@ function TrophyIcon({ className = 'h-5 w-5', style }) {
   )
 }
 
-function getCategoryMarker(category) {
-  if (category === 'all') return '▦'
-  if (category === 'cafe') return '☕'
-  if (category === 'restaurant') return '🍖'
-  if (category === 'bar') return '🍺'
-  if (category === 'activity') return '🎮'
-
-  return '•'
-}
-
 function getPlaceTabLabel(category) {
   if (category === 'restaurant') return '식당'
   if (category === 'activity') return '놀거리'
@@ -1451,15 +1434,6 @@ function MannayeokLogo() {
       <span className="absolute right-1.5 h-2 w-2 rounded-full bg-[#00A84D] ring-1 ring-white" />
       <span className="absolute h-px w-5 bg-violet-100" />
     </span>
-  )
-}
-
-function HeroStat({ label, value }) {
-  return (
-    <div className="rounded-2xl bg-white/80 px-2.5 py-2 shadow-sm ring-1 ring-blue-50">
-      <p className="text-[11px] font-bold text-slate-400">{label}</p>
-      <p className="mt-0.5 truncate text-xs font-black text-slate-800">{value}</p>
-    </div>
   )
 }
 
@@ -1509,53 +1483,6 @@ function HeroFeatureCard({ icon, tone = 'blue', title, description }) {
   )
 }
 
-function HeroPreview() {
-  return (
-    <div className="relative hidden min-h-[220px] md:block">
-      <div className="absolute inset-x-3 top-3 h-44 rounded-[2rem] bg-white/55 shadow-inner ring-1 ring-white/70">
-        <div className="absolute left-6 top-10 h-24 w-24 rounded-full border-8 border-blue-100" />
-        <div className="absolute right-8 top-8 h-28 w-28 rounded-full border-8 border-cyan-100" />
-        <div className="absolute left-20 top-20 h-1 w-44 rotate-[-18deg] rounded-full bg-[#3182F6]/45" />
-        <div className="absolute left-32 top-8 h-1 w-36 rotate-[38deg] rounded-full bg-[#00A84D]/35" />
-        <div className="absolute right-16 top-20 h-1 w-32 rotate-[62deg] rounded-full bg-amber-300/60" />
-      </div>
-
-      <div className="absolute left-3 top-8 w-64 rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-xl backdrop-blur">
-        <p className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-[#3182F6]">
-          오늘의 추천 예시
-        </p>
-        <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">왕십리역</h2>
-        <div className="mt-3 space-y-2 text-xs font-bold text-slate-600">
-          <div className="flex items-center justify-between">
-            <span>위치 균형</span>
-            <span className="text-[#3182F6]">상위권</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>노선 접근성</span>
-            <span className="text-[#00A84D]">좋음</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>주변 상권</span>
-            <span className="text-amber-500">충분</span>
-          </div>
-        </div>
-        <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-3">
-          <strong className="text-2xl font-black text-[#3182F6]">★★★★★</strong>
-        </div>
-      </div>
-
-      <div className="absolute bottom-4 right-3 flex h-20 w-36 items-center justify-center rounded-[1.25rem] bg-slate-900 shadow-xl">
-        <div className="relative h-12 w-24 rounded-xl bg-white">
-          <div className="absolute left-2 top-2 h-5 w-8 rounded-md bg-blue-100" />
-          <div className="absolute right-2 top-2 h-5 w-8 rounded-md bg-blue-100" />
-          <div className="absolute bottom-2 left-3 h-2 w-2 rounded-full bg-slate-900" />
-          <div className="absolute bottom-2 right-3 h-2 w-2 rounded-full bg-slate-900" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function StationLineChips({ station, className = '' }) {
   const lines = getStationLineLabels(station)
 
@@ -1587,14 +1514,10 @@ function BetaBadge({ className = '' }) {
 }
 
 function ResultTypeCard({
-  eyebrow,
-  eyebrowMeta,
   station,
-  description,
   selected = false,
   onClick,
   primary = false,
-  eyebrowIcon = null,
 }) {
   if (!station) return null
 
@@ -1641,9 +1564,9 @@ function ResultTypeCard({
           </div>
 
           <div className="mt-3 grid grid-cols-3 border-t border-slate-100 pt-3">
-            <MetricSummaryItem icon="people" label="접근 조건" value={getMetricStatus(scores.fairness)} tone="blue" />
-            <MetricSummaryItem icon="store" label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
-            <MetricSummaryItem icon="subway" label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+            <MetricSummaryItem label="접근 조건" value={getMetricStatus(scores.fairness)} />
+            <MetricSummaryItem label="주변 상권" value={getCommercialMetricStatus(station)} />
+            <MetricSummaryItem label="노선 접근성" value={getMetricStatus(scores.transit)} />
         </div>
       </Component>
     )
@@ -1671,9 +1594,9 @@ function ResultTypeCard({
       </p>
 
       <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
-        <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
-        <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
-        <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+        <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} />
+        <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} />
+        <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} />
       </div>
 
       <div className="mt-3 rounded-xl bg-[#F6F3FF] px-3 py-2 text-[11px] font-bold leading-5 text-[#8A7BD8] md:text-xs">
@@ -1714,9 +1637,9 @@ function MobileFairStationCard({ station, collapsed, onToggle }) {
           </p>
 
           <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
-            <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
-            <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
-            <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} tone="green" />
+            <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} />
+            <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} />
+            <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} />
           </div>
 
           <div className="mt-3 rounded-xl bg-[#F6F3FF] px-3 py-2 text-[11px] font-bold leading-5 text-[#8A7BD8]">
@@ -1728,17 +1651,7 @@ function MobileFairStationCard({ station, collapsed, onToggle }) {
   )
 }
 
-function MetricStatusList({ scores }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
-      <StatusMetricRow icon="people" label="위치 균형" description="지도상 출발지 위치의 중간에 가까워요" value={getMetricStatus(scores.fairness)} tone="blue" />
-      <StatusMetricRow icon="store" label="주변 상권" description="맛집, 카페, 편의시설이 많아요" value={getMetricStatus(scores.commercial)} tone="purple" />
-      <StatusMetricRow icon="subway" label="노선 접근성" description="환승 부담이 적은 편이에요" value={getMetricStatus(scores.transit)} tone="green" />
-    </div>
-  )
-}
-
-function MetricSummaryItem({ icon, label, value, tone = 'blue' }) {
+function MetricSummaryItem({ label, value }) {
   return (
     <div className="min-w-0 border-r border-slate-100 px-1.5 text-center last:border-r-0 sm:px-3">
       <p className="truncate text-[11px] font-bold text-slate-400 sm:text-xs">
@@ -1751,28 +1664,7 @@ function MetricSummaryItem({ icon, label, value, tone = 'blue' }) {
   )
 }
 
-function StatusMetricRow({ icon, label, description, value, tone = 'blue', simple = false }) {
-  const iconTone = ICON_TONES[tone] || ICON_TONES.blue
-
-  return (
-    <div className={`${simple ? 'flex items-center justify-between gap-3' : 'flex items-center justify-between gap-3 border-b border-slate-100 py-2.5 first:pt-0 last:border-b-0 last:pb-0'}`}>
-      <span className="inline-flex min-w-0 items-center gap-2.5 text-left">
-        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconTone.bg}`}>
-          <Icon name={icon} className="h-4 w-4" style={{ filter: iconTone.filter }} />
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-xs font-black text-slate-700">{label}</span>
-          {description ? <span className="mt-0.5 block truncate text-xs font-bold text-slate-400">{description}</span> : null}
-        </span>
-      </span>
-      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-black ${getMetricStatusTextClass(value)}`}>
-        {value}
-      </span>
-    </div>
-  )
-}
-
-function FairMetricRow({ label, value, tone = 'green' }) {
+function FairMetricRow({ label, value }) {
   return (
     <div className="flex items-center justify-between gap-4 py-1.5">
       <span className="truncate text-xs font-bold text-slate-400">
@@ -1781,24 +1673,6 @@ function FairMetricRow({ label, value, tone = 'green' }) {
       <span className={`shrink-0 text-[13px] font-black ${getMetricStatusTextClass(value)}`}>
         {value}
       </span>
-    </div>
-  )
-}
-
-function StatusMetricCard({ icon, label, value, tone = 'blue' }) {
-  const iconTone = ICON_TONES[tone] || ICON_TONES.blue
-
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
-      <p className="flex items-center gap-2 text-xs font-bold text-slate-500">
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${iconTone.bg}`}>
-          <Icon name={icon} className="h-4 w-4" style={{ filter: iconTone.filter }} />
-        </span>
-        {label}
-      </p>
-      <p className={`mt-2 text-xl font-black ${getMetricStatusTextClass(value)}`}>
-        {value}
-      </p>
     </div>
   )
 }
@@ -1830,15 +1704,15 @@ function StationCard({ station, selected, onClick }) {
       </p>
 
       <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
-        <MiniMetric label="위치 균형" value={getMetricStatus(scores.fairness)} tone="blue" />
-        <MiniMetric label="주변 상권" value={getCommercialMetricStatus(station)} tone="purple" />
-        <MiniMetric label="노선 접근" value={getMetricStatus(scores.transit)} tone="green" />
+        <MiniMetric label="위치 균형" value={getMetricStatus(scores.fairness)} />
+        <MiniMetric label="주변 상권" value={getCommercialMetricStatus(station)} />
+        <MiniMetric label="노선 접근" value={getMetricStatus(scores.transit)} />
       </div>
     </button>
   )
 }
 
-function MiniMetric({ label, value, tone = 'blue' }) {
+function MiniMetric({ label, value }) {
   return (
     <div className="min-w-0 border-r border-slate-100 bg-white/50 px-1.5 py-2 text-center last:border-r-0">
       <p className="truncate text-xs font-bold text-slate-500">

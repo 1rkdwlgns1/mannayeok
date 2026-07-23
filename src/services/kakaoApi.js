@@ -215,39 +215,6 @@ async function mapWithConcurrency(items, concurrency, mapper) {
   return results
 }
 
-export async function geocodeAddress(address) {
-  const kakao = await loadKakaoMapSdk()
-
-  return new Promise((resolve, reject) => {
-    const geocoder = new kakao.maps.services.Geocoder()
-    const places = new kakao.maps.services.Places()
-
-    const resolveLocation = (location) => {
-      resolve({
-        address,
-        lat: Number(location.y),
-        lng: Number(location.x),
-      })
-    }
-
-    geocoder.addressSearch(address, (result, status) => {
-      if (status === kakao.maps.services.Status.OK && result[0]) {
-        resolveLocation(result[0])
-        return
-      }
-
-      places.keywordSearch(address, (keywordResult, keywordStatus) => {
-        if (keywordStatus !== kakao.maps.services.Status.OK || !keywordResult[0]) {
-          reject(new Error(`주소 또는 장소를 찾을 수 없습니다: ${address}`))
-          return
-        }
-
-        resolveLocation(keywordResult[0])
-      })
-    })
-  })
-}
-
 export async function enrichOriginsWithNearbyStations(origins) {
   const kakao = await loadKakaoMapSdk()
 
@@ -396,10 +363,6 @@ async function searchNearbyPlacesByKeyword(kakao, center, placeCategory) {
   return documents.slice(0, 5).map(mapLocalPlace)
 }
 
-export function searchNearbyCafes(center) {
-  return searchNearbyPlaces(center, 'cafe')
-}
-
 export async function searchRecommendedStations(center, origins = [], limit = 3) {
   const kakao = await loadKakaoMapSdk()
   const enrichedOrigins = await enrichOriginsWithNearbyStations(origins)
@@ -437,9 +400,9 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
       })
   }
 
-  const contextualHubCandidates = await searchContextualHubStations(kakao, center, enrichedOrigins, [
-    ...candidateMap.values(),
-  ])
+  const contextualHubCandidates = enrichedOrigins.every((origin) => isSeoulMetroArea(origin))
+    ? await searchContextualHubStations(kakao, center, enrichedOrigins, [...candidateMap.values()])
+    : []
 
   contextualHubCandidates.forEach((station) => {
     const existingStation = candidateMap.get(station.id)

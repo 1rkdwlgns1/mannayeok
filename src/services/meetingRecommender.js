@@ -202,6 +202,8 @@ export function rankMeetingStations(stations, origins, limit = 3) {
 function rankMultiPersonStations(stations, origins, limit) {
   const bestByName = new Map()
   const pairAffinity = capPairAffinityBonuses(getPairAffinity(origins))
+  const maxRouteDistance = getMaxPairDistance(origins)
+  const isLongDistanceGroup = maxRouteDistance >= 50000
 
   stations.forEach((station) => {
     const normalizedName = normalizeStationName(station.name)
@@ -214,17 +216,13 @@ function rankMultiPersonStations(stations, origins, limit) {
     const minDistance = Math.min(...originDistances)
     const maxDistance = Math.max(...originDistances)
 
-    const fairnessScore = clamp(
-      100 - ((maxDistance - minDistance) / 1000) * 2.5,
-      0,
-      100,
-    )
+    const fairnessScore = isLongDistanceGroup
+      ? clamp(100 - ((maxDistance - minDistance) / Math.max(avgDistance, 1)) * 100, 0, 100)
+      : clamp(100 - ((maxDistance - minDistance) / 1000) * 2.5, 0, 100)
 
-    const travelScore = clamp(
-      100 - (avgDistance / 1000) * 2.2,
-      0,
-      100,
-    )
+    const travelScore = isLongDistanceGroup
+      ? clamp(100 - (avgDistance / Math.max(maxRouteDistance, 1)) * 100, 0, 100)
+      : clamp(100 - (avgDistance / 1000) * 2.2, 0, 100)
 
     const stationScores = STATION_SCORE_DB[normalizedName] || {
       meetingPlaceScore: 35,
@@ -238,18 +236,23 @@ function rankMultiPersonStations(stations, origins, limit) {
     const affinityBonus = pairAffinity[normalizedName] || 0
     const transitTimeBalanceAdjustment = getTransitTimeBalanceAdjustment(transitTimeProfile)
 
-    const meetingScore =
-      fairnessScore * 0.20 +
-      travelScore * 0.20 +
-      stationScores.meetingPlaceScore * 0.35 +
-      commercialScore * 0.25 -
-      farMeetingPenalty -
-      unknownStationPenalty -
-      lowCommercialPenalty -
-      lowMeetingPlacePenalty +
-      affinityBonus +
-      transitCompatibilityScore +
-      transitTimeBalanceAdjustment
+    const meetingScore = isLongDistanceGroup
+      ? centerScore * 0.42 +
+        fairnessScore * 0.33 +
+        travelScore * 0.15 +
+        commercialScore * 0.07 +
+        stationScores.meetingPlaceScore * 0.03
+      : fairnessScore * 0.20 +
+        travelScore * 0.20 +
+        stationScores.meetingPlaceScore * 0.35 +
+        commercialScore * 0.25 -
+        farMeetingPenalty -
+        unknownStationPenalty -
+        lowCommercialPenalty -
+        lowMeetingPlacePenalty +
+        affinityBonus +
+        transitCompatibilityScore +
+        transitTimeBalanceAdjustment
 
     const fairScore =
       fairnessScore * 0.45 +
@@ -401,12 +404,16 @@ function getTransitTimeBalanceAdjustment(profile) {
 function getPairAffinity(origins) {
   const originText = origins.map((origin) => origin.address || origin.query || '').join(' ')
   const genericAffinity = getGenericPairAffinity(origins, originText)
+  const hasOnlySeoulMetroOrigins = origins.every((origin) => isSeoulMetroArea(origin))
 
   if (origins.length >= 3) {
     return genericAffinity
   }
 
-  if (includesAny(originText, [...NORTHERN_REMOTE_KEYWORDS, ...NORTHERN_LONG_DISTANCE_KEYWORDS])) {
+  if (
+    hasOnlySeoulMetroOrigins &&
+    includesAny(originText, [...NORTHERN_REMOTE_KEYWORDS, ...NORTHERN_LONG_DISTANCE_KEYWORDS])
+  ) {
     const northernCoreBonus = {
       의정부역: 34,
       노원역: 38,
