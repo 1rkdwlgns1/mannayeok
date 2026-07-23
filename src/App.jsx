@@ -10,7 +10,7 @@ import backgroundImage from './assets/background.png'
 import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
-import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
+import { loadKakaoShareSdk, shareKakaoDebugTest, shareResultToKakao } from './services/kakaoShare'
 import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
 
 const PUBLIC_APP_URL = 'https://mannayeok.kr/'
@@ -74,6 +74,8 @@ const createEmptyOrigin = () => ({
 })
 
 function App() {
+  const kakaoShareDebugEnabled =
+    new URLSearchParams(window.location.search).get('debugShare') === '1'
   const [sharedResult] = useState(readSharedResult)
   const [originInputs, setOriginInputs] = useState(
     () =>
@@ -490,6 +492,33 @@ function App() {
     }
   }
 
+  const handleKakaoShareDebugTest = (testCase) => {
+    const shareData = getResultShareData()
+    if (!shareData) return
+
+    if (kakaoShareStatus !== 'ready') {
+      setShareNotice(
+        kakaoShareStatus === 'error'
+          ? kakaoShareError || '카카오톡 공유 SDK 연결에 실패했어요.'
+          : '카카오톡 공유 기능을 준비하고 있어요.',
+      )
+      return
+    }
+
+    try {
+      shareKakaoDebugTest({
+        testCase,
+        stationName: primaryStation.name,
+        originNames: origins.map((origin) => origin.routeName || origin.address).join(' · '),
+        resultUrl: shareData.url,
+      })
+    } catch (error) {
+      setShareNotice(
+        error instanceof Error ? error.message : error?.message || '공유 테스트를 열지 못했어요.',
+      )
+    }
+  }
+
   const handleInquiry = () => {
     setInquiryOpen(true)
     setMobileMenuOpen(false)
@@ -892,6 +921,8 @@ function App() {
               kakaoShareStatus={kakaoShareStatus}
               kakaoShareError={kakaoShareError}
               onKakaoShare={handleResultKakaoShare}
+              debugEnabled={kakaoShareDebugEnabled}
+              onDebugShare={handleKakaoShareDebugTest}
               onClose={() => setResultShareOpen(false)}
             />,
             document.body,
@@ -959,6 +990,8 @@ function ResultShareDialog({
   kakaoShareStatus,
   kakaoShareError,
   onKakaoShare,
+  debugEnabled,
+  onDebugShare,
   onClose,
 }) {
   return (
@@ -991,6 +1024,37 @@ function ResultShareDialog({
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
+          {debugEnabled ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-black text-amber-800">카카오 공유 원인 확인</p>
+              <p className="mt-1 text-[11px] font-semibold leading-4 text-amber-700">
+                모바일에서 1 → 2 → 3 순서로 눌러 결과를 확인하세요.
+              </p>
+              <div className="mt-3 grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => onDebugShare('fixed')}
+                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
+                >
+                  1. 고정 문구 + 메인 주소
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDebugShare('real-content')}
+                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
+                >
+                  2. 실제 문구 + 메인 주소
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDebugShare('real-url')}
+                  className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-left text-xs font-bold text-slate-700"
+                >
+                  3. 고정 문구 + 실제 결과 URL
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mx-5 rounded-xl border border-violet-100 bg-violet-50/60 p-4 sm:mx-6">
