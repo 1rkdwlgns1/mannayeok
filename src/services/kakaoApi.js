@@ -22,6 +22,7 @@ const HUB_STATIONS_CACHE_KEY = 'mannayeok:hub-stations-cache'
 const HUB_STATIONS_CACHE_TTL = 1000 * 60 * 60 * 24 * 30
 const LOCAL_SEARCH_CONCURRENCY = 5
 const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 12
+const SUPPORTED_TRANSIT_SEARCH_RADIUS_METERS = 15_000
 
 const PLACE_CATEGORIES = {
   cafe: {
@@ -171,7 +172,10 @@ export async function enrichOriginsWithNearbyStations(origins) {
 
 function enrichOriginWithNearbyStation(kakao, origin) {
   if (origin.transitLines?.length) {
-    return Promise.resolve(origin)
+    return Promise.resolve({
+      ...origin,
+      hasSupportedTransitAccess: true,
+    })
   }
 
   const existingLines = getStationLines(origin.routeName || origin.address)
@@ -179,6 +183,7 @@ function enrichOriginWithNearbyStation(kakao, origin) {
   if (existingLines.length) {
     return Promise.resolve({
       ...origin,
+      hasSupportedTransitAccess: true,
       transitLines: existingLines,
     })
   }
@@ -189,85 +194,71 @@ function enrichOriginWithNearbyStation(kakao, origin) {
     {
       x: origin.lng,
       y: origin.lat,
-      radius: 1800,
+      radius: SUPPORTED_TRANSIT_SEARCH_RADIUS_METERS,
       sort: kakao.maps.services.SortBy.DISTANCE,
-      size: 1,
+      size: 15,
     },
     '근처 지하철역 검색에 실패했습니다.',
   )
     .then(({ documents }) => {
-      if (!documents[0]) return origin
+      const nearestStation = documents.find(
+        (station) => getStationLines(station.place_name).length > 0,
+      )
 
-      const nearestStation = documents[0]
+      if (!nearestStation) {
+        return {
+          ...origin,
+          hasSupportedTransitAccess: false,
+        }
+      }
+
       const transitLines = getStationLines(nearestStation.place_name)
 
       return {
         ...origin,
+        hasSupportedTransitAccess: true,
         nearbyStationName: nearestStation.place_name,
         transitLines,
       }
     })
-    .catch(() => origin)
+    .catch(() => {
+      throw new Error('현재 서비스 지원 지역인지 확인하지 못했습니다. 잠시 후 다시 시도해주세요.')
+    })
 }
 
 export async function searchAddressSuggestions(query) {
   const keyword = query.trim()
   if (!keyword) return []
 
-  const kakao = await loadKakaoMapSdk()
-
-  return new Promise((resolve, reject) => {
-    const geocoder = new kakao.maps.services.Geocoder()
-    const places = new kakao.maps.services.Places()
-
-    const searchPlaces = () => {
-      places.keywordSearch(keyword, (result, status) => {
-        if (status === kakao.maps.services.Status.ZERO_RESULT) {
-          resolve([])
-          return
-        }
-
-        if (status !== kakao.maps.services.Status.OK) {
-          reject(new Error('장소 검색에 실패했습니다.'))
-          return
-        }
-
-        resolve(
-          result.slice(0, 5).map((item) => ({
-            id: item.id,
-            address: item.road_address_name || item.address_name || item.place_name,
-            roadAddress: item.place_name,
-            routeName: item.place_name,
-            lat: Number(item.y),
-            lng: Number(item.x),
-          })),
-        )
-      })
-    }
-
-    geocoder.addressSearch(keyword, (result, status) => {
-      if (status === kakao.maps.services.Status.ZERO_RESULT) {
-        searchPlaces()
-        return
-      }
-
-      if (status !== kakao.maps.services.Status.OK) {
-        reject(new Error('주소 검색에 실패했습니다.'))
-        return
-      }
-
-      resolve(
-        result.slice(0, 5).map((item) => ({
-          id: `${item.x}-${item.y}-${item.address_name}`,
-          address: item.address_name,
-          roadAddress: item.road_address?.address_name || '',
-          routeName: item.road_address?.address_name || item.address_name,
-          lat: Number(item.y),
-          lng: Number(item.x),
-        })),
-      )
-    })
+  const addressResult = await requestLocalApi('address', {
+    query: keyword,
+    size: 5,
   })
+
+  if (addressResult.documents?.length) {
+    return addressResult.documents.slice(0, 5).map((item) => ({
+      id: `${item.x}-${item.y}-${item.address_name}`,
+      address: item.address_name,
+      roadAddress: item.road_address?.address_name || '',
+      routeName: item.road_address?.address_name || item.address_name,
+      lat: Number(item.y),
+      lng: Number(item.x),
+    }))
+  }
+
+  const placeResult = await requestLocalApi('keyword', {
+    query: keyword,
+    size: 5,
+  })
+
+  return (placeResult.documents || []).slice(0, 5).map((item) => ({
+    id: item.id,
+    address: item.road_address_name || item.address_name || item.place_name,
+    roadAddress: item.place_name,
+    routeName: item.place_name,
+    lat: Number(item.y),
+    lng: Number(item.x),
+  }))
 }
 
 export async function searchNearbyPlaces(center, category = 'cafe') {

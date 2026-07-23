@@ -386,6 +386,16 @@ function App() {
 
     try {
       const enrichedOrigins = await enrichOriginsWithNearbyStations(selectedOrigins)
+      const hasUnsupportedOrigin = enrichedOrigins.some(
+        (origin) => origin.hasSupportedTransitAccess === false,
+      )
+
+      if (hasUnsupportedOrigin) {
+        throw new Error(
+          '일부 출발지가 현재 서비스 지역을 벗어났어요.\n현재 만나역은 수도권 전철망 이용 지역을 기준으로 추천하며, 지원 지역은 차차 확대할 예정이에요.',
+        )
+      }
+
       const center = calculateMidpoint(enrichedOrigins)
       const recommendation = await searchRecommendedStations(center, enrichedOrigins, 4)
       const stations = Array.isArray(recommendation) ? recommendation : recommendation.meetingStations
@@ -658,8 +668,22 @@ function App() {
               {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
             </button>
 
-            {error ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p> : null}
+            <p className="mt-2 translate-y-2.5 text-center text-[11px] font-bold text-slate-400 md:text-xs">
+              현재 베타 서비스는 수도권 전철망 이용 지역을 지원합니다.
+            </p>
+
           </section>
+
+          {error ? (
+            <section className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:p-4">
+              <p
+                className="whitespace-pre-line rounded-xl bg-red-50 px-3 py-2 text-sm leading-6 text-red-500 md:px-4 md:py-3"
+                role="alert"
+              >
+                {error}
+              </p>
+            </section>
+          ) : null}
         </div>
 
         {showResults ? (
@@ -1365,7 +1389,11 @@ function ServiceInfoContent() {
         <p>이동시간, 운행 노선, 환승 경로와 장소 정보는 교통 상황, 운행 변경 및 외부 데이터 갱신 시점에 따라 실제와 다를 수 있습니다.</p>
         <p>중요한 약속 전에는 연결된 지도와 해당 교통 운영기관의 최신 정보를 함께 확인해주세요.</p>
       </PrivacyPolicySection>
-      <PrivacyPolicySection title="3. 서비스 변경 및 문의">
+      <PrivacyPolicySection title="3. 지원 지역">
+        <p>현재 베타 서비스는 수도권 전철망 이용 지역을 기준으로 추천합니다.</p>
+        <p>선택한 출발지 주변에서 지원되는 전철역을 찾지 못하면 추천이 제한되며, 지원 지역은 차차 확대할 예정입니다.</p>
+      </PrivacyPolicySection>
+      <PrivacyPolicySection title="4. 서비스 변경 및 문의">
         <p>서비스 품질 개선을 위해 추천 기준과 제공 기능은 변경될 수 있습니다.</p>
         <p>
           오류 제보와 이용 문의는 서비스 내 문의하기 또는{' '}

@@ -3,6 +3,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { validateKakaoLocalRequest } from './shared/kakaoLocalRequest.js'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,7 +13,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
-      localKakaoApiPlugin(env.KAKAO_REST_API_KEY || env.VITE_KAKAO_REST_API_KEY),
+      localKakaoApiPlugin(env.KAKAO_REST_API_KEY),
     ],
   }
 })
@@ -39,19 +40,17 @@ function localKakaoApiPlugin(restApiKey) {
         }
 
         const requestUrl = new URL(request.url || '/', 'http://localhost')
-        const type = requestUrl.searchParams.get('type')
-        const endpoint = type === 'category' ? 'category.json' : type === 'keyword' ? 'keyword.json' : null
-
-        if (!endpoint) {
-          sendJson(response, 400, { error: 'Invalid local search type' })
+        const validation = validateKakaoLocalRequest(requestUrl.searchParams)
+        if (validation.error) {
+          sendJson(response, 400, { error: validation.error })
           return
         }
 
-        requestUrl.searchParams.delete('type')
+        const { endpoint, params } = validation
 
         try {
           const kakaoResponse = await fetch(
-            `https://dapi.kakao.com/v2/local/search/${endpoint}?${requestUrl.searchParams.toString()}`,
+            `https://dapi.kakao.com/v2/local/search/${endpoint}?${params.toString()}`,
             {
               headers: {
                 Authorization: `KakaoAK ${restApiKey}`,
