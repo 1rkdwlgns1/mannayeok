@@ -11,7 +11,7 @@ import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
 import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
 import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
-import { calculateMidpoint } from './services/midpointCalculator'
+import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
 
 const PUBLIC_APP_URL = 'https://mannayeok.kr/'
 
@@ -59,6 +59,7 @@ const ICON_TONES = {
 
 const MIN_ORIGIN_COUNT = 2
 const MAX_ORIGIN_COUNT = 4
+const LONG_DISTANCE_NOTICE_THRESHOLD_METERS = 80_000
 const MIN_RECOMMENDATION_HOT_PLACE_COUNT = 50
 const INQUIRY_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyqk1NV6mSmOYtCL__PxAYtBxVJ8wE5usVISnbATiVv0OLzd9UOyFkI8Epiy9XjhWAS/exec'
 const INQUIRY_COOLDOWN_MS = 60_000
@@ -152,6 +153,8 @@ function App() {
   const hasRequiredSelections = selectedOrigins.length === originInputs.length
   const hasDuplicateOrigins = hasRequiredSelections && hasSameOrigins(selectedOrigins)
   const showResults = Boolean(selectedStation)
+  const showLongDistanceNotice =
+    showResults && getMaximumOriginDistance(origins) >= LONG_DISTANCE_NOTICE_THRESHOLD_METERS
   const primaryStation = recommendedStations[0] || null
   const alternativeStations = recommendedStations
     .slice(1)
@@ -645,6 +648,30 @@ function App() {
 
         {showResults ? (
           <>
+            {showLongDistanceNotice ? (
+              <aside
+                role="note"
+                className="rounded-xl border border-violet-100 bg-gradient-to-r from-[#F7F5FF] to-white px-3 py-2.5 shadow-[0_6px_18px_rgba(90,69,232,0.05)] md:px-4"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-violet-100">
+                    <Icon
+                      name="warning"
+                      className="h-4 w-4"
+                      style={{ filter: ICON_TONES.amber.filter, opacity: 0.78 }}
+                    />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-black text-[#5A45E8]">장거리 참고 추천</p>
+                    <p className="mt-0.5 break-keep text-xs font-semibold leading-[1.15rem] text-slate-500">
+                      출발지 간 거리가 멀어 지리적 균형과 주변 상권을 중심으로 추천했어요. 실제
+                      이동시간은 노선과 환승 경로에 따라 달라질 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            ) : null}
+
             {primaryStation ? (
               <section className={`relative grid items-start gap-3 lg:grid-cols-[1.08fr_0.92fr] ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}>
                 <div className="relative">
@@ -1869,6 +1896,18 @@ function isSameOrigin(a, b) {
 
 function hasSameOrigins(origins) {
   return origins.some((origin, index) => origins.slice(index + 1).some((nextOrigin) => isSameOrigin(origin, nextOrigin)))
+}
+
+function getMaximumOriginDistance(origins) {
+  let maximumDistance = 0
+
+  origins.forEach((origin, index) => {
+    origins.slice(index + 1).forEach((nextOrigin) => {
+      maximumDistance = Math.max(maximumDistance, calculateDistanceInMeters(origin, nextOrigin))
+    })
+  })
+
+  return maximumDistance
 }
 
 function createResultShareUrl({ origins, recommendedStations, fairStations, selectedStationId }) {
