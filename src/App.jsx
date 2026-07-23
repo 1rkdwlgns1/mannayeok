@@ -669,7 +669,7 @@ function App() {
             </button>
 
             <p className="mt-2 translate-y-2.5 text-center text-[11px] font-bold text-slate-400 md:text-xs">
-              [현재 베타 서비스는 수도권 전철망 이용 지역을 지원합니다.]
+              [현재 서비스는 수도권 전철망 이용 지역을 지원합니다.]
             </p>
 
           </section>
