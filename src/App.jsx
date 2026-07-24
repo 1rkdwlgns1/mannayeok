@@ -1214,7 +1214,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black text-[#5A45E8]">개발자에게 문의하기</p>
-            <h2 id="inquiry-dialog-title" className="mt-0.5 text-lg font-black tracking-tight text-slate-950 md:mt-1 md:text-xl">
+            <h2 id="inquiry-dialog-title" className="mt-1.5 text-lg font-black tracking-tight text-slate-950 md:mt-1 md:text-xl">
               만나역을 더 좋게 만들어주세요
             </h2>
             <p className="mt-0.5 break-keep text-[11px] leading-4 text-slate-500 md:mt-1 md:text-xs md:leading-5">
