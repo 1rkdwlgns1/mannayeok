@@ -14,7 +14,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
 
   return (
     <div>
-      <div className="flex items-start justify-between gap-3 sm:items-center">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-black text-slate-950 md:text-lg">출발지 입력</h2>
           <p className="mt-1 hidden text-sm text-slate-500 sm:block">각자의 출발지를 검색해서 선택해주세요.</p>
@@ -186,7 +186,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
               if (!origin.selected) setOpen(true)
             }}
             placeholder={`${label} 검색`}
-            className={`min-w-0 flex-1 bg-transparent py-0 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 ${
+            className={`min-w-0 flex-1 origin-left scale-[0.9375] bg-transparent py-0 text-base font-black text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 md:scale-100 ${
               compact ? 'leading-6' : 'leading-6 md:text-base'
             }`}
           />
@@ -212,7 +212,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleSelect(suggestion)}
                 >
-                  <span className="block text-base font-bold text-slate-950 sm:text-sm">
+                  <span className="block text-sm font-bold text-slate-950">
                     {suggestion.roadAddress || suggestion.address}
                   </span>
                   {suggestion.roadAddress ? (
@@ -231,7 +231,7 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleSelect(suggestion)}
                 >
-                  <span className="block text-base font-bold text-slate-950 sm:text-sm">
+                  <span className="block text-sm font-bold text-slate-950">
                     {suggestion.roadAddress || suggestion.address}
                   </span>
                   {suggestion.roadAddress ? (

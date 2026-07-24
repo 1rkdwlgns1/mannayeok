@@ -119,6 +119,8 @@ function App() {
   const [kakaoShareError, setKakaoShareError] = useState('')
   const [shareNotice, setShareNotice] = useState('')
   const onboardingExitTimerRef = useRef(null)
+  const dialogOpen =
+    guideOpen || inquiryOpen || privacyOpen || serviceInfoOpen || dataSourcesOpen || resultShareOpen
 
   const selectableStations = useMemo(
     () => [...recommendedStations, ...fairStations],
@@ -293,6 +295,39 @@ function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [dataSourcesOpen, guideOpen, inquiryOpen, privacyOpen, resultShareOpen, serviceInfoOpen])
+
+  useEffect(() => {
+    if (!dialogOpen) return undefined
+
+    const scrollY = window.scrollY
+    const bodyStyle = document.body.style
+    const htmlStyle = document.documentElement.style
+    const previousBodyStyles = {
+      overflow: bodyStyle.overflow,
+      position: bodyStyle.position,
+      top: bodyStyle.top,
+      width: bodyStyle.width,
+    }
+    const previousHtmlStyles = {
+      overflow: htmlStyle.overflow,
+      overscrollBehavior: htmlStyle.overscrollBehavior,
+      scrollBehavior: htmlStyle.scrollBehavior,
+    }
+
+    bodyStyle.overflow = 'hidden'
+    bodyStyle.position = 'fixed'
+    bodyStyle.top = `-${scrollY}px`
+    bodyStyle.width = '100%'
+    htmlStyle.overflow = 'hidden'
+    htmlStyle.overscrollBehavior = 'none'
+    htmlStyle.scrollBehavior = 'auto'
+
+    return () => {
+      Object.assign(bodyStyle, previousBodyStyles)
+      Object.assign(htmlStyle, previousHtmlStyles)
+      window.scrollTo(0, scrollY)
+    }
+  }, [dialogOpen])
 
   const handleAddressChange = (index, value) => {
     setOriginInputs((prev) =>
@@ -663,12 +698,12 @@ function App() {
               type="button"
               onClick={handleCalculate}
               disabled={loading}
-              className="mt-3 w-full rounded-2xl bg-[#5A45E8] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(90,69,232,0.28)] transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-violet-200 disabled:shadow-none sm:mt-3.5 sm:py-4 sm:text-base"
+              className="mt-3 w-full rounded-2xl bg-[#5A45E8] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-violet-200 sm:mt-3.5 sm:py-4 sm:text-base"
             >
               {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
             </button>
 
-            <p className="mt-2 translate-y-2.5 text-center text-[11px] font-bold text-slate-400 md:text-xs">
+            <p className="mt-2 text-center text-[11px] font-bold text-slate-400 md:text-xs">
               [현재 서비스는 수도권 전철망 이용 지역을 지원합니다.]
             </p>
 
@@ -739,6 +774,8 @@ function App() {
                     <MobileFairStationCard
                       station={fairStation}
                       collapsed={fairStationCollapsed}
+                      selected={fairStation.id === selectedStation.id}
+                      onSelect={() => handleStationSelect(fairStation.id)}
                       onToggle={() => setFairStationCollapsed((collapsed) => !collapsed)}
                     />
                     <div className="hidden lg:block">
@@ -837,7 +874,7 @@ function App() {
                   </p>
                 </div>
 
-                <div className="ml-2 inline-flex max-w-full gap-7 overflow-x-auto border-y border-slate-100 pr-2 [scrollbar-width:none] md:ml-3 md:gap-9 md:pr-3 [&::-webkit-scrollbar]:hidden">
+                <div className="grid w-full grid-cols-4 border-y border-slate-100 md:ml-3 md:inline-flex md:w-auto md:gap-9 md:pr-3">
                   {PLACE_CATEGORY_KEYS.map((category) => (
                     <button
                       key={category}
@@ -1162,14 +1199,14 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
 
   return (
     <div
-      className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto bg-slate-950/35 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-10"
+      className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/35 px-3 py-2 backdrop-blur-[2px] md:px-4 md:pb-4 md:pt-10"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && status.phase !== 'sending') onClose()
       }}
     >
       <section
-        className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/60 bg-white p-4 shadow-2xl md:p-5"
+        className="max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-3 shadow-2xl md:max-h-[calc(100vh-2rem)] md:p-5"
         role="dialog"
         aria-modal="true"
         aria-labelledby="inquiry-dialog-title"
@@ -1177,10 +1214,10 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black text-[#5A45E8]">개발자에게 문의하기</p>
-            <h2 id="inquiry-dialog-title" className="mt-1 text-xl font-black tracking-tight text-slate-950">
+            <h2 id="inquiry-dialog-title" className="mt-0.5 text-lg font-black tracking-tight text-slate-950 md:mt-1 md:text-xl">
               만나역을 더 좋게 만들어주세요
             </h2>
-            <p className="mt-1 break-keep text-xs leading-5 text-slate-500">
+            <p className="mt-0.5 break-keep text-[11px] leading-4 text-slate-500 md:mt-1 md:text-xs md:leading-5">
               불편했던 점이나 개선 아이디어를 남겨주시면 확인할게요.
             </p>
           </div>
@@ -1211,14 +1248,14 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
             </button>
           </div>
         ) : (
-          <form className="mt-4" onSubmit={handleSubmit}>
+          <form className="mt-2 md:mt-4" onSubmit={handleSubmit}>
             <fieldset>
-              <legend className="text-sm font-black text-slate-800">문의 유형</legend>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <legend className="text-xs font-black text-slate-800 md:text-sm">문의 유형</legend>
+              <div className="mt-1.5 grid grid-cols-3 gap-1.5 md:mt-2 md:gap-2">
                 {INQUIRY_TYPES.map((inquiryType) => (
                   <label
                     key={inquiryType}
-                    className={`flex min-h-10 cursor-pointer items-center justify-center rounded-lg border px-2 py-2 text-center text-xs font-bold transition ${
+                    className={`flex min-h-8 cursor-pointer items-center justify-center rounded-lg border px-1 py-1 text-center text-[11px] font-bold leading-4 transition md:min-h-10 md:px-2 md:py-2 md:text-xs ${
                       type === inquiryType
                         ? 'border-violet-300 bg-violet-50 text-[#5A45E8]'
                         : 'border-slate-200 bg-white text-slate-600 hover:border-violet-200'
@@ -1238,7 +1275,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
               </div>
             </fieldset>
 
-            <label className="mt-4 block text-sm font-black text-slate-800" htmlFor="inquiry-message">
+            <label className="mt-2 block text-xs font-black text-slate-800 md:mt-4 md:text-sm" htmlFor="inquiry-message">
               문의 내용
             </label>
             <textarea
@@ -1251,11 +1288,11 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
               maxLength={250}
               rows={4}
               placeholder="불편했던 점이나 개선했으면 하는 내용을 적어주세요."
-              className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100"
+              className="mt-1.5 h-20 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm leading-5 text-slate-800 outline-none transition placeholder:text-xs placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100 md:mt-2 md:h-auto md:resize-y md:px-3.5 md:py-3 md:leading-6 md:placeholder:text-sm"
             />
             <p className="mt-1 text-right text-[11px] font-medium text-slate-400">{message.length}/250</p>
 
-            <label className="mt-3 block text-sm font-black text-slate-800" htmlFor="inquiry-email">
+            <label className="mt-2 block text-xs font-black text-slate-800 md:mt-3 md:text-sm" htmlFor="inquiry-email">
               답변받을 이메일 <span className="font-medium text-slate-400">(선택)</span>
             </label>
             <input
@@ -1266,7 +1303,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
               onChange={(event) => setReplyEmail(event.target.value)}
               maxLength={200}
               placeholder="답변이 필요한 경우에만 입력해주세요."
-              className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100"
+              className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-sm text-slate-800 outline-none transition placeholder:text-xs placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100 md:mt-2 md:h-11 md:px-3.5 md:placeholder:text-sm"
             />
 
             <div className="absolute -left-[9999px]" aria-hidden="true">
@@ -1274,13 +1311,11 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
               <input id="inquiry-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
             </div>
 
-            {hasResult ? (
-              <p className="mt-4 rounded-xl bg-violet-50 px-3 py-2 text-[11px] font-bold leading-5 text-[#7868C8]">
-                현재 출발지와 추천 결과가 문의에 자동으로 첨부돼요.
-              </p>
-            ) : null}
+            <p className="mt-2 rounded-xl bg-violet-50 px-3 py-2 text-[11px] font-bold leading-5 text-[#7868C8] md:mt-4">
+              현재 출발지와 추천 결과가 문의에 자동으로 첨부돼요.
+            </p>
 
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 md:mt-3 md:p-3">
               <label className="flex cursor-pointer items-start gap-2.5">
                 <input
                   type="checkbox"
@@ -1293,7 +1328,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
                   [필수] 개인정보 수집 및 이용에 동의합니다.
                 </span>
               </label>
-              <div className="ml-6 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-slate-500">
+              <div className="ml-6 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-4 text-slate-500 md:mt-1.5 md:gap-y-1">
                 <span>문의·검색·접속 정보</span>
                 <span aria-hidden="true">·</span>
                 <span>접수일로부터 1년 보관</span>
@@ -1316,7 +1351,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
             <button
               type="submit"
               disabled={status.phase === 'sending' || !privacyConsent}
-              className="sticky bottom-0 mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#5A45E8] text-sm font-black text-white shadow-[0_-8px_18px_rgba(255,255,255,0.96)] transition hover:bg-[#4D39D4] disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4] disabled:cursor-not-allowed disabled:bg-slate-300 md:sticky md:bottom-0 md:mt-4 md:h-11 md:shadow-[0_-8px_18px_rgba(255,255,255,0.96)]"
             >
               <Send className="h-4 w-4" aria-hidden="true" />
               {status.phase === 'sending' ? '보내는 중...' : '문의 보내기'}
@@ -1844,29 +1879,39 @@ function ResultTypeCard({
   )
 }
 
-function MobileFairStationCard({ station, collapsed, onToggle }) {
+function MobileFairStationCard({ station, collapsed, selected, onSelect, onToggle }) {
   if (!station) return null
 
   const scores = getStationDisplayScores(station)
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3.5 text-left shadow-sm lg:hidden">
+    <div
+      className={`rounded-2xl border border-slate-100 bg-white px-4 py-3.5 text-left shadow-sm lg:hidden ${
+        selected ? 'ring-2 ring-violet-100' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
       <button
         type="button"
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 text-left"
-        aria-expanded={!collapsed}
+        onClick={onSelect}
+        className="min-w-0 flex-1 text-left active:opacity-70"
       >
-        <span className="min-w-0">
+        <span>
           <span className="block text-xs font-black text-[#5A45E8]">위치상 가장 중간인 역</span>
           <span className="mt-0.5 block truncate text-base font-black tracking-tight text-slate-950">
             {station.name}
           </span>
         </span>
-        <span className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500">
-          {collapsed ? '펼치기' : '접기'}
-        </span>
       </button>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500 active:bg-slate-50"
+        aria-expanded={!collapsed}
+      >
+        {collapsed ? '펼치기' : '접기'}
+      </button>
+      </div>
 
       {!collapsed ? (
         <div className="mt-3 border-t border-slate-100 pt-3">
