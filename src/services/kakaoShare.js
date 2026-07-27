@@ -24,7 +24,13 @@ export function loadKakaoShareSdk() {
   return sdkLoadingPromise
 }
 
-export function shareResultToKakao({ stationName, originNames, url }) {
+export function shareResultToKakao({
+  stationName,
+  originNames,
+  url,
+  title = `만나역 추천: ${stationName}`,
+  description = `${originNames}에서 만난다면? 만나기 좋은 약속역을 확인해보세요.`,
+}) {
   const Kakao = window.Kakao
 
   if (!Kakao?.Share || !Kakao.isInitialized()) {
@@ -34,8 +40,8 @@ export function shareResultToKakao({ stationName, originNames, url }) {
   Kakao.Share.sendDefault({
     objectType: 'feed',
     content: {
-      title: `만나역 추천: ${stationName}`,
-      description: `${originNames}에서 만난다면? 만나기 좋은 중간역을 확인해보세요.`,
+      title,
+      description,
       imageUrl: KAKAO_SHARE_IMAGE_URL,
       imageWidth: 544,
       imageHeight: 544,

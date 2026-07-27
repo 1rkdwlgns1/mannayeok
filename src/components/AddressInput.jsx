@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { searchAddressSuggestions } from '../services/kakaoApi'
+import { isBlockedOrigin, searchAddressSuggestions } from '../services/kakaoApi'
 
 const RECENT_ORIGINS_KEY = 'mannayeok:recent-origins'
 const RECENT_ORIGIN_LIMIT = 6
@@ -94,10 +94,14 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
           setSearchError('')
           setOpen(true)
         })
-        .catch(() => {
+        .catch((error) => {
           setSuggestions([])
           setHasSearched(true)
-          setSearchError('검색에 실패했어요. 잠시 후 다시 입력해보세요.')
+          setSearchError(
+            error instanceof Error
+              ? error.message
+              : '검색에 실패했어요. 잠시 후 다시 입력해보세요.',
+          )
           setOpen(true)
         })
         .finally(() => setLoading(false))
@@ -129,6 +133,13 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
   }, [open])
 
   const handleSelect = (suggestion) => {
+    if (isBlockedOrigin(suggestion)) {
+      setSearchError('제주도·울릉도·독도는 현재 출발지 검색을 지원하지 않아요.')
+      setSuggestions([])
+      setOpen(true)
+      return
+    }
+
     onSelect(index, suggestion)
     setRecentOrigins(saveRecentOrigin(suggestion))
     setSuggestions([])
@@ -267,7 +278,9 @@ function getRecentOrigins() {
   try {
     const items = JSON.parse(window.localStorage.getItem(RECENT_ORIGINS_KEY) || '[]')
 
-    return Array.isArray(items) ? items.slice(0, RECENT_ORIGIN_LIMIT) : []
+    return Array.isArray(items)
+      ? items.filter((item) => !isBlockedOrigin(item)).slice(0, RECENT_ORIGIN_LIMIT)
+      : []
   } catch {
     return []
   }

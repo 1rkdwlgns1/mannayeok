@@ -1,7 +1,17 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate'
 import AddressInput from './components/AddressInput'
-import { CheckCircle2, CircleHelp, Mail, Menu, MessageCircle, Send, Share2, X } from 'lucide-react'
+import {
+  CheckCircle2,
+  CircleHelp,
+  Mail,
+  MapPin,
+  Menu,
+  MessageCircle,
+  Send,
+  Share2,
+  X,
+} from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
 import MapDirections from './components/MapDirections'
@@ -10,7 +20,14 @@ import PlaceList from './components/PlaceList'
 import backgroundImage from './assets/background.png'
 import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
-import { enrichOriginsWithNearbyStations, searchNearbyPlaces, searchRecommendedStations } from './services/kakaoApi'
+import {
+  enrichOriginsWithNearbyStations,
+  findPracticalReferenceAreas,
+  getRegionNameByCoordinates,
+  isBlockedOrigin,
+  searchNearbyPlaces,
+  searchRecommendedStations,
+} from './services/kakaoApi'
 import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
 
@@ -91,6 +108,15 @@ function App() {
     () => sharedResult?.recommendedStations || [],
   )
   const [fairStations, setFairStations] = useState(() => sharedResult?.fairStations || [])
+  const [referenceMidpoint, setReferenceMidpoint] = useState(
+    () => sharedResult?.referenceMidpoint || null,
+  )
+  const [referenceMidpointVisible, setReferenceMidpointVisible] = useState(
+    () => Boolean(sharedResult?.referenceMidpoint),
+  )
+  const [selectedReferenceAreaId, setSelectedReferenceAreaId] = useState(
+    () => sharedResult?.selectedReferenceAreaId || null,
+  )
   const [selectedStationId, setSelectedStationId] = useState(
     () => sharedResult?.selectedStationId || sharedResult?.recommendedStations?.[0]?.id || null,
   )
@@ -129,6 +155,11 @@ function App() {
   const selectedStation =
     selectableStations.find((station) => station.id === selectedStationId) || recommendedStations[0] || null
   const fairStation = fairStations[0] || null
+  const referenceAreas = referenceMidpoint?.practicalAreas || []
+  const selectedReferenceArea =
+    referenceAreas.find((area) => area.id === selectedReferenceAreaId) ||
+    referenceAreas[0] ||
+    null
 
   const mapStations = useMemo(() => {
     const stationMap = new Map()
@@ -344,6 +375,11 @@ function App() {
   }
 
   const handleAddressSelect = (index, suggestion) => {
+    if (isBlockedOrigin(suggestion)) {
+      setError('제주도·울릉도·독도는 현재 출발지 검색을 지원하지 않아요.')
+      return
+    }
+
     const address = suggestion.roadAddress || suggestion.address
     const duplicateOrigin = originInputs.find(
       (origin, idx) => idx !== index && origin.selected && isSameOrigin(origin.selected, suggestion),
@@ -398,6 +434,9 @@ function App() {
     setOrigins([])
     setRecommendedStations([])
     setFairStations([])
+    setReferenceMidpoint(null)
+    setReferenceMidpointVisible(false)
+    setSelectedReferenceAreaId(null)
     setSelectedStationId(null)
     setPlaces([])
     setSelectedPlaceCategory(null)
@@ -415,9 +454,17 @@ function App() {
       return
     }
 
+    if (selectedOrigins.some(isBlockedOrigin)) {
+      setError('제주도·울릉도·독도는 현재 출발지로 사용할 수 없어요.')
+      return
+    }
+
     setLoading(true)
     setError('')
     setPlaceError('')
+    setReferenceMidpoint(null)
+    setReferenceMidpointVisible(false)
+    setSelectedReferenceAreaId(null)
 
     try {
       const enrichedOrigins = await enrichOriginsWithNearbyStations(selectedOrigins)
@@ -426,9 +473,28 @@ function App() {
       )
 
       if (hasUnsupportedOrigin) {
-        throw new Error(
-          '일부 출발지가 현재 서비스 지역을 벗어났어요.\n현재 만나역은 수도권 전철망 이용 지역을 기준으로 추천하며, 지원 지역은 차차 확대할 예정이에요.',
-        )
+        const center = calculateMidpoint(enrichedOrigins)
+        const [regionName, practicalAreas] = await Promise.all([
+          getRegionNameByCoordinates(center).catch(() => '중간지점 주변'),
+          findPracticalReferenceAreas(center).catch(() => []),
+        ])
+
+        setOrigins(enrichedOrigins)
+        setRecommendedStations([])
+        setFairStations([])
+        setSelectedStationId(null)
+        setPlaces([])
+        setSelectedPlaceCategory(null)
+        setReferenceMidpoint({
+          id: 'reference-midpoint',
+          name: '지도상 중간지점',
+          mapLabel: '중간',
+          regionName,
+          practicalAreas,
+          ...center,
+        })
+        setSelectedReferenceAreaId(practicalAreas[0]?.id || null)
+        return
       }
 
       const center = calculateMidpoint(enrichedOrigins)
@@ -443,6 +509,9 @@ function App() {
       setOrigins(enrichedOrigins)
       setRecommendedStations(stations)
       setFairStations(fairResults)
+      setReferenceMidpoint(null)
+      setReferenceMidpointVisible(false)
+      setSelectedReferenceAreaId(null)
       setSelectedStationId(stations[0].id)
       setPlaces([])
       setSelectedPlaceCategory(null)
@@ -451,6 +520,9 @@ function App() {
       setOrigins([])
       setRecommendedStations([])
       setFairStations([])
+      setReferenceMidpoint(null)
+      setReferenceMidpointVisible(false)
+      setSelectedReferenceAreaId(null)
       setSelectedStationId(null)
       setPlaces([])
       setSelectedPlaceCategory(null)
@@ -499,24 +571,46 @@ function App() {
   }
 
   const getResultShareData = () => {
-    if (!primaryStation) return
+    const referencePoint = selectedReferenceArea || referenceMidpoint
 
-    const shareUrl = createResultShareUrl({
-      origins,
-      recommendedStations,
-      fairStations,
-      selectedStationId,
-    })
+    if (!primaryStation && !referencePoint) return
+
+    const shareUrl = primaryStation
+      ? createResultShareUrl({
+          origins,
+          recommendedStations,
+          fairStations,
+          selectedStationId,
+        })
+      : createReferenceShareUrl({
+          origins,
+          referenceMidpoint,
+          selectedReferenceAreaId: selectedReferenceArea?.id || null,
+        })
     const originNames = origins.map((origin) => origin.routeName || origin.address).join(' · ')
+
+    if (!primaryStation) {
+      const regionLabel = `${referencePoint.regionName} 일대`
+      return {
+        title: `만나역 참고 지역 - ${regionLabel}`,
+        text: `${originNames}의 중간지점 근처 참고 지역은 ${regionLabel}예요.`,
+        url: shareUrl,
+        resultName: regionLabel,
+        shareDescription: `${originNames}의 중간지점 근처에서 찾은 참고 지역을 확인해보세요.`,
+      }
+    }
+
     return {
       title: `만나역 추천 결과 - ${primaryStation.name}`,
       text: `${originNames}에서 만나기 좋은 역은 ${primaryStation.name}이에요.`,
       url: shareUrl,
+      resultName: primaryStation.name,
+      shareDescription: `${originNames}에서 만난다면? 만나기 좋은 약속역을 확인해보세요.`,
     }
   }
 
   const handleResultShare = () => {
-    if (!primaryStation) return
+    if (!primaryStation && !referenceMidpoint) return
     setResultShareOpen(true)
   }
 
@@ -538,9 +632,11 @@ function App() {
 
     try {
       shareResultToKakao({
-        stationName: primaryStation.name,
+        stationName: shareData.resultName,
         originNames: origins.map((origin) => origin.routeName || origin.address).join(' · '),
         url: shareData.url,
+        title: shareData.title,
+        description: shareData.shareDescription,
       })
       setResultShareOpen(false)
     } catch (error) {
@@ -709,7 +805,38 @@ function App() {
 
           </section>
 
-          {error ? (
+          {referenceMidpoint ? (
+            <section className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:p-4">
+              <div
+                className="rounded-xl border border-red-100 bg-gradient-to-r from-red-50 to-orange-50/60 px-3 py-3 md:px-4 md:py-3.5"
+                role="note"
+              >
+                <div className="flex items-start gap-2.5 md:gap-3">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-red-400 shadow-sm ring-1 ring-red-100">
+                    <MapPin className="h-4 w-4" strokeWidth={2.3} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-black text-red-500 md:text-sm">
+                      일부 출발지가 현재 서비스 지역을 벗어났어요.
+                    </p>
+                    <p className="mt-1 break-keep text-xs font-semibold leading-5 text-slate-600 md:text-[13px]">
+                      약속역 추천은 수도권 전철망 이용 지역에서 제공하고 있어요. 대신 교통편과
+                      상권을 반영하지 않은 참고용 지도상 중간지점은 확인할 수 있어요.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setReferenceMidpointVisible((visible) => !visible)}
+                      className="mt-2.5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-black text-red-500 shadow-sm transition hover:border-red-300 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-100"
+                      aria-expanded={referenceMidpointVisible}
+                    >
+                      <MapPin className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden="true" />
+                      {referenceMidpointVisible ? '중간지점 닫기' : '중간지점 보기'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : error ? (
             <section className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:p-4">
               <p
                 className="whitespace-pre-line rounded-xl bg-red-50 px-3 py-2 text-sm leading-6 text-red-500 md:px-4 md:py-3"
@@ -914,6 +1041,15 @@ function App() {
               />
             ) : null}
           </>
+        ) : referenceMidpoint && referenceMidpointVisible ? (
+          <ReferenceMidpointResult
+            origins={origins}
+            midpoint={referenceMidpoint}
+            practicalAreas={referenceAreas}
+            selectedArea={selectedReferenceArea}
+            onSelectArea={setSelectedReferenceAreaId}
+            onShare={handleResultShare}
+          />
         ) : (
           <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center md:px-5 md:py-8">
             <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 md:mb-3 md:h-12 md:w-12">
@@ -997,8 +1133,18 @@ function App() {
       {resultShareOpen
         ? createPortal(
             <ResultShareDialog
-              stationName={primaryStation?.name || ''}
+              stationName={
+                primaryStation?.name ||
+                `${(selectedReferenceArea || referenceMidpoint)?.regionName || ''} 일대`
+              }
               originNames={origins.map((origin) => origin.routeName || origin.address)}
+              resultLabel={primaryStation ? '만나역 추천' : '중간지점 근처 참고 지역'}
+              resultBadge={primaryStation ? '최적 추천역' : '참고용'}
+              description={
+                primaryStation
+                  ? '친구가 같은 추천 결과를 바로 확인할 수 있어요.'
+                  : '친구가 같은 참고 지역과 중간지점을 바로 확인할 수 있어요.'
+              }
               kakaoShareStatus={kakaoShareStatus}
               kakaoShareError={kakaoShareError}
               onKakaoShare={handleResultKakaoShare}
@@ -1020,6 +1166,171 @@ function App() {
           )
         : null}
     </main>
+  )
+}
+
+function ReferenceMidpointResult({
+  origins,
+  midpoint,
+  practicalAreas,
+  selectedArea,
+  onSelectArea,
+  onShare,
+}) {
+  const [mapOpen, setMapOpen] = useState(false)
+  const practicalArea = selectedArea || null
+  const displayPoint = practicalArea ? { ...practicalArea, mapLabel: '참고' } : midpoint
+  const mapPoints = practicalArea ? [displayPoint, midpoint] : [midpoint]
+  const alternativeAreas = practicalAreas.filter((area) => area.id !== practicalArea?.id).slice(0, 3)
+
+  return (
+    <div className="space-y-3">
+      <section className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-[0_14px_36px_rgba(90,69,232,0.08)]">
+        <div className="relative p-4 md:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1 pr-24 sm:pr-0">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#5A45E8] px-3 py-1.5 text-xs font-black text-white shadow-sm">
+                <MapPin className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden="true" />
+                {practicalArea ? '중간지점 근처 참고 지역' : '참고용 중간지점'}
+              </span>
+              <h2 className="mt-3 break-keep text-[26px] font-black tracking-tight text-slate-950 md:text-3xl">
+                {displayPoint.regionName} 일대
+              </h2>
+              {practicalArea ? (
+                <p className="mt-1 text-xs font-bold text-[#5A45E8] md:text-sm">
+                  {practicalArea.name} 주변
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={onShare}
+              className="absolute right-4 top-4 inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 text-xs font-black text-[#5A45E8] shadow-sm transition hover:border-violet-300 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-100 sm:static"
+            >
+              <Share2 className="h-3.5 w-3.5" strokeWidth={2.3} aria-hidden="true" />
+              결과 공유
+            </button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 border-t border-slate-100 pt-3">
+            <ReferenceMetric
+              label="계산 기준"
+              value={practicalArea ? '중간점 인근' : '좌표 중앙'}
+            />
+            <ReferenceMetric
+              label="교통 거점"
+              value={practicalArea?.kind || '확인 안 됨'}
+              muted={!practicalArea}
+            />
+            <ReferenceMetric
+              label="주변 상권"
+              value="반영 안 함"
+              muted
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {origins.map((origin, index) => (
+              <span
+                key={origin.id || `${origin.lat}-${origin.lng}`}
+                className="max-w-full truncate rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100 md:text-xs"
+              >
+                출발지 {String.fromCharCode(65 + index)} · {origin.routeName || origin.address}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <p className="border-t border-amber-100 bg-amber-50 px-4 py-2.5 text-[11px] font-bold leading-5 text-amber-700 md:px-5 md:text-xs">
+          대중교통 이동시간은 반영하지 않은 참고용 지역이에요. 실제 약속을 정할 때는 각자의
+          이동 경로를 별도로 확인해주세요.
+        </p>
+      </section>
+
+      {alternativeAreas.length ? (
+        <section className="rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-sm md:px-5">
+          <div>
+            <h3 className="text-sm font-black text-slate-950 md:text-base">
+              다른 참고 지역 TOP{alternativeAreas.length}
+            </h3>
+            <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500 md:text-xs">
+              선택하면 카드와 지도의 기준 지역이 바뀌어요.
+            </p>
+          </div>
+          <div className="mt-3 grid gap-2.5 md:grid-cols-3">
+            {alternativeAreas.map((area) => (
+              <button
+                key={area.id}
+                type="button"
+                onClick={() => onSelectArea(area.id)}
+                className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-violet-200 hover:bg-violet-50/40 active:scale-[0.99]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-keep text-sm font-black text-slate-950">
+                      {area.regionName} 일대
+                    </p>
+                    <p className="mt-1 truncate text-[11px] font-bold text-[#5A45E8]">
+                      {area.name} 주변
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-md bg-violet-50 px-2 py-1 text-[10px] font-black text-[#5A45E8]">
+                    {area.kind}
+                  </span>
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-slate-500">
+                  좌표 중간점에서 {formatDistance(area.distanceFromCenter)}
+                </p>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm md:px-5 md:py-4">
+        <div className={`${mapOpen ? 'mb-3' : ''} flex items-center justify-between gap-3`}>
+          <div>
+            <p className="text-sm font-black text-slate-950">지도에서 위치보기</p>
+            <p className="mt-0.5 hidden text-xs text-slate-500 md:block">
+              {practicalArea
+                ? '정확한 좌표 중간점과 현실적인 참고 지역을 함께 확인해보세요.'
+                : '출발지와 참고용 중간지점을 함께 확인해보세요.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMapOpen((open) => !open)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-[#5A45E8]"
+            aria-expanded={mapOpen}
+          >
+            {mapOpen ? '지도 접기' : '지도 열기'}
+          </button>
+        </div>
+        {mapOpen ? (
+          <KakaoMap
+            origins={origins}
+            meetingPoint={displayPoint}
+            meetingPoints={mapPoints}
+            referenceOnly
+          />
+        ) : null}
+      </section>
+    </div>
+  )
+}
+
+function ReferenceMetric({ label, value, muted = false }) {
+  return (
+    <div className="min-w-0 border-r border-slate-100 px-1 text-center last:border-r-0">
+      <span className="block text-[10px] font-black text-slate-400 md:text-[11px]">{label}</span>
+      <strong
+        className={`mt-1 block break-keep text-xs font-black md:text-sm ${
+          muted ? 'text-slate-500' : 'text-[#5A45E8]'
+        }`}
+      >
+        {value}
+      </strong>
+    </div>
   )
 }
 
@@ -1066,6 +1377,9 @@ function MobileMenuAction({ icon: ActionIcon, label, onClick }) {
 function ResultShareDialog({
   stationName,
   originNames,
+  resultLabel = '만나역 추천',
+  resultBadge = '최적 추천역',
+  description = '친구가 같은 추천 결과를 바로 확인할 수 있어요.',
   kakaoShareStatus,
   kakaoShareError,
   onKakaoShare,
@@ -1091,7 +1405,7 @@ function ResultShareDialog({
             <h2 id="result-share-title" className="mt-1 text-xl font-black text-slate-950">
               약속 장소를 같이 정해보세요
             </h2>
-            <p className="mt-1 text-sm font-medium text-slate-500">친구가 같은 추천 결과를 바로 확인할 수 있어요.</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{description}</p>
           </div>
           <button
             type="button"
@@ -1113,10 +1427,12 @@ function ResultShareDialog({
           </div>
           <div className="mt-3 flex items-end justify-between gap-4 border-t border-violet-100 pt-3">
             <div>
-              <p className="text-[11px] font-bold text-slate-400">만나역 추천</p>
+              <p className="text-[11px] font-bold text-slate-400">{resultLabel}</p>
               <p className="mt-0.5 text-2xl font-black text-slate-950">{stationName}</p>
             </div>
-            <span className="rounded-lg bg-[#5A45E8] px-2.5 py-1.5 text-xs font-black text-white">최적 추천역</span>
+            <span className="rounded-lg bg-[#5A45E8] px-2.5 py-1.5 text-xs font-black text-white">
+              {resultBadge}
+            </span>
           </div>
         </div>
 
@@ -2186,13 +2502,99 @@ function createResultShareUrl({
   return shareUrl.toString()
 }
 
+function createReferenceShareUrl({ origins, referenceMidpoint, selectedReferenceAreaId }) {
+  const shareUrl = new URL(PUBLIC_APP_URL)
+  const practicalAreas = referenceMidpoint.practicalAreas || []
+  const selectedAreaIndex = Math.max(
+    0,
+    practicalAreas.findIndex((area) => area.id === selectedReferenceAreaId),
+  )
+  const compactPayload = [
+    2,
+    origins.map(packSharedOriginV3),
+    [
+      roundShareNumber(referenceMidpoint.lat, 6),
+      roundShareNumber(referenceMidpoint.lng, 6),
+      referenceMidpoint.regionName,
+      practicalAreas.map((area) => [
+        area.name,
+        area.address,
+        roundShareNumber(area.lat, 6),
+        roundShareNumber(area.lng, 6),
+        area.kind,
+        roundShareNumber(area.commercialCount),
+        area.regionName,
+        roundShareNumber(area.distanceFromCenter),
+      ]),
+      selectedAreaIndex,
+    ],
+  ]
+
+  shareUrl.searchParams.set('reference', encodeCompressedPayload(compactPayload))
+  return shareUrl.toString()
+}
+
 function readSharedResult() {
   try {
+    const searchParams = new URLSearchParams(window.location.search)
+    const encodedReference = searchParams.get('reference')
+
+    if (encodedReference) {
+      const payload = decodeCompressedPayload(encodedReference)
+      const origins = (payload?.[1] || []).map(unpackSharedOriginV3)
+      const midpoint = payload?.[2]
+
+      if (
+        payload?.[0] === 2 &&
+        origins.length >= MIN_ORIGIN_COUNT &&
+        !origins.some(isBlockedOrigin) &&
+        Number.isFinite(midpoint?.[0]) &&
+        Number.isFinite(midpoint?.[1])
+      ) {
+        const practicalAreas = (midpoint[3] || []).map((area, index) => ({
+          id: `shared-reference-area-${index}`,
+          name: area[0],
+          address: area[1],
+          lat: area[2],
+          lng: area[3],
+          kind: area[4],
+          commercialCount: area[5],
+          regionName: area[6] || area[1],
+          distanceFromCenter: area[7],
+          mapLabel: index === 0 ? '참고' : `후보 ${index + 1}`,
+        }))
+        const selectedAreaIndex = Math.min(
+          Math.max(Number(midpoint[4]) || 0, 0),
+          Math.max(practicalAreas.length - 1, 0),
+        )
+
+        return {
+          origins,
+          recommendedStations: [],
+          fairStations: [],
+          selectedStationId: null,
+          referenceMidpoint: {
+            id: 'reference-midpoint',
+            name: '지도상 중간지점',
+            mapLabel: '중간',
+            lat: midpoint[0],
+            lng: midpoint[1],
+            regionName: midpoint[2] || '중간지점 주변',
+            practicalAreas,
+          },
+          selectedReferenceAreaId: practicalAreas[selectedAreaIndex]?.id || null,
+        }
+      }
+    }
+
     const encodedPayload = new URLSearchParams(window.location.search).get('result')
     if (!encodedPayload) return null
 
     const payload = decodeSharePayload(encodedPayload)
-    const hasValidOrigins = Array.isArray(payload.origins) && payload.origins.length >= MIN_ORIGIN_COUNT
+    const hasValidOrigins =
+      Array.isArray(payload.origins) &&
+      payload.origins.length >= MIN_ORIGIN_COUNT &&
+      !payload.origins.some(isBlockedOrigin)
     const hasValidStations =
       Array.isArray(payload.recommendedStations) && payload.recommendedStations.length > 0
 
@@ -2200,6 +2602,28 @@ function readSharedResult() {
   } catch {
     return null
   }
+}
+
+function encodeCompressedPayload(payload) {
+  const compressedBytes = gzipSync(strToU8(JSON.stringify(payload)), { level: 9 })
+  const binary = Array.from(compressedBytes, (byte) => String.fromCharCode(byte)).join('')
+
+  return `z${window.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')}`
+}
+
+function decodeCompressedPayload(encodedPayload) {
+  const payloadBase64 = encodedPayload.startsWith('z')
+    ? encodedPayload.slice(1)
+    : encodedPayload
+  const base64 = payloadBase64.replaceAll('-', '+').replaceAll('_', '/')
+  const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+  const binary = window.atob(paddedBase64)
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  const json = encodedPayload.startsWith('z')
+    ? strFromU8(gunzipSync(bytes))
+    : new TextDecoder().decode(bytes)
+
+  return JSON.parse(json)
 }
 
 function pickSharedOrigin(origin) {

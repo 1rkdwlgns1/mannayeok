@@ -4,7 +4,7 @@ import { getRoadRoutePath, loadKakaoMapSdk } from '../services/kakaoApi'
 const ORIGIN_COLORS = ['#5A45E8', '#00A84D', '#EAB308', '#8B5CF6']
 const STATION_COLORS = ['#F97316', '#8B5CF6', '#06B6D4']
 
-function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
+function KakaoMap({ origins, meetingPoint, meetingPoints = [], referenceOnly = false }) {
   const mapRef = useRef(null)
 
   useEffect(() => {
@@ -22,9 +22,11 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
 
         const bounds = new kakao.maps.LatLngBounds()
         const meetingPosition = new kakao.maps.LatLng(meetingPoint.lat, meetingPoint.lng)
-        const routePaths = await Promise.all(
-          origins.map((origin) => getRoadRoutePath(origin, meetingPoint).catch(() => null)),
-        )
+        const routePaths = referenceOnly
+          ? origins.map(() => null)
+          : await Promise.all(
+              origins.map((origin) => getRoadRoutePath(origin, meetingPoint).catch(() => null)),
+            )
 
         if (!map) return
 
@@ -34,7 +36,11 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
           const roadPath = routePaths[index]?.map((point) => new kakao.maps.LatLng(point.lat, point.lng))
           const path = roadPath?.length ? roadPath : [originPosition, meetingPosition]
 
-          overlays.push(...drawRouteLine(kakao, map, path, color))
+          overlays.push(
+            ...(referenceOnly
+              ? drawReferenceLine(kakao, map, path, color)
+              : drawRouteLine(kakao, map, path, color)),
+          )
 
           const originOverlay = createLabelOverlay(kakao, originPosition, `출발 ${index + 1}`, color)
           originOverlay.setMap(map)
@@ -73,16 +79,32 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [] }) {
         map = null
       }
     }
-  }, [origins, meetingPoint, meetingPoints])
+  }, [origins, meetingPoint, meetingPoints, referenceOnly])
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-100">
       <div ref={mapRef} className="h-[300px] w-full md:h-[360px]" />
       <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-white px-3 py-2 text-xs font-bold text-slate-500">
         {origins.map((_, index) => (
-          <LegendDot key={index} color={ORIGIN_COLORS[index % ORIGIN_COLORS.length]} label={`출발지 ${index + 1} 경로`} />
+          <LegendDot
+            key={index}
+            color={ORIGIN_COLORS[index % ORIGIN_COLORS.length]}
+            label={referenceOnly ? `출발지 ${index + 1} 연결선` : `출발지 ${index + 1} 경로`}
+          />
         ))}
-        <LegendDot color="#F97316" label="선택한 후보" />
+        <LegendDot
+          color="#F97316"
+          label={
+            referenceOnly
+              ? meetingPoints.length > 1
+                ? '현실적인 참고 지역'
+                : '참고용 중간지점'
+              : '선택한 후보'
+          }
+        />
+        {referenceOnly && meetingPoints.length > 1 ? (
+          <LegendDot color="#8B5CF6" label="정확한 좌표 중간점" />
+        ) : null}
       </div>
     </div>
   )
@@ -108,6 +130,19 @@ function drawRouteLine(kakao, map, path, color) {
   })
 
   return [shadowLine, routeLine]
+}
+
+function drawReferenceLine(kakao, map, path, color) {
+  const referenceLine = new kakao.maps.Polyline({
+    map,
+    path,
+    strokeWeight: 3,
+    strokeColor: color,
+    strokeOpacity: 0.72,
+    strokeStyle: 'shortdash',
+  })
+
+  return [referenceLine]
 }
 
 function createLabelOverlay(kakao, position, label, color) {

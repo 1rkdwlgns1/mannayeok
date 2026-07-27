@@ -48,6 +48,37 @@ const PLACE_CATEGORIES = {
 }
 
 const COMMERCIAL_CATEGORY_CODES = ['CT1']
+const REFERENCE_AREA_SEARCH_RADIUS_METERS = 20_000
+const REFERENCE_AREA_COMMERCIAL_RADIUS_METERS = 1_000
+const REFERENCE_AREA_CATEGORY_CODES = ['CE7', 'FD6', 'CT1']
+const REFERENCE_AREA_SEARCHES = [
+  {
+    query: '시외버스터미널',
+    kind: '버스터미널',
+    bonus: 28,
+    matches: (name) => /터미널/.test(name),
+  },
+  {
+    query: '기차역',
+    kind: '철도역',
+    bonus: 24,
+    matches: (name) => /역($|\s|\()/.test(name),
+  },
+  {
+    query: '시청',
+    kind: '행정 중심지',
+    bonus: 10,
+    matches: (name) => /시청/.test(name),
+  },
+  {
+    query: '군청',
+    kind: '행정 중심지',
+    bonus: 10,
+    matches: (name) => /군청/.test(name),
+  },
+]
+const BLOCKED_ORIGIN_MESSAGE =
+  '제주도·울릉도·독도는 현재 출발지 검색을 지원하지 않아요.'
 
 let scriptLoadingPromise = null
 
@@ -170,6 +201,168 @@ export async function enrichOriginsWithNearbyStations(origins) {
   return Promise.all(origins.map((origin) => enrichOriginWithNearbyStation(kakao, origin)))
 }
 
+export async function getRegionNameByCoordinates({ lat, lng }) {
+  const kakao = await loadKakaoMapSdk()
+  const geocoder = new kakao.maps.services.Geocoder()
+
+  return new Promise((resolve, reject) => {
+    geocoder.coord2RegionCode(lng, lat, (result, status) => {
+      if (status !== kakao.maps.services.Status.OK || !result?.length) {
+        reject(new Error('중간지점 지역명을 확인하지 못했습니다.'))
+        return
+      }
+
+      const region = result.find((item) => item.region_type === 'H') || result[0]
+      const regionName = [
+        region.region_1depth_name,
+        region.region_2depth_name,
+        region.region_3depth_name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+
+      resolve(regionName || region.address_name || '중간지점 주변')
+    })
+  })
+}
+
+export async function findPracticalReferenceAreas(center) {
+  const kakao = await loadKakaoMapSdk()
+  const searchResults = await Promise.all(
+    REFERENCE_AREA_SEARCHES.map(async (search) => {
+      const { documents } = await searchLocalKeyword(
+        kakao,
+        search.query,
+        {
+          x: center.lng,
+          y: center.lat,
+          radius: REFERENCE_AREA_SEARCH_RADIUS_METERS,
+          sort: kakao.maps.services.SortBy.DISTANCE,
+          size: 8,
+        },
+        '중간지점 주변 생활권 검색에 실패했습니다.',
+      ).catch(() => ({ documents: [] }))
+
+      return documents
+        .filter((place) => search.matches(place.place_name))
+        .map((place) => ({
+          id: place.id,
+          name: place.place_name,
+          address: place.road_address_name || place.address_name,
+          lat: Number(place.y),
+          lng: Number(place.x),
+          distanceFromCenter: Number(place.distance || 0),
+          kind: search.kind,
+          typeBonus: search.bonus,
+        }))
+    }),
+  )
+
+  const uniqueCandidates = [
+    ...new Map(
+      searchResults
+        .flat()
+        .filter(
+          (candidate) =>
+            Number.isFinite(candidate.lat) &&
+            Number.isFinite(candidate.lng) &&
+            candidate.distanceFromCenter <= REFERENCE_AREA_SEARCH_RADIUS_METERS,
+        )
+        .map((candidate) => [`${candidate.name}:${candidate.lat.toFixed(4)},${candidate.lng.toFixed(4)}`, candidate]),
+    ).values(),
+  ].sort(
+    (a, b) =>
+      b.typeBonus - a.typeBonus || a.distanceFromCenter - b.distanceFromCenter,
+  )
+
+  const diverseCandidates = []
+  const regionKeys = new Set()
+
+  uniqueCandidates.forEach((candidate) => {
+    const regionKey = getReferenceRegionKey(candidate.address)
+    if (regionKeys.has(regionKey) || diverseCandidates.length >= 4) return
+
+    regionKeys.add(regionKey)
+    diverseCandidates.push(candidate)
+  })
+
+  if (!diverseCandidates.length) return []
+
+  const evaluatedCandidates = await mapWithConcurrency(
+    diverseCandidates,
+    2,
+    async (candidate) => {
+      const counts = await Promise.all(
+        REFERENCE_AREA_CATEGORY_CODES.map((categoryCode) =>
+          countReferenceAreaCategory(kakao, candidate, categoryCode),
+        ),
+      )
+      const [cafeCount, restaurantCount, cultureCount] = counts
+      const commercialCount = cafeCount + restaurantCount + cultureCount
+      const commercialScore =
+        Math.min(cafeCount, 100) * 0.25 +
+        Math.min(restaurantCount, 150) * 0.2 +
+        Math.min(cultureCount, 50) * 0.35
+      const distancePenalty = (candidate.distanceFromCenter / 1_000) * 1.5
+
+      return {
+        ...candidate,
+        cafeCount,
+        restaurantCount,
+        cultureCount,
+        commercialCount,
+        practicalScore: commercialScore + candidate.typeBonus - distancePenalty,
+      }
+    },
+  )
+
+  return evaluatedCandidates
+    .filter(
+      (candidate) =>
+        candidate.commercialCount >= 15 ||
+        ((candidate.kind === '버스터미널' || candidate.kind === '철도역') &&
+          candidate.commercialCount >= 5),
+    )
+    .sort(
+      (a, b) =>
+        b.practicalScore - a.practicalScore ||
+        a.distanceFromCenter - b.distanceFromCenter,
+    )
+    .slice(0, 4)
+    .map((candidate, index) => ({
+      ...candidate,
+      id: `reference-area-${candidate.id}`,
+      regionName: getReferenceRegionName(candidate.address),
+      mapLabel: index === 0 ? '참고' : `후보 ${index + 1}`,
+    }))
+}
+
+async function countReferenceAreaCategory(kakao, center, categoryCode) {
+  const { documents, meta } = await searchLocalCategory(
+    kakao,
+    categoryCode,
+    {
+      x: center.lng,
+      y: center.lat,
+      radius: REFERENCE_AREA_COMMERCIAL_RADIUS_METERS,
+      size: 1,
+    },
+    '중간지점 주변 상권 확인에 실패했습니다.',
+  ).catch(() => ({ documents: [], meta: null }))
+
+  return meta?.total_count || documents.length
+}
+
+function getReferenceRegionKey(address = '') {
+  const [first = '', second = ''] = address.trim().split(/\s+/)
+  return [first, second].filter(Boolean).join(':') || address
+}
+
+function getReferenceRegionName(address = '') {
+  const parts = address.trim().split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).join(' ') || '중간지점 인근'
+}
+
 function enrichOriginWithNearbyStation(kakao, origin) {
   if (origin.transitLines?.length) {
     return Promise.resolve({
@@ -236,14 +429,14 @@ export async function searchAddressSuggestions(query) {
   })
 
   if (addressResult.documents?.length) {
-    return addressResult.documents.slice(0, 5).map((item) => ({
+    return filterBlockedOriginSuggestions(addressResult.documents.slice(0, 5).map((item) => ({
       id: `${item.x}-${item.y}-${item.address_name}`,
       address: item.address_name,
       roadAddress: item.road_address?.address_name || '',
       routeName: item.road_address?.address_name || item.address_name,
       lat: Number(item.y),
       lng: Number(item.x),
-    }))
+    })))
   }
 
   const placeResult = await requestLocalApi('keyword', {
@@ -251,14 +444,41 @@ export async function searchAddressSuggestions(query) {
     size: 5,
   })
 
-  return (placeResult.documents || []).slice(0, 5).map((item) => ({
+  return filterBlockedOriginSuggestions((placeResult.documents || []).slice(0, 5).map((item) => ({
     id: item.id,
     address: item.road_address_name || item.address_name || item.place_name,
     roadAddress: item.place_name,
     routeName: item.place_name,
     lat: Number(item.y),
     lng: Number(item.x),
-  }))
+  })))
+}
+
+export function isBlockedOrigin(origin) {
+  if (!origin) return false
+
+  const addressText = `${origin.address || ''} ${origin.roadAddress || ''}`.replace(/\s+/g, ' ')
+  if (/(제주특별자치도|제주도|울릉군|울릉도|독도)/.test(addressText)) return true
+
+  const lat = Number(origin.lat)
+  const lng = Number(origin.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false
+
+  const isJeju = lat >= 33.0 && lat <= 34.1 && lng >= 126.0 && lng <= 127.1
+  const isUlleungdo = lat >= 37.3 && lat <= 37.6 && lng >= 130.7 && lng <= 131.0
+  const isDokdo = lat >= 37.1 && lat <= 37.4 && lng >= 131.7 && lng <= 132.0
+
+  return isJeju || isUlleungdo || isDokdo
+}
+
+function filterBlockedOriginSuggestions(suggestions) {
+  const filteredSuggestions = suggestions.filter((suggestion) => !isBlockedOrigin(suggestion))
+
+  if (suggestions.length && !filteredSuggestions.length) {
+    throw new Error(BLOCKED_ORIGIN_MESSAGE)
+  }
+
+  return filteredSuggestions
 }
 
 export async function searchNearbyPlaces(center, category = 'cafe') {
