@@ -22,11 +22,9 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [], referenceOnly = f
 
         const bounds = new kakao.maps.LatLngBounds()
         const meetingPosition = new kakao.maps.LatLng(meetingPoint.lat, meetingPoint.lng)
-        const routePaths = referenceOnly
-          ? origins.map(() => null)
-          : await Promise.all(
-              origins.map((origin) => getRoadRoutePath(origin, meetingPoint).catch(() => null)),
-            )
+        const routePaths = await Promise.all(
+          origins.map((origin) => getRoadRoutePath(origin, meetingPoint).catch(() => null)),
+        )
 
         if (!map) return
 
@@ -37,7 +35,7 @@ function KakaoMap({ origins, meetingPoint, meetingPoints = [], referenceOnly = f
           const path = roadPath?.length ? roadPath : [originPosition, meetingPosition]
 
           overlays.push(
-            ...(referenceOnly
+            ...(referenceOnly && !roadPath?.length
               ? drawReferenceLine(kakao, map, path, color)
               : drawRouteLine(kakao, map, path, color)),
           )
