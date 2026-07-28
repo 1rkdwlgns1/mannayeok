@@ -1,6 +1,7 @@
 package com.mannayeok.backend.transit.service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
@@ -21,6 +22,8 @@ public class TransitRouteService {
     private static final DateTimeFormatter API_DATE_TIME =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
+    private static final LocalTime FALLBACK_SEARCH_TIME = LocalTime.of(13, 0);
+    private static final LocalTime FIRST_TRAIN_REFERENCE_TIME = LocalTime.of(5, 0);
 
     private final WebClient subwayWebClient;
     private final SubwayApiProperties properties;
@@ -52,6 +55,38 @@ public class TransitRouteService {
             ? LocalDateTime.now(SEOUL_ZONE)
             : departureAt;
 
+        if (isOvernight(searchDateTime)) {
+            return requestRoute(
+                departure,
+                arrival,
+                searchType,
+                fallbackSearchDateTime(searchDateTime)
+            ).flatMap(response -> validateAndMap(response, true));
+        }
+
+        return requestRoute(departure, arrival, searchType, searchDateTime)
+            .flatMap(response -> {
+                if (hasRoute(response)) {
+                    return Mono.just(toResponse(response, false));
+                }
+
+                return requestRoute(
+                    departure,
+                    arrival,
+                    searchType,
+                    fallbackSearchDateTime(searchDateTime)
+                ).flatMap(responseAtFallbackTime ->
+                    validateAndMap(responseAtFallbackTime, true)
+                );
+            });
+    }
+
+    private Mono<PublicSubwayResponse> requestRoute(
+        String departure,
+        String arrival,
+        String searchType,
+        LocalDateTime searchDateTime
+    ) {
         return subwayWebClient.get()
             .uri(uriBuilder -> uriBuilder
                 .path("/getShtrmPath2")
@@ -76,10 +111,43 @@ public class TransitRouteService {
             )
             .bodyToMono(PublicSubwayResponse.class)
             .timeout(properties.timeout())
-            .flatMap(this::validateAndMap);
+            .flatMap(this::validateResponse);
     }
 
     private Mono<TransitRouteResponse> validateAndMap(
+        PublicSubwayResponse response,
+        boolean fallbackSchedule
+    ) {
+        return validateResponse(response)
+            .flatMap(validResponse -> {
+                if (!hasRoute(validResponse)) {
+                    return Mono.error(new SubwayApiException(
+                        "조회 가능한 지하철 운행 경로가 없습니다."
+                    ));
+                }
+                return Mono.just(toResponse(validResponse, fallbackSchedule));
+            });
+    }
+
+    private TransitRouteResponse toResponse(
+        PublicSubwayResponse response,
+        boolean fallbackSchedule
+    ) {
+        TransitRouteResponse route = mapper.toResponse(response.body());
+        return new TransitRouteResponse(
+            route.minutes(),
+            route.durationSeconds(),
+            route.transfers(),
+            route.fare(),
+            route.distanceMeters(),
+            route.transferStations(),
+            route.routeSteps(),
+            route.source(),
+            fallbackSchedule
+        );
+    }
+
+    private Mono<PublicSubwayResponse> validateResponse(
         PublicSubwayResponse response
     ) {
         if (
@@ -93,7 +161,26 @@ public class TransitRouteService {
                 : "응답 본문이 비어 있습니다.";
             return Mono.error(new SubwayApiException(message));
         }
-        return Mono.just(mapper.toResponse(response.body()));
+        return Mono.just(response);
+    }
+
+    private boolean hasRoute(PublicSubwayResponse response) {
+        return response.body().totalReqHr() > 0
+            && response.body().paths() != null
+            && !response.body().paths().isEmpty();
+    }
+
+    private LocalDateTime fallbackSearchDateTime(LocalDateTime searchDateTime) {
+        LocalDateTime fallback = searchDateTime
+            .toLocalDate()
+            .atTime(FALLBACK_SEARCH_TIME);
+        return fallback.isAfter(searchDateTime)
+            ? fallback
+            : fallback.plusDays(1);
+    }
+
+    private boolean isOvernight(LocalDateTime searchDateTime) {
+        return searchDateTime.toLocalTime().isBefore(FIRST_TRAIN_REFERENCE_TIME);
     }
 
     private String normalizeStationName(String stationName) {

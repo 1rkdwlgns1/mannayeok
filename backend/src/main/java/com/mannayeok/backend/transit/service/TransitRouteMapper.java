@@ -50,7 +50,8 @@ public class TransitRouteMapper {
             body.totalDstc(),
             transferStations,
             List.copyOf(routeSteps),
-            "SEOUL_METRO_PUBLIC_DATA"
+            "SEOUL_METRO_PUBLIC_DATA",
+            false
         );
     }
 

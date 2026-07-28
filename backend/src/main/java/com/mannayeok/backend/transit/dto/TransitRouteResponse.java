@@ -10,6 +10,7 @@ public record TransitRouteResponse(
     int distanceMeters,
     List<String> transferStations,
     List<RouteStep> routeSteps,
-    String source
+    String source,
+    boolean fallbackSchedule
 ) {
 }
