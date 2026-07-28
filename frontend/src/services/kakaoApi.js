@@ -15,7 +15,7 @@ import hubStationCommercialMetrics from '../data/hubStationCommercialMetrics.jso
 
 const KAKAO_SCRIPT_ID = 'kakao-map-sdk-script'
 const KAKAO_SDK_URL = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services'
-const KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
+const BACKEND_API_BASE_URL = String(import.meta.env.VITE_BACKEND_API_URL || '').replace(/\/$/, '')
 const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache:v2'
 const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 const HUB_STATIONS_CACHE_KEY = 'mannayeok:hub-stations-cache'
@@ -145,7 +145,7 @@ async function requestLocalApi(type, params) {
     }
   })
 
-  const response = await fetch(`/api/kakao-local?${query.toString()}`)
+  const response = await fetch(`${BACKEND_API_BASE_URL}/api/kakao/local?${query.toString()}`)
 
   if (!response.ok) {
     throw new Error('카카오 로컬 검색에 실패했습니다.')
@@ -672,9 +672,9 @@ export async function getRoadRoutePath(origin, destination) {
     priority: 'RECOMMEND',
   })
 
-  const response = ['localhost', '127.0.0.1'].includes(window.location.hostname)
-    ? await fetchDevKakaoDirections(params)
-    : await fetch(`/api/kakao-directions?${params.toString()}`)
+  const response = await fetch(
+    `${BACKEND_API_BASE_URL}/api/kakao/directions?${params.toString()}`,
+  )
 
   if (!response) return null
 
@@ -699,19 +699,6 @@ export async function getRoadRoutePath(origin, destination) {
   })
 
   return coordinates.length ? coordinates : null
-}
-
-function fetchDevKakaoDirections(params) {
-  const restApiKey = import.meta.env.VITE_KAKAO_MOBILITY_KEY
-
-  if (!restApiKey) return null
-
-  return fetch(`${KAKAO_DIRECTIONS_URL}?${params.toString()}`, {
-    headers: {
-      Authorization: `KakaoAK ${restApiKey}`,
-      'Content-Type': 'application/json',
-    },
-  })
 }
 
 async function searchStationCandidates(kakao, searchCenter, radius, originalCenter, source = 'center') {

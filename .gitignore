@@ -12,6 +12,17 @@ dist
 dist-ssr
 *.local
 
+# Frontend build output and dependencies
+frontend/node_modules/
+frontend/dist/
+
+# Spring Boot / Gradle
+backend/.gradle/
+backend/.gradle-codex-test/
+backend/build/
+backend/out/
+backend/.env
+
 # Environment variables
 .env
 .env.local
