@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: mannayeok-backend
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  cors:
+    allowed-origins: ${FRONTEND_ALLOWED_ORIGINS:http://localhost:5173}
+  subway:
+    base-url: https://apis.data.go.kr/B553766/path2
+    service-key: ${SUBWAY_API_SERVICE_KEY:}
+    timeout-seconds: 8
+  kakao:
+    local-base-url: https://dapi.kakao.com/v2/local/search
+    mobility-base-url: https://apis-navi.kakaomobility.com
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    mobility-key: ${KAKAO_MOBILITY_KEY:}
+    timeout-seconds: 8

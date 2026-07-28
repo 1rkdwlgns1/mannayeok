@@ -9,10 +9,20 @@ const TRANSFER_COST_PENALTY = 12
 const METERS_PER_MINUTE = 650
 
 const GRAPH = createTravelTimeGraph()
+const DISPLAY_GRAPH = createTravelTimeGraph({ includeSectionDistanceEdges: false })
 
 export function estimateSubwayTravel(originStationName, destinationStationName) {
+  return estimateSubwayTravelByMode(originStationName, destinationStationName, 'balanced')
+}
+
+export function estimateSubwayTravelMinimumTransfers(originStationName, destinationStationName) {
+  return estimateSubwayTravelByMode(originStationName, destinationStationName, 'minimum-transfers')
+}
+
+function estimateSubwayTravelByMode(originStationName, destinationStationName, mode) {
   const originName = normalizeStationName(originStationName)
   const destinationName = normalizeStationName(destinationStationName)
+  const graphData = mode === 'minimum-transfers' ? DISPLAY_GRAPH : GRAPH
 
   if (!originName || !destinationName) return null
   if (originName === destinationName) {
@@ -22,15 +32,16 @@ export function estimateSubwayTravel(originStationName, destinationStationName) 
       minutes: 0,
       transfers: 0,
       path: [originName],
+      routeSteps: [{ station: originName, line: '', transfer: false }],
     }
   }
 
-  const originNodes = GRAPH.stationNodes.get(originName) || []
-  const destinationNodes = new Set(GRAPH.stationNodes.get(destinationName) || [])
+  const originNodes = graphData.stationNodes.get(originName) || []
+  const destinationNodes = new Set(graphData.stationNodes.get(destinationName) || [])
 
   if (!originNodes.length || !destinationNodes.size) return null
 
-  return runDijkstra(originNodes, destinationNodes, originName, destinationName)
+  return runDijkstra(originNodes, destinationNodes, originName, destinationName, mode, graphData.graph)
 }
 
 export function getStationTransitTimeProfile(origins, stationName) {
@@ -46,6 +57,7 @@ export function getStationTransitTimeProfile(origins, stationName) {
       minutes: travel?.minutes ?? null,
       transfers: travel?.transfers ?? null,
       path: travel?.path || [],
+      routeSteps: travel?.routeSteps || [],
     }
   })
 
@@ -64,13 +76,38 @@ export function getStationTransitTimeProfile(origins, stationName) {
   }
 }
 
-function createTravelTimeGraph() {
+export function getStationDisplayTransitTimeProfile(origins, stationName) {
+  const targetName = normalizeStationName(stationName)
+  const items = origins.map((origin, index) => {
+    const originName = getOriginStationName(origin)
+    const displayTravel = estimateSubwayTravelMinimumTransfers(originName, targetName)
+    const timeEstimate = estimateSubwayTravel(originName, targetName)
+
+    return {
+      originIndex: index,
+      originName: normalizeStationName(originName),
+      targetName,
+      minutes: timeEstimate?.minutes ?? displayTravel?.minutes ?? null,
+      transfers: displayTravel?.transfers ?? null,
+      path: displayTravel?.path || [],
+      routeSteps: displayTravel?.routeSteps || [],
+    }
+  })
+
+  return {
+    targetName,
+    items,
+    hasAllEstimates: items.every((item) => Number.isFinite(item.minutes)) && items.length > 0,
+  }
+}
+
+function createTravelTimeGraph({ includeSectionDistanceEdges = true } = {}) {
   const graph = new Map()
   const stationNodes = new Map()
 
   addSeoulMetroDistanceEdges(graph, stationNodes)
   addRouteOrderEdges(graph, stationNodes)
-  addSectionDistanceEdges(graph, stationNodes)
+  if (includeSectionDistanceEdges) addSectionDistanceEdges(graph, stationNodes)
   addTransferEdges(graph, stationNodes)
 
   return { graph, stationNodes }
@@ -145,7 +182,6 @@ function addRouteOrderEdges(graph, stationNodes) {
         ensureNode(graph, stationNodes, row.stationName, row.lineName)
 
         if (index === 0) return
-
         const previous = sortedRows[index - 1]
         const minutes =
           row.operatorName.includes('코레일') || previous.operatorName.includes('코레일')
@@ -186,7 +222,14 @@ function addTransferEdges(graph, stationNodes) {
   })
 }
 
-function runDijkstra(startNodes, targetNodes, originName, destinationName) {
+function runDijkstra(
+  startNodes,
+  targetNodes,
+  originName,
+  destinationName,
+  mode = 'balanced',
+  graph = GRAPH.graph,
+) {
   const distances = new Map()
   const previous = new Map()
   const queue = []
@@ -198,7 +241,11 @@ function runDijkstra(startNodes, targetNodes, originName, destinationName) {
   })
 
   while (queue.length) {
-    queue.sort((a, b) => a.cost - b.cost || a.transfers - b.transfers || a.minutes - b.minutes)
+    queue.sort((a, b) =>
+      mode === 'minimum-transfers'
+        ? a.transfers - b.transfers || a.minutes - b.minutes
+        : a.cost - b.cost || a.transfers - b.transfers || a.minutes - b.minutes,
+    )
     const current = queue.shift()
     const known = distances.get(current.node)
 
@@ -218,10 +265,11 @@ function runDijkstra(startNodes, targetNodes, originName, destinationName) {
         minutes: roundMinutes(current.minutes),
         transfers: current.transfers,
         path: createStationPath(previous, current.node),
+        routeSteps: createRouteSteps(previous, current.node),
       }
     }
 
-    const edges = GRAPH.graph.get(current.node) || []
+    const edges = graph.get(current.node) || []
 
     edges.forEach((edge) => {
       const nextState = {
@@ -231,14 +279,22 @@ function runDijkstra(startNodes, targetNodes, originName, destinationName) {
       }
       const previousState = distances.get(edge.to)
 
-      if (
-        !previousState ||
-        nextState.cost < previousState.cost ||
-        (nextState.cost === previousState.cost && nextState.transfers < previousState.transfers) ||
-        (nextState.cost === previousState.cost &&
-          nextState.transfers === previousState.transfers &&
-          nextState.minutes < previousState.minutes)
-      ) {
+      const hasBetterMinimumTransferRoute =
+        mode === 'minimum-transfers' &&
+        (!previousState ||
+          nextState.transfers < previousState.transfers ||
+          (nextState.transfers === previousState.transfers &&
+            nextState.minutes < previousState.minutes))
+      const hasBetterBalancedRoute =
+        mode !== 'minimum-transfers' &&
+        (!previousState ||
+          nextState.cost < previousState.cost ||
+          (nextState.cost === previousState.cost && nextState.transfers < previousState.transfers) ||
+          (nextState.cost === previousState.cost &&
+            nextState.transfers === previousState.transfers &&
+            nextState.minutes < previousState.minutes))
+
+      if (hasBetterMinimumTransferRoute || hasBetterBalancedRoute) {
         distances.set(edge.to, nextState)
         previous.set(edge.to, current.node)
         queue.push({ node: edge.to, ...nextState })
@@ -260,6 +316,28 @@ function createStationPath(previous, endNode) {
   }
 
   return path
+}
+
+function createRouteSteps(previous, endNode) {
+  const nodes = []
+  let currentNode = endNode
+
+  while (currentNode) {
+    nodes.unshift(currentNode)
+    currentNode = previous.get(currentNode)
+  }
+
+  return nodes.map((node, index) => {
+    const [station, line = ''] = node.split('|')
+    const [previousStation = '', previousLine = ''] =
+      index > 0 ? nodes[index - 1].split('|') : []
+
+    return {
+      station,
+      line,
+      transfer: index > 0 && station === previousStation && line !== previousLine,
+    }
+  })
 }
 
 function addBidirectionalEdge(graph, stationNodes, fromName, toName, lineName, minutes) {

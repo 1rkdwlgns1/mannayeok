@@ -3,6 +3,8 @@ import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate'
 import AddressInput from './components/AddressInput'
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   CircleHelp,
   Mail,
   MapPin,
@@ -14,12 +16,16 @@ import {
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
-import MapDirections from './components/MapDirections'
+import {
+  createKakaoDirectionUrl,
+  createNaverSearchUrl,
+} from './utils/mapDirectionUrls'
 import OnboardingScreen from './components/OnboardingScreen'
 import PlaceList from './components/PlaceList'
 import backgroundImage from './assets/background.png'
 import logoImage from './assets/rogo.png'
 import { getStationLines } from './data/subwayStationLines'
+import { getStationDisplayTransitTimeProfile } from './data/subwayTravelTimeGraph'
 import {
   enrichOriginsWithNearbyStations,
   findPracticalReferenceAreas,
@@ -30,6 +36,7 @@ import {
 } from './services/kakaoApi'
 import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
+import { fetchTransitRoute } from './services/transitApi'
 
 const PUBLIC_APP_URL = 'https://mannayeok.kr/'
 
@@ -129,7 +136,7 @@ function App() {
   const [placeError, setPlaceError] = useState('')
   const [helpTooltipActive, setHelpTooltipActive] = useState(false)
   const [mapCollapsed, setMapCollapsed] = useState(true)
-  const [alternativeStationsCollapsed, setAlternativeStationsCollapsed] = useState(true)
+  const [alternativeStationIndex, setAlternativeStationIndex] = useState(0)
   const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
   const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult))
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
@@ -144,6 +151,7 @@ function App() {
   const [kakaoShareAttempt, setKakaoShareAttempt] = useState(0)
   const [kakaoShareError, setKakaoShareError] = useState('')
   const [shareNotice, setShareNotice] = useState('')
+  const [originInputResetKey, setOriginInputResetKey] = useState(0)
   const onboardingExitTimerRef = useRef(null)
   const dialogOpen =
     guideOpen || inquiryOpen || privacyOpen || serviceInfoOpen || dataSourcesOpen || resultShareOpen
@@ -196,6 +204,10 @@ function App() {
     .slice(1)
     .filter((station) => station.hotPlaceCount >= MIN_RECOMMENDATION_HOT_PLACE_COUNT)
     .slice(0, 3)
+  const visibleAlternativeIndex = alternativeStations.length
+    ? Math.min(alternativeStationIndex, alternativeStations.length - 1)
+    : 0
+  const visibleAlternativeStation = alternativeStations[visibleAlternativeIndex] || null
 
   useEffect(() => {
     const cards = document.querySelectorAll('[data-reveal-root] > header, [data-reveal-root] section')
@@ -426,6 +438,7 @@ function App() {
 
   const handleResetSearch = () => {
     setOriginInputs(Array.from({ length: MIN_ORIGIN_COUNT }, createEmptyOrigin))
+    setOriginInputResetKey((key) => key + 1)
     clearSearchResults()
     setPlaceError('')
   }
@@ -780,6 +793,7 @@ function App() {
 
           <section id="origin-input" className="relative z-[80] scroll-mt-6 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm md:p-5">
             <AddressInput
+              key={originInputResetKey}
               origins={originInputs}
               maxOrigins={MAX_ORIGIN_COUNT}
               minOrigins={MIN_ORIGIN_COUNT}
@@ -917,41 +931,65 @@ function App() {
               </section>
             ) : null}
 
+            {selectedStation ? (
+              <TransitTimeEstimateCard origins={origins} station={selectedStation} />
+            ) : null}
+
             {alternativeStations.length ? (
               <section className="rounded-2xl border border-slate-100 bg-white/92 p-3.5 shadow-sm backdrop-blur md:p-4">
-                <div className="mb-4 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
+                <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
                   <div>
-                    <h2 className="text-lg font-black text-slate-950 md:text-base">
+                    <h2 className="text-base font-black text-slate-950">
                       다른 추천 후보 TOP3
                     </h2>
                     <p className="mt-1 hidden text-xs leading-5 text-slate-500 md:block">
                       탭하면 지도와 길찾기 기준역이 바뀌어요. 각 역의 특성을 비교해보세요.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setAlternativeStationsCollapsed((collapsed) => !collapsed)}
-                    className="hidden"
-                    aria-expanded={!alternativeStationsCollapsed}
-                  >
-                    <span className="text-xs">{alternativeStationsCollapsed ? '후보 열기' : '후보 접기'}</span>
-                    {alternativeStationsCollapsed ? '후보 열기' : '후보 접기'}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5 md:hidden">
+                    <span className="mr-0.5 text-[11px] font-black tabular-nums text-slate-400">
+                      {visibleAlternativeIndex + 1} / {alternativeStations.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAlternativeStationIndex(
+                          (index) => Math.max(0, index - 1),
+                        )
+                      }
+                      disabled={visibleAlternativeIndex === 0}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm active:bg-violet-50 active:text-[#5A45E8] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
+                      aria-label="이전 추천 후보"
+                    >
+                      <ChevronLeft className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAlternativeStationIndex(
+                          (index) => Math.min(alternativeStations.length - 1, index + 1),
+                        )
+                      }
+                      disabled={visibleAlternativeIndex === alternativeStations.length - 1}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm active:bg-violet-50 active:text-[#5A45E8] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
+                      aria-label="다음 추천 후보"
+                    >
+                      <ChevronRight className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
-                <div className="grid gap-3 md:hidden">
-                  {alternativeStations.map((station, index) => (
-                    <div key={station.id}>
-                      <StationCard
-                        station={{
-                          ...station,
-                          rank: index + 2,
-                        }}
-                        selected={station.id === selectedStation.id}
-                        onClick={() => handleStationSelect(station.id)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                {visibleAlternativeStation ? (
+                  <div className="md:hidden">
+                    <StationCard
+                      station={{
+                        ...visibleAlternativeStation,
+                        rank: visibleAlternativeIndex + 2,
+                      }}
+                      selected={visibleAlternativeStation.id === selectedStation.id}
+                      onClick={() => handleStationSelect(visibleAlternativeStation.id)}
+                    />
+                  </div>
+                ) : null}
                 <div className="hidden gap-3 md:grid md:grid-cols-3">
                   {alternativeStations.map((station, index) => (
                     <StationCard
@@ -985,18 +1023,16 @@ function App() {
               ) : null}
             </section>
 
-            <MapDirections origins={origins} station={selectedStation} />
-
             <section id="places" className="rounded-2xl border border-slate-100 bg-white/95 px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur md:px-5 md:py-5">
               <div className="space-y-3.5">
                 <div>
                   <p className="text-sm font-black text-[#5A45E8]">
                     {selectedStation.name} 근처 약속 장소
                   </p>
-                  <h2 className="mt-1 break-keep text-lg font-black tracking-tight text-slate-950 md:text-xl">
+                  <h2 className="mt-1 break-keep text-base font-black tracking-tight text-slate-950">
                     어디에서 만날까요?
                   </h2>
-                  <p className="mt-1.5 max-w-sm text-xs font-medium leading-5 text-slate-500 md:text-sm md:leading-5">
+                  <p className="mt-1.5 hidden max-w-sm text-xs font-medium leading-5 text-slate-500 md:block md:text-sm md:leading-5">
                     카페, 식당, 술집, 놀거리 중 원하는 카테고리를 선택해보세요.
                   </p>
                 </div>
@@ -1332,6 +1368,421 @@ function ReferenceMetric({ label, value, muted = false }) {
       </strong>
     </div>
   )
+}
+
+function TransitTimeEstimateCard({ origins, station }) {
+  const [openRouteOriginIndex, setOpenRouteOriginIndex] = useState(null)
+  const [selectedMobileOriginIndex, setSelectedMobileOriginIndex] = useState(0)
+  const [publicTransitProfile, setPublicTransitProfile] = useState(null)
+  const profile = useMemo(
+    () => getStationDisplayTransitTimeProfile(origins, station?.name),
+    [origins, station],
+  )
+  const requestKey = useMemo(
+    () =>
+      [
+        station?.name,
+        ...(profile?.items || []).map((item) => item.originName),
+      ].join('|'),
+    [profile, station?.name],
+  )
+  const estimatedItems = (
+    publicTransitProfile?.requestKey === requestKey
+      ? publicTransitProfile.items
+      : profile?.items
+  )?.filter((item) => Number.isFinite(item.minutes)) || []
+
+  useEffect(() => {
+    if (!station?.name || !profile?.items?.length) return undefined
+
+    let active = true
+
+    Promise.allSettled(
+      profile.items.map((item) =>
+        fetchTransitRoute(item.originName, station.name),
+      ),
+    ).then((results) => {
+      if (!active) return
+
+      const items = profile.items.map((fallbackItem, index) => {
+        const result = results[index]
+        if (result.status !== 'fulfilled') return fallbackItem
+
+        const publicRoute = result.value
+        return {
+          ...fallbackItem,
+          minutes: publicRoute.minutes,
+          transfers: publicRoute.transfers,
+          path: publicRoute.routeSteps.map((step) => step.station),
+          routeSteps: publicRoute.routeSteps,
+          source: publicRoute.source,
+        }
+      })
+
+      setPublicTransitProfile({ requestKey, items })
+    })
+
+    return () => {
+      active = false
+    }
+  }, [profile, requestKey, station?.name])
+
+  if (!estimatedItems.length) return null
+
+  const mobileItem =
+    estimatedItems.find((item) => item.originIndex === selectedMobileOriginIndex) ||
+    estimatedItems[0]
+
+  return (
+    <section className="rounded-2xl border border-violet-100 bg-white px-3 py-3 shadow-[0_8px_24px_rgba(90,69,232,0.06)] md:px-4">
+      <div className="md:hidden">
+        <div
+          className="mb-2 grid overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 p-1"
+          style={{ gridTemplateColumns: `repeat(${estimatedItems.length}, minmax(0, 1fr))` }}
+          role="tablist"
+          aria-label="출발지별 최소시간 경로"
+        >
+          {estimatedItems.map((item) => {
+            const selected = item.originIndex === mobileItem.originIndex
+            return (
+              <button
+                key={`mobile-transit-tab-${item.originIndex}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => {
+                  setSelectedMobileOriginIndex(item.originIndex)
+                  setOpenRouteOriginIndex(null)
+                }}
+                className={`min-w-0 rounded-lg px-1.5 py-2 text-[11px] font-black transition ${
+                  selected
+                    ? `bg-white shadow-sm ${getTransitOriginColorClass(item.originIndex)}`
+                    : 'text-slate-400'
+                }`}
+              >
+                출발지 {String.fromCharCode(65 + item.originIndex)}
+              </button>
+            )
+          })}
+        </div>
+
+        <TransitOriginCard
+          item={mobileItem}
+          origin={origins[mobileItem.originIndex]}
+          station={station}
+          routeOpen={openRouteOriginIndex === mobileItem.originIndex}
+          onToggleRoute={() =>
+            setOpenRouteOriginIndex((index) =>
+              index === mobileItem.originIndex ? null : mobileItem.originIndex,
+            )
+          }
+          showMobileRoute
+        />
+      </div>
+
+      <div className={`hidden min-w-0 items-start gap-1.5 md:grid ${getTransitSummaryGridClass(estimatedItems.length)}`}>
+        {estimatedItems.map((item) => (
+          <TransitOriginCard
+            key={`${item.originIndex}-${item.originName}`}
+            item={item}
+            origin={origins[item.originIndex]}
+            station={station}
+            routeOpen={openRouteOriginIndex === item.originIndex}
+            onToggleRoute={() =>
+              setOpenRouteOriginIndex((index) =>
+                index === item.originIndex ? null : item.originIndex,
+              )
+            }
+          />
+        ))}
+      </div>
+
+      <p className="mt-2.5 text-center text-[10px] font-bold text-[#7C6BE8] md:text-[11px]">
+        [출발지 카드를 누르면 카카오맵·네이버지도 경로 버튼이 열려요]
+      </p>
+    </section>
+  )
+}
+
+function TransitOriginCard({
+  item,
+  origin,
+  station,
+  routeOpen,
+  onToggleRoute,
+  showMobileRoute = false,
+}) {
+  const originName = item.originName || origin?.nearbyStationName || origin?.routeName
+  const originColorClass = getTransitOriginColorClass(item.originIndex)
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onToggleRoute}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        onToggleRoute()
+      }}
+      aria-expanded={routeOpen}
+      className={`min-w-0 cursor-pointer rounded-xl bg-white px-3 py-3 ring-1 transition active:scale-[0.995] ${
+        routeOpen
+          ? 'ring-violet-200 shadow-[0_6px_18px_rgba(90,69,232,0.08)]'
+          : 'ring-slate-100 hover:ring-violet-200'
+      }`}
+    >
+      {showMobileRoute ? (
+        <div className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-black leading-5 text-slate-800">
+              {originName} → {station.name}
+            </span>
+          </span>
+          <span className="shrink-0 text-right">
+            <span className="flex items-baseline justify-end gap-1">
+              <span className="text-[11px] font-bold text-slate-400">
+                {item.source === 'SEOUL_METRO_PUBLIC_DATA' ? '최소시간' : '예상시간'}
+              </span>
+              <strong className="text-[15px] font-black leading-5 text-blue-600">
+                {formatTransitMinutes(item)}
+              </strong>
+            </span>
+            <span className="mt-0.5 block text-[11px] font-bold leading-4 text-slate-500">
+              환승{' '}
+              <strong className={`font-black ${getTransferCountColorClass(item.transfers || 0)}`}>
+                {item.transfers || 0}
+              </strong>
+              회
+            </span>
+          </span>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2">
+            <span className="min-w-0">
+              <span className={`block text-[11px] font-black md:text-xs ${originColorClass}`}>
+                출발지 {String.fromCharCode(65 + item.originIndex)}
+              </span>
+              <span className="mt-1 hidden whitespace-nowrap text-[11px] font-black text-slate-800 md:block md:text-sm">
+                {originName} → {station.name}
+              </span>
+            </span>
+            <span className="shrink-0 text-right">
+              <span className="block text-[9px] font-bold leading-3 text-slate-400 md:text-[10px]">
+                {item.source === 'SEOUL_METRO_PUBLIC_DATA'
+                  ? '최소시간 경로'
+                  : '예상 이동시간'}
+              </span>
+              <span className="mt-0.5 block text-[13px] font-black text-blue-600 md:text-sm">
+                {formatTransitMinutes(item)}
+              </span>
+            </span>
+          </div>
+
+          <div className="mt-2.5 flex min-w-0 items-start gap-2 border-t border-[#ECECF3] pt-2.5">
+            <TransitRoutePreview routeSteps={item.routeSteps} />
+            <span className="shrink-0 text-right text-[11px] font-black text-slate-600 md:text-xs">
+              환승{' '}
+              <span className={getTransferCountColorClass(item.transfers || 0)}>
+                {item.transfers || 0}
+              </span>
+              회
+            </span>
+          </div>
+        </>
+      )}
+
+      {showMobileRoute ? (
+        <div className="-mx-1.5 mt-3 border-t border-[#ECECF3] pt-3">
+          <TransitRoutePreview routeSteps={item.routeSteps} showMobile />
+        </div>
+      ) : null}
+
+      {routeOpen ? (
+        <div
+          className="mt-3 grid grid-cols-2 gap-2 border-t border-[#ECECF3] pt-3"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <a
+            href={createKakaoDirectionUrl(origin, station)}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-[#FEE500] bg-[#FEE500] px-2 py-2 text-center text-xs font-black text-[#191919] shadow-sm transition hover:bg-[#F6DD00] active:scale-[0.98] md:text-sm"
+          >
+            카카오맵
+          </a>
+          <a
+            href={createNaverSearchUrl(origin, station)}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-[#03C75A] bg-[#03C75A] px-2 py-2 text-center text-xs font-black text-white shadow-sm transition hover:bg-[#02B351] active:scale-[0.98] md:text-sm"
+          >
+            네이버지도
+          </a>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function getTransitOriginColorClass(originIndex) {
+  if (originIndex === 1) return 'text-[#00A84D]'
+  if (originIndex === 2) return 'text-yellow-600'
+  if (originIndex === 3) return 'text-rose-600'
+  return 'text-[#5A45E8]'
+}
+
+function TransitRoutePreview({ routeSteps, showMobile = false }) {
+  const previewSteps = getTransitRoutePreviewSteps(routeSteps)
+
+  if (previewSteps.length < 2) return null
+
+  return (
+    <div className={`${showMobile ? 'block' : 'hidden'} min-w-0 flex-1 md:block`}>
+      <div className="relative h-9 min-w-0">
+        <span
+          className="absolute top-[5px] h-px bg-slate-300"
+          style={{
+            left: `${getTransitRouteEdgeInset(previewSteps.length)}%`,
+            right: `${getTransitRouteEdgeInset(previewSteps.length)}%`,
+          }}
+          aria-hidden="true"
+        />
+        {previewSteps.map((step, index) => (
+          <div
+            key={`${step.station}-${step.line}-${index}`}
+            className="absolute top-0 z-10 min-w-0 -translate-x-1/2 text-center"
+            style={{
+              left: `${getTransitRouteStepPosition(index, previewSteps.length)}%`,
+              width: `${Math.min(32, 120 / previewSteps.length)}%`,
+            }}
+          >
+            <div className="min-w-0">
+              <span
+                className={`relative mx-auto block h-2.5 w-2.5 rounded-full ${
+                  step.transfer
+                    ? ''
+                    : 'border-2 bg-white'
+                }`}
+                style={
+                  step.transfer
+                    ? {
+                        background: `linear-gradient(90deg, ${getTransitRouteColor(previewSteps[index - 1]?.line)} 0 50%, ${getTransitRouteColor(step.line)} 50% 100%)`,
+                      }
+                    : { borderColor: getTransitRouteColor(step.line) }
+                }
+              >
+                {step.transfer ? (
+                  <span className="absolute inset-[2px] rounded-full bg-white" />
+                ) : null}
+              </span>
+              <span className="mt-1 block truncate text-[9px] font-bold text-slate-600 md:text-[10px]">
+                {step.station}
+              </span>
+            </div>
+          </div>
+        ))}
+        {previewSteps.slice(0, -1).map((step, index) =>
+          step.line ? (
+            <span
+              key={`${step.station}-${step.line}-segment-${index}`}
+              className="contents"
+            >
+              <span
+                className="absolute top-[5px] z-[5] h-[2px] -translate-y-1/2"
+                style={{
+                  left: `${getTransitRouteStepPosition(index, previewSteps.length)}%`,
+                  width: `${
+                    getTransitRouteStepPosition(index + 1, previewSteps.length) -
+                    getTransitRouteStepPosition(index, previewSteps.length)
+                  }%`,
+                  backgroundColor: getTransitRouteColor(step.line),
+                }}
+                aria-hidden="true"
+              />
+              <span
+                className="absolute top-[5px] z-20 inline-flex max-w-[4.5rem] -translate-x-1/2 -translate-y-1/2 rounded-full border px-1.5 py-px text-[8px] font-black leading-3"
+                style={{
+                  left: `${
+                    (
+                      getTransitRouteStepPosition(index, previewSteps.length) +
+                      getTransitRouteStepPosition(index + 1, previewSteps.length)
+                    ) / 2
+                  }%`,
+                  ...getLineChipStyle(step.line),
+                }}
+              >
+                <span className="truncate">{step.line}</span>
+              </span>
+            </span>
+          ) : null,
+        )}
+      </div>
+    </div>
+  )
+}
+
+function getTransitRouteEdgeInset(stepCount) {
+  if (stepCount <= 2) return 8
+  if (stepCount === 3) return 7
+  return 6
+}
+
+function getTransitRouteStepPosition(index, stepCount) {
+  if (stepCount <= 1) return 50
+
+  const inset = getTransitRouteEdgeInset(stepCount)
+  return inset + (index * (100 - inset * 2)) / (stepCount - 1)
+}
+
+function getTransitRoutePreviewSteps(routeSteps) {
+  if (!Array.isArray(routeSteps) || routeSteps.length < 2) return []
+
+  const first = routeSteps[0]
+  const last = routeSteps[routeSteps.length - 1]
+  const transferSteps = routeSteps.filter((step) => step.transfer)
+  const steps = [first, ...transferSteps, last]
+
+  return steps.filter(
+    (step, index) =>
+      index === 0 ||
+      step.station !== steps[index - 1].station ||
+      step.line !== steps[index - 1].line,
+  )
+}
+
+function getTransitRouteColor(line = '') {
+  return getSubwayLineTheme(line).color
+}
+
+function getTransitSummaryGridClass(itemCount) {
+  if (itemCount >= 4) return 'md:grid-cols-2'
+  if (itemCount === 3) return 'md:grid-cols-3'
+  return 'md:grid-cols-2'
+}
+
+function getTransferCountColorClass(transfers) {
+  if (transfers >= 3) return 'text-red-500'
+  if (transfers === 2) return 'text-orange-500'
+  if (transfers === 1) return 'text-emerald-600'
+  return 'text-[#5A45E8]'
+}
+
+function formatTransitMinutes(item) {
+  if (item.source === 'SEOUL_METRO_PUBLIC_DATA') {
+    return `${Math.round(item.minutes)}분`
+  }
+
+  const minutes = item.minutes
+  if (minutes <= 1) return '이동 없음'
+
+  const roundedMinutes = Math.max(5, Math.round(minutes / 5) * 5)
+  const lowerMinutes = Math.max(5, roundedMinutes - 5)
+  const upperMinutes = roundedMinutes + 5
+
+  return `약 ${lowerMinutes}~${upperMinutes}분`
 }
 
 function HeaderAction({ icon: ActionIcon, label, onClick }) {
@@ -1737,7 +2188,8 @@ function ServiceInfoContent() {
         <p>추천 결과는 약속 장소 선택을 돕기 위한 참고 정보이며, 특정 이동 경로나 장소의 최적성을 보장하지 않습니다.</p>
       </PrivacyPolicySection>
       <PrivacyPolicySection title="2. 실제 정보와의 차이">
-        <p>이동시간, 운행 노선, 환승 경로와 장소 정보는 교통 상황, 운행 변경 및 외부 데이터 갱신 시점에 따라 실제와 다를 수 있습니다.</p>
+        <p>이동시간과 환승 경로는 서울교통공사 시간표 기반 최소시간 경로이며, 실시간 지연이나 임시 운행 변경에 따라 실제와 다를 수 있습니다.</p>
+        <p>장소 정보는 외부 데이터 갱신 시점과 실제 영업 상황에 따라 달라질 수 있습니다.</p>
         <p>중요한 약속 전에는 연결된 지도와 해당 교통 운영기관의 최신 정보를 함께 확인해주세요.</p>
       </PrivacyPolicySection>
       <PrivacyPolicySection title="3. 지원 지역">
@@ -1791,13 +2243,24 @@ function DataSourcesContent() {
               </a>
             </li>
             <li>서울특별시 철도역 구간</li>
+            <li>
+              <a
+                href="https://www.data.go.kr/data/15143842/openapi.do"
+                target="_blank"
+                rel="noreferrer"
+                className={linkClass}
+              >
+                서울교통공사 최단경로이동정보 API
+              </a>
+              : 시간표 기반 최소시간 경로, 이동시간, 환승 횟수 및 환승역 정보
+            </li>
           </ul>
           <p>공공데이터는 출처표시 조건에 따라 가공·활용되며, 원 제공기관의 최신 자료와 차이가 있을 수 있습니다.</p>
         </PrivacyPolicySection>
         <PrivacyPolicySection title="외부 API">
           <ul className="list-disc space-y-2 pl-5">
             <li>카카오맵·카카오 Local API: 주소 검색, 역 좌표, 지도 및 주변 장소 정보</li>
-            <li>카카오 Mobility API: 출발지와 추천역 간 경로 및 이동시간 정보</li>
+            <li>카카오 Mobility API: 지도에 표시되는 도로 이동 경로 정보</li>
           </ul>
           <a
             href="https://developers.kakao.com/docs/ko/kakaomap/common"
@@ -1868,6 +2331,7 @@ function PrivacyPolicyDialog({ onClose }) {
 
           <PrivacyPolicySection title="3. 개인정보 처리와 외부 서비스">
             <p>만나역은 원칙적으로 이용자의 개인정보를 제3자에게 제공하지 않습니다.</p>
+            <p>이동시간과 경로 조회를 위해 사용자가 선택한 출발역과 추천역의 역명을 만나역 백엔드를 통해 서울교통공사 최단경로이동정보 API에 전송합니다. GPS, 현재 위치 좌표, 주소 및 이용자를 식별할 수 있는 정보는 전송하지 않습니다.</p>
             <p>문의 저장과 시스템 운영을 위해 Google Apps Script 및 Google Sheets를 이용하며, 이 과정에서 Google LLC의 인프라를 통해 정보가 처리될 수 있습니다.</p>
             <a
               href="https://policies.google.com/privacy?hl=ko"
@@ -1890,7 +2354,8 @@ function PrivacyPolicyDialog({ onClose }) {
           </PrivacyPolicySection>
 
           <PrivacyPolicySection title="6. 브라우저 저장 정보">
-            <p>최근 출발지와 검색 성능 개선용 캐시는 이용자의 브라우저 로컬 저장소에 저장됩니다. 문의 제출 시 현재 선택된 출발지가 첨부되는 경우를 제외하면 이 정보는 자동 전송되지 않습니다.</p>
+            <p>최근 출발지와 검색 성능 개선용 캐시는 이용자의 브라우저 로컬 저장소에 저장됩니다. 문의 제출 시에는 현재 선택된 출발지가 첨부될 수 있습니다.</p>
+            <p>지하철 경로 조회 결과는 중복 호출을 줄이기 위해 브라우저 메모리에서 최대 5분간 임시 보관되며, 브라우저를 닫으면 유지되지 않습니다.</p>
             <p>문의 연속 전송 방지를 위해 마지막 전송 시각을 브라우저에 저장하며, 1분 전송 제한 판단에만 사용합니다.</p>
           </PrivacyPolicySection>
 
@@ -2082,7 +2547,8 @@ function StationLineChips({ station, className = '' }) {
       {lines.map((line) => (
         <span
           key={line}
-          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-black ${getLineChipClass(line)}`}
+          className="rounded-full border px-2.5 py-0.5 text-[11px] font-black"
+          style={getLineChipStyle(line)}
         >
           {line}
         </span>
@@ -2202,50 +2668,77 @@ function MobileFairStationCard({ station, collapsed, selected, onSelect, onToggl
 
   return (
     <div
-      className={`rounded-2xl border border-slate-100 bg-white px-4 py-3.5 text-left shadow-sm lg:hidden ${
+      className={`rounded-2xl border border-slate-100 bg-white/95 p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.04)] lg:hidden ${
         selected ? 'ring-2 ring-violet-100' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
-      <button
-        type="button"
-        onClick={onSelect}
-        className="min-w-0 flex-1 text-left active:opacity-70"
-      >
-        <span>
-          <span className="block text-xs font-black text-[#5A45E8]">위치상 가장 중간인 역</span>
-          <span className="mt-0.5 block truncate text-base font-black tracking-tight text-slate-950">
-            {station.name}
+      {collapsed ? (
+        <div className="grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <span className="min-w-0 truncate text-[11px] font-black text-[#5A45E8]">
+            위치상 가장 중간인 역
           </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500 active:bg-slate-50"
-        aria-expanded={!collapsed}
-      >
-        {collapsed ? '펼치기' : '접기'}
-      </button>
-      </div>
+          <button
+            type="button"
+            onClick={onSelect}
+            className="justify-self-center text-center active:opacity-70"
+          >
+            <span className="block whitespace-nowrap text-base font-black tracking-tight text-slate-950">
+              {station.name}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="justify-self-end rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-500 active:bg-slate-50"
+            aria-expanded="false"
+          >
+            펼치기
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-black text-[#5A45E8]">
+              위치상 가장 중간인 역
+            </span>
+            <button
+              type="button"
+              onClick={onToggle}
+              className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-500 active:bg-slate-50"
+              aria-expanded="true"
+            >
+              접기
+            </button>
+          </div>
 
-      {!collapsed ? (
-        <div className="mt-3 border-t border-slate-100 pt-3">
-          <p className="break-keep text-xs leading-5 text-slate-500">
-            출발지 위치를 기준으로 가장 중간에 가까운 역이에요.
+          <div className="mt-2.5 flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onSelect}
+              className="min-w-0 text-left active:opacity-70"
+            >
+              <span className="block break-keep text-[15px] font-black tracking-tight text-slate-950 sm:text-lg">
+                {station.name}
+              </span>
+            </button>
+            <StationLineChips station={station} className="min-w-0 gap-1.5" />
+          </div>
+
+          <p className="mt-2 text-[13px] leading-5 text-slate-500 sm:text-xs">
+            중간점에서 {formatDistance(station.distanceFromCenter)} · 상권 약 {station.hotPlaceCount}곳
           </p>
 
-          <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
-            <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} />
-            <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} />
-            <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} />
+          <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
+            <MiniMetric label="위치 균형" value={getMetricStatus(scores.fairness)} />
+            <MiniMetric label="주변 상권" value={getCommercialMetricStatus(station)} />
+            <MiniMetric label="노선 접근" value={getMetricStatus(scores.transit)} />
           </div>
 
           <div className="mt-3 rounded-xl bg-[#F6F3FF] px-3 py-2 text-[11px] font-bold leading-5 text-[#8A7BD8]">
             지도상 중간 위치를 중요하게 본다면 {station.name}을 참고해보세요.
           </div>
-        </div>
-      ) : null}
+        </>
+      )}
     </div>
   )
 }
@@ -2291,10 +2784,10 @@ function StationCard({ station, selected, onClick }) {
     >
         <div className="flex items-start justify-between gap-1.5">
           <div className="min-w-0">
+            <StationLineChips station={station} />
             <div className="min-w-0">
-              <strong className="block min-w-0 break-keep text-[15px] font-black tracking-tight text-slate-950 sm:text-lg">{station.name}</strong>
+              <strong className="mt-2 block min-w-0 break-keep text-[15px] font-black tracking-tight text-slate-950 sm:text-lg">{station.name}</strong>
             </div>
-            <StationLineChips station={station} className="mt-2" />
           </div>
         </div>
   
@@ -2409,15 +2902,66 @@ function getStationLineLabels(station) {
   return getStationLines(station.name).slice(0, 3)
 }
 
-function getLineChipClass(line) {
-  if (line.includes('1호선')) return 'border-blue-200 bg-blue-50 text-[#3658F5]'
-  if (line.includes('2호선') || line.includes('7호선')) return 'border-emerald-200 bg-emerald-50 text-[#4DA463]'
-  if (line.includes('3호선') || line.includes('분당')) return 'border-amber-200 bg-amber-50 text-amber-600'
-  if (line.includes('4호선')) return 'border-sky-200 bg-sky-50 text-sky-600'
-  if (line.includes('5호선') || line.includes('6호선')) return 'border-violet-200 bg-violet-50 text-[#8A4FF5]'
-  if (line.includes('9호선')) return 'border-yellow-200 bg-yellow-50 text-yellow-700'
+function getLineChipStyle(line) {
+  const theme = getSubwayLineTheme(line)
 
-  return 'border-slate-200 bg-slate-50 text-slate-600'
+  return {
+    color: theme.textColor || theme.color,
+    borderColor: `${theme.color}55`,
+    backgroundColor: mixLineColorWithWhite(theme.color, 0.12),
+  }
+}
+
+function mixLineColorWithWhite(hexColor, strength) {
+  const normalizedHex = hexColor.replace('#', '')
+  const channels = [0, 2, 4].map((offset) => Number.parseInt(normalizedHex.slice(offset, offset + 2), 16))
+  const mixedChannels = channels.map((channel) =>
+    Math.round(255 + (channel - 255) * strength)
+      .toString(16)
+      .padStart(2, '0'),
+  )
+
+  return `#${mixedChannels.join('')}`
+}
+
+function getSubwayLineTheme(line = '') {
+  const normalizedLine = String(line).replace(/\s+/g, '')
+  const themes = [
+    ['인천1호선', '#7CA8D5'],
+    ['인천2호선', '#ED8B00'],
+    ['경의중앙', '#77C4A3'],
+    ['수인분당', '#F5A200'],
+    ['신분당', '#D4003B'],
+    ['김포골드', '#A17800'],
+    ['공항', '#0090D2'],
+    ['경춘', '#0C8E72'],
+    ['경강', '#003DA5'],
+    ['서해', '#8FC31F'],
+    ['에버라인', '#6FB245'],
+    ['의정부', '#FDA600'],
+    ['우이신설', '#B0CE18'],
+    ['신림', '#6789CA'],
+    ['GTX-A', '#9A6292'],
+    ['자기부상', '#FFCD12'],
+    ['분당', '#F5A200'],
+    ['1호선', '#0052A4'],
+    ['2호선', '#00A84D'],
+    ['3호선', '#EF7C1C'],
+    ['4호선', '#00A5DE'],
+    ['5호선', '#996CAC'],
+    ['6호선', '#CD7C2F'],
+    ['7호선', '#747F00'],
+    ['8호선', '#E6186C'],
+    ['9호선', '#BDB092', '#756B46'],
+  ]
+  const matchedTheme = themes.find(([name]) => normalizedLine.includes(name))
+
+  if (!matchedTheme) return { color: '#94A3B8', textColor: '#64748B' }
+
+  return {
+    color: matchedTheme[1],
+    textColor: matchedTheme[2] || matchedTheme[1],
+  }
 }
 
 function getDistanceBalanceDisplayScore(station) {
@@ -2631,6 +3175,7 @@ function pickSharedOrigin(origin) {
     id: origin.id,
     address: origin.address,
     routeName: origin.routeName,
+    nearbyStationName: origin.nearbyStationName,
     lat: origin.lat,
     lng: origin.lng,
   }
@@ -2743,6 +3288,7 @@ function packSharedOriginV3(origin) {
     origin.routeName || origin.address,
     roundShareNumber(origin.lat, 6),
     roundShareNumber(origin.lng, 6),
+    origin.nearbyStationName || '',
   ]
 }
 
@@ -2751,6 +3297,7 @@ function unpackSharedOriginV3(origin, index) {
     id: `shared-origin-${index}`,
     address: origin[0],
     routeName: origin[0],
+    nearbyStationName: origin[3] || '',
     lat: origin[1],
     lng: origin[2],
   }
