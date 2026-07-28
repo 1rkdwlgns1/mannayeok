@@ -242,10 +242,7 @@ function App() {
   }, [showResults, selectedStationId, selectedPlaceCategory])
 
   useEffect(() => {
-    if (!loading) {
-      setLoadingDots('.')
-      return undefined
-    }
+    if (!loading) return undefined
 
     const intervalId = window.setInterval(() => {
       setLoadingDots((dots) => (dots.length >= 3 ? '.' : `${dots}.`))
@@ -287,8 +284,6 @@ function App() {
     if (!resultShareOpen) return
 
     let active = true
-    setKakaoShareStatus('loading')
-    setKakaoShareError('')
     loadKakaoShareSdk()
       .then(() => {
         if (active) setKakaoShareStatus('ready')
@@ -472,6 +467,7 @@ function App() {
       return
     }
 
+    setLoadingDots('.')
     setLoading(true)
     setError('')
     setPlaceError('')
@@ -624,6 +620,8 @@ function App() {
 
   const handleResultShare = () => {
     if (!primaryStation && !referenceMidpoint) return
+    setKakaoShareStatus('loading')
+    setKakaoShareError('')
     setResultShareOpen(true)
   }
 
@@ -633,6 +631,8 @@ function App() {
 
     if (kakaoShareStatus !== 'ready') {
       if (kakaoShareStatus === 'error') {
+        setKakaoShareStatus('loading')
+        setKakaoShareError('')
         setKakaoShareAttempt((attempt) => attempt + 1)
         return
       }
@@ -1391,6 +1391,11 @@ function TransitTimeEstimateCard({ origins, station }) {
       ? publicTransitProfile.items
       : profile?.items
   )?.filter((item) => Number.isFinite(item.minutes)) || []
+  const isTransitLoading = Boolean(
+    station?.name &&
+      profile?.items?.length &&
+      publicTransitProfile?.requestKey !== requestKey,
+  )
 
   useEffect(() => {
     if (!station?.name || !profile?.items?.length) return undefined
@@ -1416,6 +1421,7 @@ function TransitTimeEstimateCard({ origins, station }) {
           path: publicRoute.routeSteps.map((step) => step.station),
           routeSteps: publicRoute.routeSteps,
           source: publicRoute.source,
+          fallbackSchedule: publicRoute.fallbackSchedule,
         }
       })
 
@@ -1427,6 +1433,19 @@ function TransitTimeEstimateCard({ origins, station }) {
     }
   }, [profile, requestKey, station?.name])
 
+  if (isTransitLoading) {
+    return (
+      <section className="rounded-2xl border border-violet-100 bg-white px-3 py-5 shadow-[0_8px_24px_rgba(90,69,232,0.06)] md:px-4">
+        <p className="flex items-center justify-center gap-2 text-sm font-black text-slate-500">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-violet-500" />
+          <span>
+            실시간 조회 중<AnimatedLoadingDots />
+          </span>
+        </p>
+      </section>
+    )
+  }
+
   if (!estimatedItems.length) return null
 
   const mobileItem =
@@ -1435,6 +1454,15 @@ function TransitTimeEstimateCard({ origins, station }) {
 
   return (
     <section className="rounded-2xl border border-violet-100 bg-white px-3 py-3 shadow-[0_8px_24px_rgba(90,69,232,0.06)] md:px-4">
+      <p className="mb-2 flex items-center gap-1.5 pl-0.5 text-[10px] font-bold text-slate-500 md:text-[11px]">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        {estimatedItems.some((item) => item.fallbackSchedule)
+          ? '심야 대체 조회: 다음 운행일 13시 시간표 기준'
+          : estimatedItems.every((item) => item.source === 'SEOUL_METRO_PUBLIC_DATA')
+            ? '최신 시간표 기준'
+            : '일부 경로 자체 예상시간 기준'}
+      </p>
+
       <div className="md:hidden">
         <div
           className="mb-2 grid overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 p-1"
@@ -1502,6 +1530,20 @@ function TransitTimeEstimateCard({ origins, station }) {
       </p>
     </section>
   )
+}
+
+function AnimatedLoadingDots() {
+  const [dots, setDots] = useState('.')
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setDots((currentDots) => (currentDots.length >= 3 ? '.' : `${currentDots}.`))
+    }, 450)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  return <span aria-hidden="true">{dots}</span>
 }
 
 function TransitOriginCard({
@@ -1580,7 +1622,7 @@ function TransitOriginCard({
             </span>
           </div>
 
-          <div className="mt-2.5 flex min-w-0 items-start gap-2 border-t border-[#ECECF3] pt-2.5">
+          <div className="-mb-2 mt-3 flex min-w-0 items-start gap-2 border-t border-[#ECECF3] pt-5">
             <TransitRoutePreview routeSteps={item.routeSteps} />
             <span className="shrink-0 text-right text-[11px] font-black text-slate-600 md:text-xs">
               환승{' '}
@@ -1594,7 +1636,7 @@ function TransitOriginCard({
       )}
 
       {showMobileRoute ? (
-        <div className="-mx-1.5 mt-3 border-t border-[#ECECF3] pt-3">
+        <div className="-mx-1.5 -mb-2 mt-3 border-t border-[#ECECF3] pt-5">
           <TransitRoutePreview routeSteps={item.routeSteps} showMobile />
         </div>
       ) : null}
@@ -1772,7 +1814,7 @@ function getTransferCountColorClass(transfers) {
 
 function formatTransitMinutes(item) {
   if (item.source === 'SEOUL_METRO_PUBLIC_DATA') {
-    return `${Math.round(item.minutes)}분`
+    return `약 ${Math.round(item.minutes)}분`
   }
 
   const minutes = item.minutes

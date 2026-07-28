@@ -21,6 +21,7 @@ backend/.gradle/
 backend/.gradle-codex-test/
 backend/build/
 backend/out/
+backend/bin/
 backend/.env
 
 # Environment variables
