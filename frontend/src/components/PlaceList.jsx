@@ -1,4 +1,6 @@
-function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) {
+import PlaceCategoryIcon from './PlaceCategoryIcon'
+
+function PlaceList({ distances, places, meetingPointName, placeCategory, placeCategoryLabel }) {
   if (distances) {
     return (
       <section className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
@@ -45,6 +47,9 @@ function PlaceList({ distances, places, meetingPointName, placeCategoryLabel }) 
                 className="group py-3.5 transition md:py-4"
               >
                 <div className="flex items-center gap-3 md:gap-4">
+                  <div className="flex h-9 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-[#5A45E8] md:h-10 md:w-12">
+                    <PlaceCategoryIcon category={placeCategory} className="h-[1.125rem] w-[1.125rem] md:h-5 md:w-5" />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-black text-slate-950 md:text-base">{place.name}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500 md:text-[13px]">

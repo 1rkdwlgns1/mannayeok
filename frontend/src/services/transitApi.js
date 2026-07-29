@@ -30,6 +30,29 @@ export async function fetchTransitRoute(departure, arrival) {
   return routePromise
 }
 
+export async function fetchTransitRouteWithRetry(
+  departure,
+  arrival,
+  { maxAttempts = 2, retryDelayMs = 350 } = {},
+) {
+  let lastError
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchTransitRoute(departure, arrival)
+    } catch (error) {
+      lastError = error
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, retryDelayMs)
+        })
+      }
+    }
+  }
+
+  throw lastError
+}
+
 async function requestTransitRoute(departure, arrival) {
   const params = new URLSearchParams({
     departure,
