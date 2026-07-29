@@ -183,8 +183,11 @@ public class TransitRouteService {
         return searchDateTime.toLocalTime().isBefore(FIRST_TRAIN_REFERENCE_TIME);
     }
 
-    private String normalizeStationName(String stationName) {
+    static String normalizeStationName(String stationName) {
         String normalized = stationName.trim();
+        if ("서울".equals(normalized) || "서울역".equals(normalized)) {
+            return "서울역";
+        }
         return normalized.endsWith("역")
             ? normalized.substring(0, normalized.length() - 1)
             : normalized;

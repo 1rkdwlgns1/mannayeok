@@ -16,11 +16,13 @@ import {
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
+import LoginPage from './components/LoginPage'
 import {
   createKakaoDirectionUrl,
   createNaverSearchUrl,
 } from './utils/mapDirectionUrls'
 import OnboardingScreen from './components/OnboardingScreen'
+import PlaceCategoryIcon from './components/PlaceCategoryIcon'
 import PlaceList from './components/PlaceList'
 import backgroundImage from './assets/background.png'
 import logoImage from './assets/rogo.png'
@@ -36,7 +38,7 @@ import {
 } from './services/kakaoApi'
 import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
-import { fetchTransitRoute } from './services/transitApi'
+import { fetchTransitRouteWithRetry } from './services/transitApi'
 
 const PUBLIC_APP_URL = 'https://mannayeok.kr/'
 
@@ -114,6 +116,10 @@ function App() {
   const [recommendedStations, setRecommendedStations] = useState(
     () => sharedResult?.recommendedStations || [],
   )
+  const [publicTimeBalanceProfile, setPublicTimeBalanceProfile] = useState({
+    requestKey: '',
+    scores: {},
+  })
   const [fairStations, setFairStations] = useState(() => sharedResult?.fairStations || [])
   const [referenceMidpoint, setReferenceMidpoint] = useState(
     () => sharedResult?.referenceMidpoint || null,
@@ -141,6 +147,7 @@ function App() {
   const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult))
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [loginPageOpen, setLoginPageOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const [inquiryOpen, setInquiryOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
@@ -153,8 +160,14 @@ function App() {
   const [shareNotice, setShareNotice] = useState('')
   const [originInputResetKey, setOriginInputResetKey] = useState(0)
   const onboardingExitTimerRef = useRef(null)
+  const loginReturnScrollRef = useRef(0)
   const dialogOpen =
-    guideOpen || inquiryOpen || privacyOpen || serviceInfoOpen || dataSourcesOpen || resultShareOpen
+    guideOpen ||
+    inquiryOpen ||
+    privacyOpen ||
+    serviceInfoOpen ||
+    dataSourcesOpen ||
+    resultShareOpen
 
   const selectableStations = useMemo(
     () => [...recommendedStations, ...fairStations],
@@ -208,6 +221,99 @@ function App() {
     ? Math.min(alternativeStationIndex, alternativeStations.length - 1)
     : 0
   const visibleAlternativeStation = alternativeStations[visibleAlternativeIndex] || null
+  const timeBalanceStations = useMemo(() => {
+    const primary = recommendedStations[0] || null
+    const alternatives = recommendedStations
+      .slice(1)
+      .filter((station) => station.hotPlaceCount >= MIN_RECOMMENDATION_HOT_PLACE_COUNT)
+      .slice(0, 3)
+
+    return [primary, ...alternatives].filter(Boolean)
+  }, [recommendedStations])
+  const timeBalanceRequestKey = useMemo(
+    () =>
+      [
+        ...origins.map(
+          (origin) =>
+            origin.nearbyStationName ||
+            origin.routeName ||
+            origin.address ||
+            `${origin.lat},${origin.lng}`,
+        ),
+        ...timeBalanceStations.map((station) => station.name),
+      ].join('|'),
+    [origins, timeBalanceStations],
+  )
+
+  useEffect(() => {
+    if (!origins.length || !timeBalanceStations.length) return undefined
+
+    let active = true
+
+    timeBalanceStations.forEach(async (station) => {
+        const stationProfile = getStationDisplayTransitTimeProfile(origins, station.name)
+        const profileItems = stationProfile?.items || []
+
+        if (profileItems.length < 2) {
+          if (!active) return
+          setPublicTimeBalanceProfile((currentProfile) => ({
+            requestKey: timeBalanceRequestKey,
+            scores: {
+              ...(currentProfile.requestKey === timeBalanceRequestKey
+                ? currentProfile.scores
+                : {}),
+              [getStationTimeBalanceKey(station)]: null,
+            },
+          }))
+          return
+        }
+
+        const results = await Promise.allSettled(
+          profileItems.map((item) =>
+            isSameTransitStation(item.originName, station.name)
+              ? Promise.resolve({ minutes: 0 })
+              : fetchTransitRouteWithRetry(item.originName, station.name),
+          ),
+        )
+        const minutes = results
+          .map((result) => (result.status === 'fulfilled' ? result.value.minutes : null))
+          .filter(Number.isFinite)
+        const score =
+          minutes.length === profileItems.length
+            ? getPublicTransitTimeBalanceScore(minutes)
+            : null
+
+      if (!active) return
+
+      setPublicTimeBalanceProfile((currentProfile) => ({
+        requestKey: timeBalanceRequestKey,
+        scores: {
+          ...(currentProfile.requestKey === timeBalanceRequestKey
+            ? currentProfile.scores
+            : {}),
+          [getStationTimeBalanceKey(station)]: score,
+        },
+      }))
+    })
+
+    return () => {
+      active = false
+    }
+  }, [origins, timeBalanceRequestKey, timeBalanceStations])
+
+  const getTimeBalanceStatus = (station) => {
+    if (!station || publicTimeBalanceProfile.requestKey !== timeBalanceRequestKey) {
+      return '조회 중'
+    }
+
+    const stationKey = getStationTimeBalanceKey(station)
+    if (!Object.hasOwn(publicTimeBalanceProfile.scores, stationKey)) {
+      return '조회 중'
+    }
+
+    const score = publicTimeBalanceProfile.scores[stationKey]
+    return Number.isFinite(score) ? getMetricStatus(score) : '확인 불가'
+  }
 
   useEffect(() => {
     const cards = document.querySelectorAll('[data-reveal-root] > header, [data-reveal-root] section')
@@ -332,7 +438,14 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [dataSourcesOpen, guideOpen, inquiryOpen, privacyOpen, resultShareOpen, serviceInfoOpen])
+  }, [
+    dataSourcesOpen,
+    guideOpen,
+    inquiryOpen,
+    privacyOpen,
+    resultShareOpen,
+    serviceInfoOpen,
+  ])
 
   useEffect(() => {
     if (!dialogOpen) return undefined
@@ -362,8 +475,11 @@ function App() {
 
     return () => {
       Object.assign(bodyStyle, previousBodyStyles)
-      Object.assign(htmlStyle, previousHtmlStyles)
+      htmlStyle.overflow = previousHtmlStyles.overflow
+      htmlStyle.overscrollBehavior = previousHtmlStyles.overscrollBehavior
+      htmlStyle.scrollBehavior = 'auto'
       window.scrollTo(0, scrollY)
+      htmlStyle.scrollBehavior = previousHtmlStyles.scrollBehavior
     }
   }, [dialogOpen])
 
@@ -665,6 +781,20 @@ function App() {
     setMobileMenuOpen(false)
   }
 
+  const handleOpenLogin = () => {
+    loginReturnScrollRef.current = window.scrollY
+    setLoginPageOpen(true)
+    setMobileMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
+
+  const handleCloseLogin = () => {
+    setLoginPageOpen(false)
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: loginReturnScrollRef.current, behavior: 'auto' })
+    })
+  }
+
   const handleInquirySubmit = async ({ type, message, replyEmail, website }) => {
     const lastSubmittedAt = getLastInquirySubmittedAt()
     const elapsedTime = Date.now() - lastSubmittedAt
@@ -705,6 +835,10 @@ function App() {
     setLastInquirySubmittedAt(Date.now())
   }
 
+  if (loginPageOpen) {
+    return <LoginPage onBack={handleCloseLogin} />
+  }
+
   if (!hasStarted) {
     return <OnboardingScreen onStart={handleStartApp} isLeaving={isOnboardingLeaving} />
   }
@@ -736,9 +870,23 @@ function App() {
             <nav className="mt-5 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
               <HeaderAction icon={Mail} label="문의하기" onClick={handleInquiry} />
               <HeaderAction icon={CircleHelp} label="이용안내" onClick={() => setGuideOpen(true)} />
+              <button
+                type="button"
+                onClick={handleOpenLogin}
+                className="ml-1 inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3.5 text-sm font-black text-[#5A45E8] shadow-sm transition hover:border-[#BFB3FF] hover:bg-violet-50 active:scale-[0.98]"
+              >
+                로그인
+              </button>
             </nav>
 
             <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
+              <button
+                type="button"
+                onClick={handleOpenLogin}
+                className="inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3 text-xs font-black text-[#5A45E8] shadow-sm transition active:scale-[0.98]"
+              >
+                로그인
+              </button>
               <HeaderIconButton
                 icon={mobileMenuOpen ? X : Menu}
                 label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
@@ -890,16 +1038,17 @@ function App() {
 
             {primaryStation ? (
               <section
-                className={`relative grid items-start gap-3 ${
+                className={`relative grid items-start gap-3 lg:items-stretch ${
                   fairStation ? 'lg:grid-cols-[1.08fr_0.92fr]' : 'lg:grid-cols-1'
                 } ${helpTooltipActive ? 'z-[120]' : 'z-40'}`}
               >
-                <div className="relative">
+                <div className="relative h-full">
                   <ResultTypeCard
                     station={primaryStation}
                     selected={primaryStation.id === selectedStation.id}
                     onClick={() => handleStationSelect(primaryStation.id)}
                     primary
+                    timeBalanceStatus={getTimeBalanceStatus(primaryStation)}
                   />
                   <button
                     type="button"
@@ -919,7 +1068,7 @@ function App() {
                       onSelect={() => handleStationSelect(fairStation.id)}
                       onToggle={() => setFairStationCollapsed((collapsed) => !collapsed)}
                     />
-                    <div className="hidden lg:block">
+                    <div className="hidden h-full lg:block">
                       <ResultTypeCard
                         station={fairStation}
                         selected={fairStation.id === selectedStation.id}
@@ -987,6 +1136,7 @@ function App() {
                       }}
                       selected={visibleAlternativeStation.id === selectedStation.id}
                       onClick={() => handleStationSelect(visibleAlternativeStation.id)}
+                      timeBalanceStatus={getTimeBalanceStatus(visibleAlternativeStation)}
                     />
                   </div>
                 ) : null}
@@ -1000,6 +1150,7 @@ function App() {
                       }}
                       selected={station.id === selectedStation.id}
                       onClick={() => handleStationSelect(station.id)}
+                      timeBalanceStatus={getTimeBalanceStatus(station)}
                     />
                   ))}
                 </div>
@@ -1044,12 +1195,13 @@ function App() {
                       type="button"
                       onClick={() => handlePlaceRecommendation(category)}
                       disabled={placeLoading}
-                      className={`relative shrink-0 py-3 text-[15px] font-black leading-none transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
+                      className={`relative inline-flex shrink-0 items-center justify-center gap-1.5 py-3 text-[15px] font-black leading-none transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
                         selectedPlaceCategory === category
                           ? 'text-[#5A45E8] after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-[#5A45E8] after:transition-all after:duration-200'
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
+                      <PlaceCategoryIcon category={category} className="h-4 w-4" />
                       {getPlaceTabLabel(category)}
                     </button>
                   ))}
@@ -1073,6 +1225,7 @@ function App() {
               <PlaceList
                 places={places}
                 meetingPointName={selectedStation.name}
+                placeCategory={selectedPlaceCategory}
                 placeCategoryLabel={PLACE_CATEGORY_LABELS[selectedPlaceCategory]}
               />
             ) : null}
@@ -1404,7 +1557,15 @@ function TransitTimeEstimateCard({ origins, station }) {
 
     Promise.allSettled(
       profile.items.map((item) =>
-        fetchTransitRoute(item.originName, station.name),
+        isSameTransitStation(item.originName, station.name)
+          ? Promise.resolve({
+              minutes: 0,
+              transfers: 0,
+              routeSteps: [],
+              source: 'SAME_STATION',
+              fallbackSchedule: false,
+            })
+          : fetchTransitRouteWithRetry(item.originName, station.name),
       ),
     ).then((results) => {
       if (!active) return
@@ -2008,14 +2169,14 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
 
   return (
     <div
-      className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/35 px-3 py-2 backdrop-blur-[2px] md:px-4 md:pb-4 md:pt-10"
+      className="fixed inset-0 z-[150] flex items-start justify-center overflow-hidden overscroll-none bg-slate-950/35 px-3 py-2 backdrop-blur-[2px] md:px-4 md:pb-4 md:pt-10"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && status.phase !== 'sending') onClose()
       }}
     >
       <section
-        className="max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-3 shadow-2xl md:max-h-[calc(100vh-2rem)] md:p-5"
+        className="max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-3 shadow-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:max-h-none md:overflow-y-visible md:p-5"
         role="dialog"
         aria-modal="true"
         aria-labelledby="inquiry-dialog-title"
@@ -2124,7 +2285,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
               현재 출발지와 추천 결과가 문의에 자동으로 첨부돼요.
             </p>
 
-            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 md:mt-3 md:p-3">
+            <div className="mt-3">
               <label className="flex cursor-pointer items-start gap-2.5">
                 <input
                   type="checkbox"
@@ -2137,7 +2298,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
                   [필수] 개인정보 수집 및 이용에 동의합니다.
                 </span>
               </label>
-              <div className="ml-6 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-4 text-slate-500 md:mt-1.5 md:gap-y-1">
+              <div className="ml-6 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-4 text-slate-500 md:gap-y-1">
                 <span>문의·검색·접속 정보</span>
                 <span aria-hidden="true">·</span>
                 <span>접수일로부터 1년 보관</span>
@@ -2179,14 +2340,14 @@ function FooterInfoDialog({ type, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[170] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-8"
+      className="fixed inset-0 z-[170] flex items-start justify-center overflow-hidden overscroll-none bg-slate-950/45 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-8"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
     >
       <section
-        className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:p-7"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:max-h-[calc(100dvh-3rem)] md:p-7"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -2325,14 +2486,14 @@ function DataSourcesContent() {
 function PrivacyPolicyDialog({ onClose }) {
   return (
     <div
-      className="fixed inset-0 z-[170] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-8"
+      className="fixed inset-0 z-[170] flex items-start justify-center overflow-hidden overscroll-none bg-slate-950/45 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-8"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
     >
       <section
-        className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:p-7"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:max-h-[calc(100dvh-3rem)] md:p-7"
         role="dialog"
         aria-modal="true"
         aria-labelledby="privacy-policy-title"
@@ -2440,14 +2601,14 @@ function PrivacyPolicySection({ title, children }) {
 function UsageGuideDialog({ onClose }) {
   return (
     <div
-      className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto bg-slate-950/35 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-10"
+      className="fixed inset-0 z-[150] flex items-start justify-center overflow-hidden overscroll-none bg-slate-950/35 px-4 pb-4 pt-4 backdrop-blur-[2px] md:pt-10"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
     >
       <section
-        className="w-full max-w-md rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:p-6"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-5 shadow-2xl md:max-h-[calc(100dvh-3.5rem)] md:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="usage-guide-title"
@@ -2469,14 +2630,89 @@ function UsageGuideDialog({ onClose }) {
           </button>
         </div>
 
-        <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
-          <GuideItem title="위치 균형" description="각 출발지에서 한쪽으로 치우치지 않는 역을 살펴봐요." />
-          <GuideItem title="주변 상권" description="역 반경 600m 안의 카페, 식당, 문화시설을 기준으로 비교해요." />
-          <GuideItem title="노선 접근성" description="이용 가능한 노선과 환승 편의성을 함께 반영해요." />
+        <section className="mt-5">
+          <h3 className="text-xs font-black text-[#5A45E8]">선정 과정</h3>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <GuideProcessStep
+              number="1"
+              title="후보역을 넓게 찾아요"
+              description="출발지들의 중간 부근, 서로 오가는 경로 주변, 사람들이 만나기 편한 주요 역을 후보로 모아요."
+            />
+            <GuideProcessStep
+              number="2"
+              title="이동 부담을 비교해요"
+              description="각 출발지에서 후보역까지의 거리와 예상 이동 부담을 비교해 한 사람에게 지나치게 치우친 역을 걸러요."
+            />
+            <GuideProcessStep
+              number="3"
+              title="만나기 좋은 조건을 더해요"
+              description="카페·식당·문화시설 등 주변 선택지와 약속 장소로서의 활용도, 철도 노선 연결성을 함께 살펴봐요."
+            />
+            <GuideProcessStep
+              number="4"
+              title="목적에 따라 순위를 나눠요"
+              description="실제로 만나기 좋은 종합 순위와 위치의 공평함을 더 중시한 순위를 따로 계산해 결과에 보여줘요."
+            />
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <h3 className="text-base font-black text-slate-900">결과마다 의미가 달라요</h3>
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+            <GuideResultType
+              title="최적 추천역"
+              description="위치 균형과 이동 부담뿐 아니라 상권, 약속 장소 적합성, 노선 연결성까지 종합했을 때 가장 실용적인 역이에요."
+            />
+            <GuideResultType
+              title="위치상 가장 중간인 역"
+              description="주변 상권보다 출발지 사이의 거리 차이와 지도상 중간 위치를 더 중요하게 본 참고 결과예요."
+            />
+            <GuideResultType
+              title="다른 추천 후보 TOP3"
+              description="최적 추천역 다음으로 종합 조건이 좋은 역들이에요. 원하는 분위기나 동선에 맞춰 비교해서 선택할 수 있어요."
+            />
+          </div>
+        </section>
+
+        <div className="mt-5">
+          <p className="text-xs font-black text-[#5A45E8]">결과표 읽는 법</p>
+          <h3 className="mt-1 text-base font-black text-slate-900">세부 등급은 이렇게 비교해요</h3>
+        </div>
+        <div className="mt-5 space-y-3">
+          <GuideItem
+            title="이동시간 균형"
+            unit="100점 기준"
+            description="최신 시간표에서 확인한 출발지별 소요시간의 차이가 작을수록 높아요. 최적 추천역과 TOP3를 같은 기준으로 비교해요."
+          >
+            <GuideGradeScale type="score" />
+          </GuideItem>
+          <GuideItem
+            title="거리 균형"
+            unit="100점 기준"
+            description="출발지에서 후보역까지의 지도상 거리 차이가 작을수록 높아요. 위치상 가장 중간인 역을 살펴볼 때 사용하는 참고 지표예요."
+          >
+            <GuideGradeScale type="score" />
+          </GuideItem>
+          <GuideItem
+            title="주변 상권"
+            unit="장소 수·검색 밀도 기준"
+            description="역 주변에서 확인되는 카페, 식당, 문화시설 등의 수와 검색 결과 밀도를 함께 비교해요."
+          >
+            <GuideGradeScale type="commercial" />
+          </GuideItem>
+          <GuideItem
+            title="노선 접근성"
+            unit="100점 기준"
+            description="후보역의 이용 가능 노선, 출발지 노선과의 연결 관계, 환승 거점성을 함께 반영해요. 개인별 실제 환승 횟수가 적다는 뜻과는 달라요."
+          >
+            <GuideGradeScale type="score" />
+          </GuideItem>
         </div>
 
         <p className="mt-4 break-keep text-xs leading-5 text-slate-500">
-          실제 이동 시간과 영업 정보는 달라질 수 있으니, 최종 약속 전 지도와 길찾기를 확인해주세요.
+          추천 순위는 서비스 내부의 철도망과 후보 비교 기준으로 먼저 계산해요. 결과 카드의 이동시간과 환승
+          경로는 추천이 끝난 뒤 공공 시간표에서 별도로 조회하므로, 시간표 결과가 추천 순위를 다시 바꾸지는
+          않아요.
         </p>
         <button
           type="button"
@@ -2490,11 +2726,76 @@ function UsageGuideDialog({ onClose }) {
   )
 }
 
-function GuideItem({ title, description }) {
+function GuideProcessStep({ number, title, description }) {
   return (
-    <div className="py-3">
-      <p className="text-sm font-black text-slate-800">{title}</p>
-      <p className="mt-1 break-keep text-xs leading-5 text-slate-500">{description}</p>
+    <article className="flex gap-3 rounded-xl border border-slate-100 bg-white px-3.5 py-3">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5A45E8] text-xs font-black text-white">
+        {number}
+      </span>
+      <div>
+        <h4 className="text-sm font-black text-slate-800">{title}</h4>
+        <p className="mt-1 break-keep text-xs leading-5 text-slate-500">{description}</p>
+      </div>
+    </article>
+  )
+}
+
+function GuideResultType({ title, description }) {
+  return (
+    <article className="rounded-xl border border-[#E6E0FF] bg-white px-3.5 py-3.5">
+      <strong className="block text-sm font-black leading-5 text-[#5A45E8]">{title}</strong>
+      <p className="mt-2 break-keep text-xs leading-5 text-slate-500">{description}</p>
+    </article>
+  )
+}
+
+function GuideItem({ title, unit, description, children }) {
+  return (
+    <section className="rounded-xl border border-slate-100 bg-white px-3.5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-black text-slate-800">{title}</h3>
+        <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-500">
+          {unit}
+        </span>
+      </div>
+      <p className="mt-1.5 break-keep text-xs leading-5 text-slate-500">{description}</p>
+      {children}
+    </section>
+  )
+}
+
+function GuideGradeScale({ type }) {
+  const grades = type === 'commercial'
+    ? [
+        ['매우 풍부', '약 1,100곳 이상'],
+        ['풍부', '약 750곳 이상'],
+        ['충분', '약 450곳 이상'],
+        ['보통', '약 180곳 이상'],
+        ['적음', '그 미만'],
+      ]
+    : [
+        ['매우 좋음', '85~100점'],
+        ['좋음', '70~84점'],
+        ['보통', '50~69점'],
+        ['아쉬움', '0~49점'],
+      ]
+
+  return (
+    <div className="mt-2.5 flex flex-wrap gap-1.5" aria-label="등급 기준">
+      {grades.map(([label, range]) => (
+        <span
+          key={label}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-1.5 text-[11px] font-bold text-slate-500"
+        >
+          <strong className={getMetricStatusTextClass(label)}>{label}</strong>
+          <span>{range}</span>
+        </span>
+      ))}
+      {type === 'commercial' ? (
+        <p className="w-full break-keep text-[11px] leading-5 text-slate-400">
+          장소 수는 대표 기준이며 검색 결과 밀도가 높으면 상위 등급으로 표시될 수 있어요.
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -2615,19 +2916,20 @@ function ResultTypeCard({
   selected = false,
   onClick,
   primary = false,
+  timeBalanceStatus = '조회 중',
 }) {
   if (!station) return null
 
   const Component = onClick ? 'button' : 'div'
   const scores = getStationDisplayScores(station)
-  const reasons = getRecommendationReasons(station, scores, primary)
+  const reasons = getRecommendationReasons(station, scores, primary, timeBalanceStatus)
 
   if (primary) {
     return (
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-          className={`flex w-full flex-col rounded-2xl border border-violet-100 bg-white px-4 pb-2.5 pt-4 text-left shadow-[0_14px_36px_rgba(90,69,232,0.10)] transition active:scale-[0.99] md:p-4 ${
+          className={`flex h-full w-full flex-col rounded-2xl border border-violet-100 bg-white px-4 pb-2.5 pt-4 text-left shadow-[0_14px_36px_rgba(90,69,232,0.10)] transition active:scale-[0.99] md:p-4 ${
           selected ? 'ring-2 ring-violet-100' : ''
         } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
       >
@@ -2661,7 +2963,7 @@ function ResultTypeCard({
           </div>
 
           <div className="mt-3 grid grid-cols-3 border-t border-slate-100 pb-0.5 pt-2.5 md:pb-0 md:pt-3">
-            <MetricSummaryItem label="접근 조건" value={getMetricStatus(scores.fairness)} />
+            <MetricSummaryItem label="이동시간 균형" value={timeBalanceStatus} />
             <MetricSummaryItem label="주변 상권" value={getCommercialMetricStatus(station)} />
             <MetricSummaryItem label="노선 접근성" value={getMetricStatus(scores.transit)} />
         </div>
@@ -2673,13 +2975,13 @@ function ResultTypeCard({
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-        className={`flex w-full flex-col rounded-2xl border border-slate-100 bg-white/90 p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
+        className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white/90 p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
         selected ? 'ring-2 ring-violet-100' : ''
       } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
         <span className="inline-flex items-center rounded-full border border-violet-100 bg-[#F6F3FF] px-3 py-1.5 text-xs font-black text-[#5A45E8]">
-          위치상 가장 중간인 역
+          지도상 가장 중간인 역
         </span>
       </div>
 
@@ -2687,19 +2989,35 @@ function ResultTypeCard({
         {station.name}
       </h2>
       <p className="mt-2 max-w-sm break-keep text-xs leading-5 text-slate-500 md:text-[13px] md:leading-5">
-        출발지 위치를 기준으로 가장 중간에 가까운 역이에요.
+        출발지 위치를 기준으로 계산한 지도상 중간점에 가장 가까운 역이에요.
       </p>
 
-      <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">
-        <FairMetricRow label="위치 균형" value={getMetricStatus(scores.fairness)} />
-        <FairMetricRow label="주변 상권" value={getCommercialMetricStatus(station)} />
-        <FairMetricRow label="노선 접근성" value={getMetricStatus(scores.transit)} />
+      <div className="mt-6">
+        <div className="divide-y divide-slate-100 border-y border-slate-100">
+          <HorizontalMetricRow
+            label="주변 상권"
+            value={getCommercialMetricStatus(station)}
+          />
+          <HorizontalMetricRow
+            label="노선 접근성"
+            value={getMetricStatus(scores.transit)}
+          />
+        </div>
       </div>
 
-      <div className="mt-3 rounded-xl bg-[#F6F3FF] px-3 py-2 text-[11px] font-bold leading-5 text-[#8A7BD8] md:text-xs">
-        지도상 중간 위치를 중요하게 본다면 {station.name}을 참고해보세요.
+      <div className="mt-auto rounded-xl bg-[#F6F3FF] px-3 py-2 text-[11px] font-bold leading-5 text-[#8A7BD8] md:text-xs">
+        지도상 가장 중간인 역을 원한다면 {station.name}을 참고해보세요.
       </div>
     </Component>
+  )
+}
+
+function HorizontalMetricRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <span className="text-xs font-bold text-slate-400">{label}</span>
+      <span className={`text-sm font-black ${getMetricStatusTextClass(value)}`}>{value}</span>
+    </div>
   )
 }
 
@@ -2741,7 +3059,7 @@ function MobileFairStationCard({ station, collapsed, selected, onSelect, onToggl
         <>
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] font-black text-[#5A45E8]">
-              위치상 가장 중간인 역
+              지도상 가장 중간인 역
             </span>
             <button
               type="button"
@@ -2770,8 +3088,7 @@ function MobileFairStationCard({ station, collapsed, selected, onSelect, onToggl
             중간점에서 {formatDistance(station.distanceFromCenter)} · 상권 약 {station.hotPlaceCount}곳
           </p>
 
-          <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
-            <MiniMetric label="위치 균형" value={getMetricStatus(scores.fairness)} />
+          <div className="mt-2.5 grid grid-cols-2 gap-0">
             <MiniMetric label="주변 상권" value={getCommercialMetricStatus(station)} />
             <MiniMetric label="노선 접근" value={getMetricStatus(scores.transit)} />
           </div>
@@ -2798,20 +3115,7 @@ function MetricSummaryItem({ label, value }) {
   )
 }
 
-function FairMetricRow({ label, value }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-1.5">
-      <span className="truncate text-xs font-bold text-slate-400">
-        {label}
-      </span>
-      <span className={`shrink-0 text-[13px] font-black ${getMetricStatusTextClass(value)}`}>
-        {value}
-      </span>
-    </div>
-  )
-}
-
-function StationCard({ station, selected, onClick }) {
+function StationCard({ station, selected, onClick, timeBalanceStatus = '조회 중' }) {
   const scores = getStationDisplayScores(station)
 
   return (
@@ -2838,7 +3142,7 @@ function StationCard({ station, selected, onClick }) {
       </p>
 
       <div className="mt-2.5 grid grid-cols-3 gap-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40">
-        <MiniMetric label="위치 균형" value={getMetricStatus(scores.fairness)} />
+        <MiniMetric label="이동시간 균형" value={timeBalanceStatus} />
         <MiniMetric label="주변 상권" value={getCommercialMetricStatus(station)} />
         <MiniMetric label="노선 접근" value={getMetricStatus(scores.transit)} />
       </div>
@@ -2848,7 +3152,7 @@ function StationCard({ station, selected, onClick }) {
 
 function MiniMetric({ label, value }) {
   return (
-    <div className="min-w-0 border-r border-slate-100 bg-white/50 px-1.5 py-2 text-center last:border-r-0">
+    <div className="min-w-0 border-r border-slate-100 px-1.5 py-2 text-center last:border-r-0">
       <p className="truncate text-xs font-bold text-slate-500">
         {label}
       </p>
@@ -2879,6 +3183,34 @@ function getMetricStatus(score) {
   return '아쉬움'
 }
 
+function getStationTimeBalanceKey(station) {
+  return station?.id || station?.name || ''
+}
+
+function isSameTransitStation(firstStationName, secondStationName) {
+  const normalize = (stationName) =>
+    String(stationName || '')
+      .trim()
+      .replace(/\s+/g, '')
+      .replace(/역$/, '')
+
+  const first = normalize(firstStationName)
+  const second = normalize(secondStationName)
+  return Boolean(first && second && first === second)
+}
+
+function getPublicTransitTimeBalanceScore(minutes) {
+  const validMinutes = minutes.filter(Number.isFinite)
+  if (validMinutes.length < 2) return null
+
+  const averageMinutes =
+    validMinutes.reduce((sum, value) => sum + value, 0) / validMinutes.length
+  if (averageMinutes <= 0) return 100
+
+  const spreadMinutes = Math.max(...validMinutes) - Math.min(...validMinutes)
+  return Math.max(0, Math.min(100, Math.round(100 - (spreadMinutes / averageMinutes) * 100)))
+}
+
 function getCommercialMetricStatus(station) {
   const count = station.hotPlaceCount || 0
   const signal = station.hotPlaceSignal || 0
@@ -2890,18 +3222,28 @@ function getCommercialMetricStatus(station) {
   return '적음'
 }
 
-function getRecommendationReasons(station, scores, primary = false) {
+function getRecommendationReasons(station, scores, primary = false, timeBalanceStatus = '') {
   const reasons = []
   const lines = getStationLineLabels(station)
   const linesText = lines.slice(0, 2).join(' · ')
   const hotPlaceCount = station.hotPlaceCount || 0
   const hotPlaceSignal = station.hotPlaceSignal || 0
 
-  if (scores.fairness >= 80) {
-    reasons.push('출발지 간 이동 부담이 비교적 비슷해요.')
+  if (primary) {
+    if (timeBalanceStatus === '매우 좋음' || timeBalanceStatus === '좋음') {
+      reasons.push('최신 시간표 기준 출발지별 이동시간 차이가 크지 않아요.')
+    } else if (timeBalanceStatus === '보통') {
+      reasons.push('이동시간 균형은 보통이며, 상권과 접근성이 이를 보완해요.')
+    } else if (timeBalanceStatus === '아쉬움') {
+      reasons.push('이동시간 차이는 있지만 실제로 만나기 좋은 조건을 함께 고려했어요.')
+    } else if (timeBalanceStatus === '조회 중') {
+      reasons.push('최신 시간표로 출발지별 이동시간 균형을 확인하고 있어요.')
+    }
+  } else if (scores.fairness >= 80) {
+    reasons.push('출발지 사이의 거리 균형이 비교적 좋아요.')
   } else if (scores.fairness >= 55) {
-    reasons.push('위치 균형은 무난하고, 상권과 접근성이 보완돼요.')
-  } else if (primary || scores.commercial >= 70 || scores.transit >= 70) {
+    reasons.push('거리 균형은 무난하고, 상권과 접근성이 보완돼요.')
+  } else if (scores.commercial >= 70 || scores.transit >= 70) {
     reasons.push('완전한 중간보다 실제로 만나기 좋은 조건을 우선했어요.')
   }
 
