@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
-import LoginPage from './components/LoginPage'
+import { clearAuth, getStoredMember } from './services/authStorage'
 import {
   createKakaoDirectionUrl,
   createNaverSearchUrl,
@@ -147,7 +147,7 @@ function App() {
   const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult))
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [loginPageOpen, setLoginPageOpen] = useState(false)
+  const [currentMember, setCurrentMember] = useState(getStoredMember)
   const [guideOpen, setGuideOpen] = useState(false)
   const [inquiryOpen, setInquiryOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
@@ -160,7 +160,6 @@ function App() {
   const [shareNotice, setShareNotice] = useState('')
   const [originInputResetKey, setOriginInputResetKey] = useState(0)
   const onboardingExitTimerRef = useRef(null)
-  const loginReturnScrollRef = useRef(0)
   const dialogOpen =
     guideOpen ||
     inquiryOpen ||
@@ -782,17 +781,18 @@ function App() {
   }
 
   const handleOpenLogin = () => {
-    loginReturnScrollRef.current = window.scrollY
-    setLoginPageOpen(true)
     setMobileMenuOpen(false)
-    window.scrollTo({ top: 0, behavior: 'auto' })
+    window.location.assign('/login')
   }
 
-  const handleCloseLogin = () => {
-    setLoginPageOpen(false)
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: loginReturnScrollRef.current, behavior: 'auto' })
-    })
+  const handleAuthAction = () => {
+    if (currentMember) {
+      clearAuth()
+      setCurrentMember(null)
+      setMobileMenuOpen(false)
+      return
+    }
+    handleOpenLogin()
   }
 
   const handleInquirySubmit = async ({ type, message, replyEmail, website }) => {
@@ -835,10 +835,6 @@ function App() {
     setLastInquirySubmittedAt(Date.now())
   }
 
-  if (loginPageOpen) {
-    return <LoginPage onBack={handleCloseLogin} />
-  }
-
   if (!hasStarted) {
     return <OnboardingScreen onStart={handleStartApp} isLeaving={isOnboardingLeaving} />
   }
@@ -872,20 +868,20 @@ function App() {
               <HeaderAction icon={CircleHelp} label="이용안내" onClick={() => setGuideOpen(true)} />
               <button
                 type="button"
-                onClick={handleOpenLogin}
+                onClick={handleAuthAction}
                 className="ml-1 inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3.5 text-sm font-black text-[#5A45E8] shadow-sm transition hover:border-[#BFB3FF] hover:bg-violet-50 active:scale-[0.98]"
               >
-                로그인
+                {currentMember ? `${currentMember.nickname}님 · 로그아웃` : '로그인'}
               </button>
             </nav>
 
             <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
               <button
                 type="button"
-                onClick={handleOpenLogin}
+                onClick={handleAuthAction}
                 className="inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3 text-xs font-black text-[#5A45E8] shadow-sm transition active:scale-[0.98]"
               >
-                로그인
+                {currentMember ? '로그아웃' : '로그인'}
               </button>
               <HeaderIconButton
                 icon={mobileMenuOpen ? X : Menu}
