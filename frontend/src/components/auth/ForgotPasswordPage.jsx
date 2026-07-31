@@ -24,7 +24,7 @@ function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout backTo="/login" wide hideFooter>
+    <AuthLayout backTo="/login" wide>
       <AuthCard
         eyebrow="계정 도움"
         title="비밀번호를 잊으셨나요?"

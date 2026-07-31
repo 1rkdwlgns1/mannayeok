@@ -74,7 +74,7 @@ function SignupPage() {
   }
 
   return (
-    <AuthLayout backTo="/login" wide hideFooter>
+    <AuthLayout backTo="/login" wide>
       <AuthCard
         eyebrow="만나역 회원가입"
         title="새 계정을 만들어요"

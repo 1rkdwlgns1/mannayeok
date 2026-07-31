@@ -103,7 +103,7 @@ const createEmptyOrigin = () => ({
 
 function App() {
   const [sharedResult] = useState(readSharedResult)
-  const [initialLegalDialog] = useState(() => window.location.hash)
+  const [initialDialogHash] = useState(() => window.location.hash)
   const [originInputs, setOriginInputs] = useState(
     () =>
       sharedResult?.origins?.length
@@ -151,17 +151,17 @@ function App() {
       sharedResult
       || getStoredMember()
       || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
-      || ['#terms', '#privacy'].includes(window.location.hash)
+      || ['#terms', '#privacy', '#sources', '#inquiry'].includes(window.location.hash)
     ),
   )
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentMember, setCurrentMember] = useState(getStoredMember)
   const [guideOpen, setGuideOpen] = useState(false)
-  const [inquiryOpen, setInquiryOpen] = useState(false)
-  const [privacyOpen, setPrivacyOpen] = useState(() => initialLegalDialog === '#privacy')
-  const [serviceInfoOpen, setServiceInfoOpen] = useState(() => initialLegalDialog === '#terms')
-  const [dataSourcesOpen, setDataSourcesOpen] = useState(false)
+  const [inquiryOpen, setInquiryOpen] = useState(() => initialDialogHash === '#inquiry')
+  const [privacyOpen, setPrivacyOpen] = useState(() => initialDialogHash === '#privacy')
+  const [serviceInfoOpen, setServiceInfoOpen] = useState(() => initialDialogHash === '#terms')
+  const [dataSourcesOpen, setDataSourcesOpen] = useState(() => initialDialogHash === '#sources')
   const [resultShareOpen, setResultShareOpen] = useState(false)
   const [kakaoShareStatus, setKakaoShareStatus] = useState('idle')
   const [kakaoShareAttempt, setKakaoShareAttempt] = useState(0)
