@@ -144,7 +144,7 @@ function App() {
   const [mapCollapsed, setMapCollapsed] = useState(true)
   const [alternativeStationIndex, setAlternativeStationIndex] = useState(0)
   const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
-  const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult))
+  const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult || getStoredMember()))
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentMember, setCurrentMember] = useState(getStoredMember)
