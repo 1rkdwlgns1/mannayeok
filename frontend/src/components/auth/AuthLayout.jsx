@@ -31,7 +31,7 @@ function AuthLayout({
       }}
     >
       <div className="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col md:h-[calc(100dvh-2rem)] md:min-h-0">
-        <header className={`mx-auto flex min-h-10 w-full items-center ${contentWidth}`}>
+        <header className={`mx-auto flex min-h-10 w-full shrink-0 items-center ${contentWidth}`}>
           <button
             type="button"
             onClick={handleBack}
@@ -43,11 +43,13 @@ function AuthLayout({
           </button>
         </header>
 
-        <div className="flex min-h-0 flex-1 items-start justify-center py-4 md:items-center md:py-2">
-          {children}
+        <div className="flex min-h-0 flex-1 overflow-y-auto">
+          <div className="my-auto flex w-full shrink-0 justify-center py-4 md:py-3">
+            {children}
+          </div>
         </div>
 
-        <footer className={`mx-auto flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1.5 border-t border-slate-200/80 pb-2 pt-3 text-[10px] font-bold text-slate-500 md:pt-4 md:text-[11px] ${contentWidth}`}>
+        <footer className={`mx-auto flex w-full shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1.5 border-t border-slate-200/80 pb-2 pt-3 text-[10px] font-bold text-slate-500 md:pt-4 md:text-[11px] ${contentWidth}`}>
           <a href="/" className="whitespace-nowrap transition hover:text-[#6548E8]">© 2026 만나역</a>
           <a href="/#terms" className="whitespace-nowrap transition hover:text-[#6548E8]">서비스 이용안내</a>
           <a href="/#privacy" className="whitespace-nowrap transition hover:text-[#6548E8]">개인정보처리방침</a>
