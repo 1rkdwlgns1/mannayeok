@@ -6,7 +6,6 @@ const providers = [
     button: 'bg-[#FEE500] text-[rgba(0,0,0,0.85)]',
     iconSize: 'h-5 w-5',
     iconPosition: 'left-4 top-1/2 -translate-y-1/2',
-    disabled: true,
   },
   {
     name: 'Google',
@@ -47,9 +46,8 @@ function SocialLoginButtons() {
           <button
             key={provider.name}
             type="button"
-            disabled={provider.disabled}
-            className={`relative flex h-12 items-center justify-center rounded-xl px-10 text-center text-[13px] font-extrabold shadow-sm transition enabled:hover:brightness-[0.98] enabled:active:scale-[0.99] disabled:cursor-not-allowed sm:text-sm ${provider.button}`}
-            aria-label={provider.disabled ? `${provider.label}, 준비 중` : provider.label}
+            className={`relative flex h-12 items-center justify-center rounded-xl px-10 text-center text-[13px] font-extrabold shadow-sm transition hover:brightness-[0.98] active:scale-[0.99] sm:text-sm ${provider.button}`}
+            aria-label={provider.label}
           >
             <img
               src={provider.icon}
@@ -57,10 +55,7 @@ function SocialLoginButtons() {
               className={`absolute object-contain ${provider.iconPosition} ${provider.iconSize}`}
               aria-hidden="true"
             />
-            <span className={provider.disabled ? 'flex flex-col leading-tight' : ''}>
-              <span>{provider.label}</span>
-              {provider.disabled && <small className="mt-0.5 text-[9px] font-bold text-slate-400">준비 중</small>}
-            </span>
+            <span>{provider.label}</span>
           </button>
         ))}
       </div>
