@@ -860,7 +860,10 @@ function App() {
         backgroundSize: 'cover',
       }}
     >
-      <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
+      <div
+        data-reveal-root
+        className="mx-auto flex min-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col space-y-4 pb-2 md:min-h-[calc(100dvh-2.5rem)] md:space-y-5"
+      >
         <div className="mx-auto w-full max-w-4xl space-y-2 md:space-y-3">
           <div className="relative flex min-h-16 items-start justify-between px-0 py-0 md:min-h-20">
             <div className="relative flex min-w-0 items-start">
@@ -1260,34 +1263,34 @@ function App() {
           </section>
         )}
 
-        <footer className="mt-1 border-t border-slate-200/80 px-2 pb-1 pt-3 text-center text-[10px] font-bold text-slate-400 md:mt-2 md:pb-2 md:pt-4 md:text-[11px]">
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <span>© 2026 만나역</span>
+        <footer className="!mt-auto border-t border-slate-200/80 px-2 pb-1 pt-4 text-center text-[10px] font-bold text-slate-400 md:pb-2 md:pt-5 md:text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 md:gap-x-4">
+            <span className="whitespace-nowrap">© 2026 만나역</span>
             <button
               type="button"
               onClick={() => setServiceInfoOpen(true)}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               서비스 이용안내
             </button>
             <button
               type="button"
               onClick={() => setPrivacyOpen(true)}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               개인정보처리방침
             </button>
             <button
               type="button"
               onClick={() => setDataSourcesOpen(true)}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               데이터 출처
             </button>
             <button
               type="button"
               onClick={handleInquiry}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               문의하기
             </button>

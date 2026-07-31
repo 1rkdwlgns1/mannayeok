@@ -12,7 +12,7 @@ function AuthCard({
         {eyebrow && <p className="text-xs font-extrabold text-[#6548E8]">{eyebrow}</p>}
         <h1 className={`${eyebrow ? 'mt-1.5' : ''} text-[25px] font-black tracking-[-0.04em] md:text-[30px]`}>{title}</h1>
         {description && (
-          <p className="mt-2 text-sm font-medium leading-6 text-slate-500">{description}</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-slate-500">{description}</p>
         )}
       </div>
       {children}
