@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 const providers = [
   {
     name: '카카오',
@@ -37,8 +35,6 @@ const providers = [
 ]
 
 function SocialLoginButtons() {
-  const [notice, setNotice] = useState('')
-
   return (
     <div>
       <div className="relative my-4 flex items-center">
@@ -52,7 +48,6 @@ function SocialLoginButtons() {
             key={provider.name}
             type="button"
             disabled={provider.disabled}
-            onClick={() => setNotice(`${provider.name} 로그인은 준비 중이에요.`)}
             className={`relative flex h-12 items-center justify-center rounded-xl px-10 text-center text-[13px] font-extrabold shadow-sm transition enabled:hover:brightness-[0.98] enabled:active:scale-[0.99] disabled:cursor-not-allowed sm:text-sm ${provider.button}`}
             aria-label={provider.disabled ? `${provider.label}, 준비 중` : provider.label}
           >
@@ -69,11 +64,6 @@ function SocialLoginButtons() {
           </button>
         ))}
       </div>
-      {notice && (
-        <p className="mt-2 text-center text-[10px] font-bold text-slate-500" role="status">
-          {notice}
-        </p>
-      )}
     </div>
   )
 }
