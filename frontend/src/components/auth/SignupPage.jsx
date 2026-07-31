@@ -75,7 +75,7 @@ function SignupPage() {
       : null,
     password: {
       message: '영문과 숫자를 포함한 8자 이상 입력해 주세요.',
-      tone: form.password && !passwordValid ? 'error' : 'neutral',
+      tone: !form.password ? 'neutral' : passwordValid ? 'success' : 'error',
     },
     passwordConfirm: form.passwordConfirm
       ? {
