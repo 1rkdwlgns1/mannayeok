@@ -32,7 +32,7 @@ function ForgotPasswordPage() {
         wide
         centered
       >
-        <form className="mt-5 space-y-3.5 text-left" onSubmit={handleSubmit} noValidate>
+        <form className="mt-4 space-y-3 text-left" onSubmit={handleSubmit} noValidate>
           <AuthField
             label="이메일"
             icon={Mail}
@@ -48,7 +48,7 @@ function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={!emailValid}
-            className={`h-12 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
+            className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
               emailValid
                 ? 'bg-[#6548E8] hover:bg-[#5639DC]'
                 : 'cursor-not-allowed bg-[#CFC5FF]'

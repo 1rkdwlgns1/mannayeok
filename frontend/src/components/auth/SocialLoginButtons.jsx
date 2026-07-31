@@ -28,7 +28,7 @@ const providers = [
     label: 'Apple로 로그인',
     icon: '/auth/apple-logo-black-button.png',
     button: 'bg-black text-white',
-    iconSize: 'h-12 w-12',
+    iconSize: 'h-11 w-11',
     iconPosition: 'left-0 top-0',
   },
 ]
@@ -36,7 +36,7 @@ const providers = [
 function SocialLoginButtons() {
   return (
     <div>
-      <div className="relative my-4 flex items-center">
+      <div className="relative my-3 flex items-center">
         <span className="h-px flex-1 bg-slate-200" />
         <span className="px-3 text-xs font-bold text-slate-400">또는 간편 로그인</span>
         <span className="h-px flex-1 bg-slate-200" />
@@ -46,7 +46,7 @@ function SocialLoginButtons() {
           <button
             key={provider.name}
             type="button"
-            className={`relative flex h-12 items-center justify-center rounded-xl px-10 text-center text-[13px] font-extrabold shadow-sm transition hover:brightness-[0.98] active:scale-[0.99] sm:text-sm ${provider.button}`}
+            className={`relative flex h-11 items-center justify-center rounded-xl px-10 text-center text-[13px] font-extrabold shadow-sm transition hover:brightness-[0.98] active:scale-[0.99] sm:text-sm ${provider.button}`}
             aria-label={provider.label}
           >
             <img

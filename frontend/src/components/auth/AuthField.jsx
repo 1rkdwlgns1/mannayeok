@@ -18,7 +18,7 @@ function AuthField({
 
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-extrabold text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-extrabold text-slate-700">{label}</span>
       <span className="relative block">
         {Icon && (
           <Icon
@@ -30,7 +30,7 @@ function AuthField({
         )}
         <input
           {...inputProps}
-          className={`h-12 w-full rounded-xl border bg-white text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 focus:ring-[#DCD5FF] ${
+          className={`h-11 w-full rounded-xl border bg-white text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 focus:ring-[#DCD5FF] ${
             Icon ? 'pl-10' : 'pl-3.5'
           } ${trailing ? 'pr-11' : 'pr-3.5'} ${
             feedbackTone === 'error' && feedback

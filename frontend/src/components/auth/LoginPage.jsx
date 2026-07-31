@@ -48,7 +48,7 @@ function LoginPage() {
             회원가입이 완료됐어요. 로그인해 주세요.
           </p>
         )}
-        <form className="mt-5 space-y-3.5 text-left" onSubmit={handleSubmit} noValidate>
+        <form className="mt-4 space-y-3 text-left" onSubmit={handleSubmit} noValidate>
           <AuthField label="이메일" icon={Mail} type="email" name="email" value={form.email} onChange={handleChange} placeholder="이메일 주소를 입력해 주세요" autoComplete="email" required />
           <AuthField
             label="비밀번호"
@@ -78,16 +78,16 @@ function LoginPage() {
             </label>
             <a href="/forgot-password" className="text-xs font-extrabold text-[#6548E8] hover:underline">비밀번호 찾기</a>
           </div>
-          {error && <p className="rounded-xl bg-red-50 px-3.5 py-3 text-sm font-bold text-red-600" role="alert">{error}</p>}
-          <button type="submit" disabled={submitting} className="h-12 w-full rounded-xl bg-[#6548E8] text-[15px] font-black text-white shadow-sm transition hover:bg-[#5639DC] disabled:cursor-wait disabled:opacity-60">
+          {error && <p className="text-xs font-bold text-red-600" role="alert">{error}</p>}
+          <button type="submit" disabled={submitting} className="h-11 w-full rounded-xl bg-[#6548E8] text-[15px] font-black text-white shadow-sm transition hover:bg-[#5639DC] disabled:cursor-wait disabled:opacity-60">
             {submitting ? '로그인 중...' : '로그인'}
           </button>
         </form>
-        <p className="mt-3.5 text-center text-sm font-medium text-slate-600">
+        <p className="mt-3 text-center text-sm font-medium text-slate-600">
           아직 회원이 아니신가요? <a href="/signup" className="font-black text-[#6548E8] hover:underline">회원가입</a>
         </p>
         <SocialLoginButtons />
-        <p className="mt-3.5 text-center text-[11px] font-semibold leading-5 text-slate-600 md:text-xs">
+        <p className="mt-3 text-center text-[11px] font-semibold leading-5 text-slate-600 md:text-xs">
           계속 진행하면 만나역{' '}
           <a href="/#terms" className="font-extrabold text-[#6548E8] hover:underline">이용약관</a>
           {' '}및{' '}

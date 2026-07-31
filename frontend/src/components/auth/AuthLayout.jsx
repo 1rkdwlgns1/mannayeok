@@ -43,8 +43,8 @@ function AuthLayout({
           </button>
         </header>
 
-        <div className="flex min-h-0 flex-1 overflow-y-auto">
-          <div className="my-auto flex w-full shrink-0 justify-center py-4 md:py-3">
+        <div className="flex min-h-0 flex-1">
+          <div className="my-auto flex w-full shrink-0 justify-center py-3 md:py-2">
             {children}
           </div>
         </div>
