@@ -25,7 +25,7 @@ public class Member {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String nickname;
 
     @Column(name = "email_verified", nullable = false)
@@ -38,6 +38,11 @@ public class Member {
     private LocalDateTime updatedAt;
 
     protected Member() {
+    }
+
+    public Member(String email, String passwordHash) {
+        this.email = email;
+        this.passwordHash = passwordHash;
     }
 
     public Member(String email, String passwordHash, String nickname) {

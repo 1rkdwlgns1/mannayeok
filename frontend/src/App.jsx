@@ -41,6 +41,7 @@ import { calculateDistanceInMeters, calculateMidpoint } from './services/midpoin
 import { fetchTransitRouteWithRetry } from './services/transitApi'
 
 const PUBLIC_APP_URL = 'https://mannayeok.kr/'
+const ONBOARDING_COMPLETED_KEY = 'mannayeok_onboarding_completed'
 
 const PLACE_CATEGORY_LABELS = {
   cafe: '카페',
@@ -102,6 +103,7 @@ const createEmptyOrigin = () => ({
 
 function App() {
   const [sharedResult] = useState(readSharedResult)
+  const [initialLegalDialog] = useState(() => window.location.hash)
   const [originInputs, setOriginInputs] = useState(
     () =>
       sharedResult?.origins?.length
@@ -144,14 +146,21 @@ function App() {
   const [mapCollapsed, setMapCollapsed] = useState(true)
   const [alternativeStationIndex, setAlternativeStationIndex] = useState(0)
   const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
-  const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult || getStoredMember()))
+  const [hasStarted, setHasStarted] = useState(
+    () => Boolean(
+      sharedResult
+      || getStoredMember()
+      || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
+      || ['#terms', '#privacy'].includes(window.location.hash)
+    ),
+  )
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentMember, setCurrentMember] = useState(getStoredMember)
   const [guideOpen, setGuideOpen] = useState(false)
   const [inquiryOpen, setInquiryOpen] = useState(false)
-  const [privacyOpen, setPrivacyOpen] = useState(false)
-  const [serviceInfoOpen, setServiceInfoOpen] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(() => initialLegalDialog === '#privacy')
+  const [serviceInfoOpen, setServiceInfoOpen] = useState(() => initialLegalDialog === '#terms')
   const [dataSourcesOpen, setDataSourcesOpen] = useState(false)
   const [resultShareOpen, setResultShareOpen] = useState(false)
   const [kakaoShareStatus, setKakaoShareStatus] = useState('idle')
@@ -688,6 +697,7 @@ function App() {
   const handleStartApp = () => {
     if (isOnboardingLeaving) return
 
+    window.sessionStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
     setIsOnboardingLeaving(true)
     onboardingExitTimerRef.current = window.setTimeout(() => {
       setHasStarted(true)
@@ -781,6 +791,7 @@ function App() {
   }
 
   const handleOpenLogin = () => {
+    window.sessionStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
     setMobileMenuOpen(false)
     window.location.assign('/login')
   }
@@ -871,7 +882,9 @@ function App() {
                 onClick={handleAuthAction}
                 className="ml-1 inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3.5 text-sm font-black text-[#5A45E8] shadow-sm transition hover:border-[#BFB3FF] hover:bg-violet-50 active:scale-[0.98]"
               >
-                {currentMember ? `${currentMember.nickname}님 · 로그아웃` : '로그인'}
+                {currentMember
+                  ? `${currentMember.nickname ? `${currentMember.nickname}님 · ` : ''}로그아웃`
+                  : '로그인'}
               </button>
             </nav>
 

@@ -1,0 +1,2 @@
+ALTER TABLE members
+    MODIFY COLUMN nickname VARCHAR(20) NULL;

@@ -33,14 +33,16 @@ public class JwtService {
     public IssuedToken issue(Member member) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plus(accessTokenDuration);
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
             .issuer(issuer)
             .subject(member.getId().toString())
             .issuedAt(issuedAt)
             .expiresAt(expiresAt)
-            .claim("email", member.getEmail())
-            .claim("nickname", member.getNickname())
-            .build();
+            .claim("email", member.getEmail());
+        if (member.getNickname() != null && !member.getNickname().isBlank()) {
+            claimsBuilder.claim("nickname", member.getNickname());
+        }
+        JwtClaimsSet claims = claimsBuilder.build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).type("JWT").build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
         return new IssuedToken(token, accessTokenDuration.toSeconds());

@@ -42,8 +42,7 @@ public class AuthService {
 
         Member member = new Member(
             email,
-            passwordEncoder.encode(request.password()),
-            request.nickname().trim()
+            passwordEncoder.encode(request.password())
         );
 
         try {
