@@ -38,6 +38,16 @@ class AuthServiceTest {
     }
 
     @Test
+    void checksEmailAvailabilityWithNormalizedEmail() {
+        when(memberRepository.existsByEmail("user@example.com")).thenReturn(true);
+
+        boolean available = authService.isEmailAvailable(" User@Example.COM ");
+
+        assertThat(available).isFalse();
+        verify(memberRepository).existsByEmail("user@example.com");
+    }
+
+    @Test
     void normalizesEmailAndHashesPasswordWhenSigningUp() {
         when(memberRepository.existsByEmail("user@example.com")).thenReturn(false);
         when(passwordEncoder.encode("password1")).thenReturn("bcrypt-hash");

@@ -1,6 +1,8 @@
 package com.mannayeok.backend.auth;
 
 import com.mannayeok.backend.auth.dto.AuthResponse;
+import com.mannayeok.backend.auth.dto.EmailAvailabilityRequest;
+import com.mannayeok.backend.auth.dto.EmailAvailabilityResponse;
 import com.mannayeok.backend.auth.dto.LoginRequest;
 import com.mannayeok.backend.auth.dto.MemberResponse;
 import com.mannayeok.backend.auth.dto.SignupRequest;
@@ -24,6 +26,15 @@ public class AuthController {
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+
+    @PostMapping("/email-availability")
+    Mono<EmailAvailabilityResponse> emailAvailability(
+        @Valid @RequestBody EmailAvailabilityRequest request
+    ) {
+        return Mono.fromCallable(() -> new EmailAvailabilityResponse(
+            authService.isEmailAvailable(request.email())
+        )).subscribeOn(Schedulers.boundedElastic());
     }
 
     @PostMapping("/signup")

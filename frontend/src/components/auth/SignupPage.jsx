@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react'
-import { signup } from '../../services/authApi'
+import { checkEmailAvailability, signup } from '../../services/authApi'
 import AuthCard from './AuthCard'
 import AuthField from './AuthField'
 import AuthLayout from './AuthLayout'
@@ -25,19 +25,52 @@ function SignupPage() {
   const [form, setForm] = useState({ email: '', password: '', passwordConfirm: '' })
   const [requestError, setRequestError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [emailStatus, setEmailStatus] = useState('idle')
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [passwordConfirmVisible, setPasswordConfirmVisible] = useState(false)
 
   const emailValid = EMAIL_PATTERN.test(form.email.trim())
   const passwordValid = PASSWORD_PATTERN.test(form.password)
   const passwordConfirmValid = Boolean(form.passwordConfirm) && form.password === form.passwordConfirm
-  const formValid = emailValid && passwordValid && passwordConfirmValid
+  const formValid = emailStatus === 'available' && passwordValid && passwordConfirmValid
+
+  useEffect(() => {
+    if (!emailValid) return undefined
+
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await checkEmailAvailability(form.email.trim())
+        if (!cancelled) setEmailStatus(result.available ? 'available' : 'unavailable')
+      } catch {
+        if (!cancelled) setEmailStatus('error')
+      }
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [emailValid, form.email])
 
   const feedback = useMemo(() => ({
     email: form.email
       ? {
-          message: emailValid ? '사용할 수 있는 이메일이에요.' : '올바른 이메일 주소를 입력해 주세요.',
-          tone: emailValid ? 'success' : 'error',
+          message: !emailValid
+            ? '올바른 이메일 주소를 입력해 주세요.'
+            : {
+                checking: '이메일 중복을 확인하고 있어요.',
+                available: '사용할 수 있는 이메일이에요.',
+                unavailable: '이미 가입된 이메일이에요.',
+                error: '이메일 중복 확인에 실패했어요. 잠시 후 다시 시도해 주세요.',
+              }[emailStatus],
+          tone: !emailValid
+            ? 'error'
+            : emailStatus === 'available'
+              ? 'success'
+              : ['unavailable', 'error'].includes(emailStatus)
+                ? 'error'
+                : 'neutral',
         }
       : null,
     password: {
@@ -50,11 +83,22 @@ function SignupPage() {
           tone: passwordConfirmValid ? 'success' : 'error',
         }
       : null,
-  }), [emailValid, form.email, form.password, form.passwordConfirm, passwordConfirmValid, passwordValid])
+  }), [
+    emailStatus,
+    emailValid,
+    form.email,
+    form.password,
+    form.passwordConfirm,
+    passwordConfirmValid,
+    passwordValid,
+  ])
 
   const handleChange = (event) => {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
+    if (name === 'email') {
+      setEmailStatus(EMAIL_PATTERN.test(value.trim()) ? 'checking' : 'idle')
+    }
     setRequestError('')
   }
 
@@ -67,7 +111,11 @@ function SignupPage() {
       await signup({ email: form.email.trim(), password: form.password })
       window.location.replace('/login?signup=complete')
     } catch (error) {
-      setRequestError(error.message)
+      if (error.message === '이미 가입된 이메일이에요.') {
+        setEmailStatus('unavailable')
+      } else {
+        setRequestError(error.message)
+      }
     } finally {
       setSubmitting(false)
     }

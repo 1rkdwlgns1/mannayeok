@@ -37,3 +37,10 @@ export function signup(payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export function checkEmailAvailability(email) {
+  return request('/api/auth/email-availability', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}

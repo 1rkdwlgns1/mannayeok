@@ -33,6 +33,11 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    @Transactional(readOnly = true)
+    public boolean isEmailAvailable(String rawEmail) {
+        return !memberRepository.existsByEmail(normalizeEmail(rawEmail));
+    }
+
     @Transactional
     public MemberResponse signup(SignupRequest request) {
         String email = normalizeEmail(request.email());
