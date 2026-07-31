@@ -36,7 +36,7 @@ function LoginPage() {
   }
 
   return (
-    <AuthLayout wide>
+    <AuthLayout wide compactFooter>
       <AuthCard
         wide
         centered

@@ -6,6 +6,7 @@ function AuthLayout({
   backTo = '/',
   backLabel = '메인 화면으로 돌아가기',
   wide = false,
+  compactFooter = false,
 }) {
   const contentWidth = wide ? 'max-w-[520px]' : 'max-w-[390px]'
   const handleBack = () => {
@@ -51,9 +52,13 @@ function AuthLayout({
 
         <footer className={`mx-auto flex w-full shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1.5 border-t border-slate-200/80 pb-2 pt-3 text-[10px] font-bold text-slate-500 md:pt-4 md:text-[11px] ${contentWidth}`}>
           <a href="/" className="whitespace-nowrap transition hover:text-[#6548E8]">© 2026 만나역</a>
-          <a href="/#terms" className="whitespace-nowrap transition hover:text-[#6548E8]">서비스 이용안내</a>
+          {!compactFooter && (
+            <a href="/#terms" className="whitespace-nowrap transition hover:text-[#6548E8]">서비스 이용안내</a>
+          )}
           <a href="/#privacy" className="whitespace-nowrap transition hover:text-[#6548E8]">개인정보처리방침</a>
-          <a href="/#sources" className="whitespace-nowrap transition hover:text-[#6548E8]">데이터 출처</a>
+          {!compactFooter && (
+            <a href="/#sources" className="whitespace-nowrap transition hover:text-[#6548E8]">데이터 출처</a>
+          )}
           <a href="/#inquiry" className="whitespace-nowrap transition hover:text-[#6548E8]">문의하기</a>
         </footer>
       </div>
