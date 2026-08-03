@@ -895,6 +895,11 @@ function App() {
             </nav>
 
             <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
+              <HeaderIconButton
+                icon={Megaphone}
+                label="공지사항"
+                onClick={handleNotice}
+              />
               <button
                 type="button"
                 onClick={handleOpenLogin}
@@ -909,7 +914,6 @@ function App() {
               />
               {mobileMenuOpen ? (
                 <div className="absolute right-0 top-11 z-[120] w-40 overflow-hidden rounded-xl border border-slate-100 bg-white p-1.5 shadow-xl">
-                  <MobileMenuAction icon={Megaphone} label="공지사항" onClick={handleNotice} />
                   <MobileMenuAction icon={Mail} label="문의하기" onClick={handleInquiry} />
                   <MobileMenuAction
                     icon={CircleHelp}
