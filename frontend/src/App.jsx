@@ -9,6 +9,7 @@ import {
   Mail,
   MapPin,
   Menu,
+  Megaphone,
   MessageCircle,
   Send,
   Share2,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
-import LoginPage from './components/LoginPage'
+import { clearAuth, getStoredMember } from './services/authStorage'
 import {
   createKakaoDirectionUrl,
   createNaverSearchUrl,
@@ -41,6 +42,7 @@ import { calculateDistanceInMeters, calculateMidpoint } from './services/midpoin
 import { fetchTransitRouteWithRetry } from './services/transitApi'
 
 const PUBLIC_APP_URL = 'https://mannayeok.kr/'
+const ONBOARDING_COMPLETED_KEY = 'mannayeok_onboarding_completed'
 
 const PLACE_CATEGORY_LABELS = {
   cafe: '카페',
@@ -102,6 +104,7 @@ const createEmptyOrigin = () => ({
 
 function App() {
   const [sharedResult] = useState(readSharedResult)
+  const [initialDialogHash] = useState(() => window.location.hash)
   const [originInputs, setOriginInputs] = useState(
     () =>
       sharedResult?.origins?.length
@@ -144,15 +147,23 @@ function App() {
   const [mapCollapsed, setMapCollapsed] = useState(true)
   const [alternativeStationIndex, setAlternativeStationIndex] = useState(0)
   const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
-  const [hasStarted, setHasStarted] = useState(() => Boolean(sharedResult))
+  const [hasStarted, setHasStarted] = useState(
+    () => Boolean(
+      sharedResult
+      || getStoredMember()
+      || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
+      || ['#terms', '#privacy', '#sources', '#inquiry', '#notice'].includes(window.location.hash)
+    ),
+  )
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [loginPageOpen, setLoginPageOpen] = useState(false)
+  const [currentMember, setCurrentMember] = useState(getStoredMember)
   const [guideOpen, setGuideOpen] = useState(false)
-  const [inquiryOpen, setInquiryOpen] = useState(false)
-  const [privacyOpen, setPrivacyOpen] = useState(false)
-  const [serviceInfoOpen, setServiceInfoOpen] = useState(false)
-  const [dataSourcesOpen, setDataSourcesOpen] = useState(false)
+  const [noticeOpen, setNoticeOpen] = useState(() => initialDialogHash === '#notice')
+  const [inquiryOpen, setInquiryOpen] = useState(() => initialDialogHash === '#inquiry')
+  const [privacyOpen, setPrivacyOpen] = useState(() => initialDialogHash === '#privacy')
+  const [serviceInfoOpen, setServiceInfoOpen] = useState(() => initialDialogHash === '#terms')
+  const [dataSourcesOpen, setDataSourcesOpen] = useState(() => initialDialogHash === '#sources')
   const [resultShareOpen, setResultShareOpen] = useState(false)
   const [kakaoShareStatus, setKakaoShareStatus] = useState('idle')
   const [kakaoShareAttempt, setKakaoShareAttempt] = useState(0)
@@ -160,9 +171,9 @@ function App() {
   const [shareNotice, setShareNotice] = useState('')
   const [originInputResetKey, setOriginInputResetKey] = useState(0)
   const onboardingExitTimerRef = useRef(null)
-  const loginReturnScrollRef = useRef(0)
   const dialogOpen =
     guideOpen ||
+    noticeOpen ||
     inquiryOpen ||
     privacyOpen ||
     serviceInfoOpen ||
@@ -409,6 +420,7 @@ function App() {
   useEffect(() => {
     if (
       !guideOpen &&
+      !noticeOpen &&
       !inquiryOpen &&
       !privacyOpen &&
       !serviceInfoOpen &&
@@ -428,6 +440,8 @@ function App() {
           setPrivacyOpen(false)
         } else if (inquiryOpen) {
           setInquiryOpen(false)
+        } else if (noticeOpen) {
+          setNoticeOpen(false)
         } else if (resultShareOpen) {
           setResultShareOpen(false)
         } else {
@@ -442,6 +456,7 @@ function App() {
     dataSourcesOpen,
     guideOpen,
     inquiryOpen,
+    noticeOpen,
     privacyOpen,
     resultShareOpen,
     serviceInfoOpen,
@@ -689,6 +704,7 @@ function App() {
   const handleStartApp = () => {
     if (isOnboardingLeaving) return
 
+    window.sessionStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
     setIsOnboardingLeaving(true)
     onboardingExitTimerRef.current = window.setTimeout(() => {
       setHasStarted(true)
@@ -782,17 +798,24 @@ function App() {
   }
 
   const handleOpenLogin = () => {
-    loginReturnScrollRef.current = window.scrollY
-    setLoginPageOpen(true)
+    window.sessionStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
     setMobileMenuOpen(false)
-    window.scrollTo({ top: 0, behavior: 'auto' })
+    window.location.assign('/login')
   }
 
-  const handleCloseLogin = () => {
-    setLoginPageOpen(false)
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: loginReturnScrollRef.current, behavior: 'auto' })
-    })
+  const handleNotice = () => {
+    setNoticeOpen(true)
+    setMobileMenuOpen(false)
+  }
+
+  const handleAuthAction = () => {
+    if (currentMember) {
+      clearAuth()
+      setCurrentMember(null)
+      setMobileMenuOpen(false)
+      return
+    }
+    handleOpenLogin()
   }
 
   const handleInquirySubmit = async ({ type, message, replyEmail, website }) => {
@@ -835,10 +858,6 @@ function App() {
     setLastInquirySubmittedAt(Date.now())
   }
 
-  if (loginPageOpen) {
-    return <LoginPage onBack={handleCloseLogin} />
-  }
-
   if (!hasStarted) {
     return <OnboardingScreen onStart={handleStartApp} isLeaving={isOnboardingLeaving} />
   }
@@ -853,7 +872,10 @@ function App() {
         backgroundSize: 'cover',
       }}
     >
-      <div data-reveal-root className="mx-auto w-full max-w-4xl space-y-4 pb-8 md:space-y-5">
+      <div
+        data-reveal-root
+        className="mx-auto flex min-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col space-y-4 pb-2 md:min-h-[calc(100dvh-2.5rem)] md:space-y-5"
+      >
         <div className="mx-auto w-full max-w-4xl space-y-2 md:space-y-3">
           <div className="relative flex min-h-16 items-start justify-between px-0 py-0 md:min-h-20">
             <div className="relative flex min-w-0 items-start">
@@ -868,24 +890,32 @@ function App() {
             </div>
 
             <nav className="mt-5 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
+              <HeaderAction icon={Megaphone} label="공지사항" onClick={handleNotice} />
               <HeaderAction icon={Mail} label="문의하기" onClick={handleInquiry} />
               <HeaderAction icon={CircleHelp} label="이용안내" onClick={() => setGuideOpen(true)} />
               <button
                 type="button"
-                onClick={handleOpenLogin}
+                onClick={handleAuthAction}
                 className="ml-1 inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3.5 text-sm font-black text-[#5A45E8] shadow-sm transition hover:border-[#BFB3FF] hover:bg-violet-50 active:scale-[0.98]"
               >
-                로그인
+                {currentMember
+                  ? `${currentMember.nickname ? `${currentMember.nickname}님 · ` : ''}로그아웃`
+                  : '로그인'}
               </button>
             </nav>
 
             <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
+              <HeaderIconButton
+                icon={Megaphone}
+                label="공지사항"
+                onClick={handleNotice}
+              />
               <button
                 type="button"
-                onClick={handleOpenLogin}
+                onClick={handleAuthAction}
                 className="inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3 text-xs font-black text-[#5A45E8] shadow-sm transition active:scale-[0.98]"
               >
-                로그인
+                {currentMember ? '로그아웃' : '로그인'}
               </button>
               <HeaderIconButton
                 icon={mobileMenuOpen ? X : Menu}
@@ -1251,34 +1281,34 @@ function App() {
           </section>
         )}
 
-        <footer className="mt-1 border-t border-slate-200/80 px-2 pb-1 pt-3 text-center text-[10px] font-bold text-slate-400 md:mt-2 md:pb-2 md:pt-4 md:text-[11px]">
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <span>© 2026 만나역</span>
+        <footer className="!mt-auto border-t border-slate-200/80 px-2 pb-1 pt-4 text-center text-[10px] font-bold text-slate-400 md:pb-2 md:pt-5 md:text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 md:gap-x-4">
+            <span className="whitespace-nowrap">© 2026 만나역</span>
             <button
               type="button"
               onClick={() => setServiceInfoOpen(true)}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               서비스 이용안내
             </button>
             <button
               type="button"
               onClick={() => setPrivacyOpen(true)}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               개인정보처리방침
             </button>
             <button
               type="button"
               onClick={() => setDataSourcesOpen(true)}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               데이터 출처
             </button>
             <button
               type="button"
               onClick={handleInquiry}
-              className="transition hover:text-[#5A45E8]"
+              className="whitespace-nowrap transition hover:text-[#5A45E8]"
             >
               문의하기
             </button>
@@ -1292,6 +1322,9 @@ function App() {
 
       {guideOpen
         ? createPortal(<UsageGuideDialog onClose={() => setGuideOpen(false)} />, document.body)
+        : null}
+      {noticeOpen
+        ? createPortal(<NoticeDialog onClose={() => setNoticeOpen(false)} />, document.body)
         : null}
       {inquiryOpen ? (
         createPortal(
@@ -2025,6 +2058,80 @@ function MobileMenuAction({ icon: ActionIcon, label, onClick }) {
       <ActionIcon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
       {label}
     </button>
+  )
+}
+
+function NoticeDialog({ onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <section
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-5 shadow-2xl sm:p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notice-title"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black text-[#5A45E8]">공지사항</p>
+            <h2 id="notice-title" className="mt-1 text-xl font-black tracking-tight text-slate-950">
+              지하철 경로 조회 오류 조치 안내
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="공지사항 닫기"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 border-b border-slate-100 pb-4">
+          <time dateTime="2026-08-03" className="text-xs font-bold text-slate-400">
+            2026.08.03
+          </time>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-600">
+            조치 완료
+          </span>
+        </div>
+
+        <div className="space-y-4 break-keep py-5 text-sm font-medium leading-6 text-slate-600">
+          <p>
+            일부 구간에서 지하철 이동시간을 불러오지 못해 결과 화면에
+            {' '}<strong className="font-black text-slate-800">확인 불가</strong>가 표시되는 오류가 있었습니다.
+          </p>
+          <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4">
+            <p className="font-black text-slate-900">오류 원인과 조치</p>
+            <p className="mt-1.5 text-xs leading-5 text-slate-600">
+              공공데이터 지하철 API의 역 이름 조회 과정에서 형식 오류 응답이 발생해,
+              공식 역 코드를 사용하는 방식으로 조회 구조를 변경했습니다.
+            </p>
+          </div>
+          <p>
+            이번 조치는 외부 공공데이터 연결 방식에만 적용했습니다. 만나역의 기존 추천 알고리즘,
+            후보 생성 로직과 점수 계산식은 변경하지 않았습니다.
+          </p>
+          <p className="text-xs leading-5 text-slate-500">
+            같은 현상이 다시 발생하면 잠시 후 재시도해 주세요. 문제가 계속되면 문의하기로 알려주시면 확인하겠습니다.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-11 w-full rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4] active:scale-[0.99]"
+        >
+          확인했어요
+        </button>
+      </section>
+    </div>
   )
 }
 
