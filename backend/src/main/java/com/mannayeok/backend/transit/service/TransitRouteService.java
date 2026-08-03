@@ -4,11 +4,17 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.mannayeok.backend.transit.config.SubwayApiProperties;
 import com.mannayeok.backend.transit.dto.PublicSubwayResponse;
 import com.mannayeok.backend.transit.dto.TransitRouteResponse;
 import com.mannayeok.backend.transit.error.SubwayApiException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,15 +34,18 @@ public class TransitRouteService {
     private final WebClient subwayWebClient;
     private final SubwayApiProperties properties;
     private final TransitRouteMapper mapper;
+    private final StationCodeResolver stationCodeResolver;
 
     public TransitRouteService(
         @Qualifier("subwayWebClient") WebClient subwayWebClient,
         SubwayApiProperties properties,
-        TransitRouteMapper mapper
+        TransitRouteMapper mapper,
+        StationCodeResolver stationCodeResolver
     ) {
         this.subwayWebClient = subwayWebClient;
         this.properties = properties;
         this.mapper = mapper;
+        this.stationCodeResolver = stationCodeResolver;
     }
 
     public Mono<TransitRouteResponse> findRoute(
@@ -54,36 +63,76 @@ public class TransitRouteService {
         LocalDateTime searchDateTime = departureAt == null
             ? LocalDateTime.now(SEOUL_ZONE)
             : departureAt;
+        List<String> departureCodes = resolveStationCodes(departure);
+        List<String> arrivalCodes = resolveStationCodes(arrival);
 
         if (isOvernight(searchDateTime)) {
-            return requestRoute(
-                departure,
-                arrival,
+            return findBestRoute(
+                departureCodes,
+                arrivalCodes,
                 searchType,
-                fallbackSearchDateTime(searchDateTime)
-            ).flatMap(response -> validateAndMap(response, true));
+                fallbackSearchDateTime(searchDateTime),
+                true
+            ).switchIfEmpty(noRouteError());
         }
 
-        return requestRoute(departure, arrival, searchType, searchDateTime)
-            .flatMap(response -> {
-                if (hasRoute(response)) {
-                    return Mono.just(toResponse(response, false));
-                }
-
-                return requestRoute(
-                    departure,
-                    arrival,
+        return findBestRoute(
+            departureCodes,
+            arrivalCodes,
+            searchType,
+            searchDateTime,
+            false
+        ).switchIfEmpty(
+            findBestRoute(
+                    departureCodes,
+                    arrivalCodes,
                     searchType,
-                    fallbackSearchDateTime(searchDateTime)
-                ).flatMap(responseAtFallbackTime ->
-                    validateAndMap(responseAtFallbackTime, true)
-                );
-            });
+                    fallbackSearchDateTime(searchDateTime),
+                    true
+                )
+                .switchIfEmpty(noRouteError())
+        );
+    }
+
+    private Mono<TransitRouteResponse> findBestRoute(
+        List<String> departureCodes,
+        List<String> arrivalCodes,
+        String searchType,
+        LocalDateTime searchDateTime,
+        boolean fallbackSchedule
+    ) {
+        AtomicBoolean receivedValidResponse = new AtomicBoolean(false);
+        AtomicReference<SubwayApiException> firstApiError = new AtomicReference<>();
+
+        return Flux.fromIterable(routeQueries(departureCodes, arrivalCodes))
+            .flatMap(query -> requestRoute(
+                    query.departureCode(),
+                    query.arrivalCode(),
+                    searchType,
+                    searchDateTime
+                )
+                .doOnNext(ignored -> receivedValidResponse.set(true))
+                .filter(this::hasRoute)
+                .map(response -> toResponse(response, fallbackSchedule))
+                .onErrorResume(SubwayApiException.class, exception -> {
+                    firstApiError.compareAndSet(null, exception);
+                    return Mono.empty();
+                }),
+                4
+            )
+            .reduce((left, right) -> betterRoute(left, right, searchType))
+            .switchIfEmpty(Mono.defer(() -> {
+                SubwayApiException apiError = firstApiError.get();
+                if (!receivedValidResponse.get() && apiError != null) {
+                    return Mono.error(apiError);
+                }
+                return Mono.empty();
+            }));
     }
 
     private Mono<PublicSubwayResponse> requestRoute(
-        String departure,
-        String arrival,
+        String departureCode,
+        String arrivalCode,
         String searchType,
         LocalDateTime searchDateTime
     ) {
@@ -92,12 +141,12 @@ public class TransitRouteService {
                 .path("/getShtrmPath2")
                 .queryParam("serviceKey", properties.serviceKey())
                 .queryParam("dataType", "JSON")
-                .queryParam("dptreStn", normalizeStationName(departure))
-                .queryParam("arvlStn", normalizeStationName(arrival))
+                .queryParam("dptreStn", departureCode)
+                .queryParam("arvlStn", arrivalCode)
                 .queryParam("searchDt", API_DATE_TIME.format(searchDateTime))
                 .queryParam("searchType", searchType)
                 .queryParam("schInclYn", "Y")
-                .queryParam("stationValueType", "name")
+                .queryParam("stationValueType", "code")
                 .build())
             .retrieve()
             .onStatus(
@@ -111,22 +160,11 @@ public class TransitRouteService {
             )
             .bodyToMono(PublicSubwayResponse.class)
             .timeout(properties.timeout())
+            .onErrorMap(
+                TimeoutException.class,
+                ignored -> new SubwayApiException("공공 지하철 API 응답 시간이 초과되었습니다.")
+            )
             .flatMap(this::validateResponse);
-    }
-
-    private Mono<TransitRouteResponse> validateAndMap(
-        PublicSubwayResponse response,
-        boolean fallbackSchedule
-    ) {
-        return validateResponse(response)
-            .flatMap(validResponse -> {
-                if (!hasRoute(validResponse)) {
-                    return Mono.error(new SubwayApiException(
-                        "조회 가능한 지하철 운행 경로가 없습니다."
-                    ));
-                }
-                return Mono.just(toResponse(validResponse, fallbackSchedule));
-            });
     }
 
     private TransitRouteResponse toResponse(
@@ -183,13 +221,48 @@ public class TransitRouteService {
         return searchDateTime.toLocalTime().isBefore(FIRST_TRAIN_REFERENCE_TIME);
     }
 
-    static String normalizeStationName(String stationName) {
-        String normalized = stationName.trim();
-        if ("서울".equals(normalized) || "서울역".equals(normalized)) {
-            return "서울역";
+    private List<String> resolveStationCodes(String stationName) {
+        try {
+            return stationCodeResolver.resolve(stationName);
+        } catch (IllegalArgumentException exception) {
+            throw new SubwayApiException(exception.getMessage());
         }
-        return normalized.endsWith("역")
-            ? normalized.substring(0, normalized.length() - 1)
-            : normalized;
+    }
+
+    private List<RouteQuery> routeQueries(
+        List<String> departureCodes,
+        List<String> arrivalCodes
+    ) {
+        return departureCodes.stream()
+            .flatMap(departureCode -> arrivalCodes.stream()
+                .filter(arrivalCode -> !departureCode.equals(arrivalCode))
+                .map(arrivalCode -> new RouteQuery(departureCode, arrivalCode)))
+            .toList();
+    }
+
+    private TransitRouteResponse betterRoute(
+        TransitRouteResponse left,
+        TransitRouteResponse right,
+        String searchType
+    ) {
+        Comparator<TransitRouteResponse> comparator = switch (searchType) {
+            case "distance" -> Comparator
+                .comparingInt(TransitRouteResponse::distanceMeters)
+                .thenComparingInt(TransitRouteResponse::durationSeconds);
+            case "transfer" -> Comparator
+                .comparingInt(TransitRouteResponse::transfers)
+                .thenComparingInt(TransitRouteResponse::durationSeconds);
+            default -> Comparator
+                .comparingInt(TransitRouteResponse::durationSeconds)
+                .thenComparingInt(TransitRouteResponse::transfers);
+        };
+        return comparator.compare(left, right) <= 0 ? left : right;
+    }
+
+    private Mono<TransitRouteResponse> noRouteError() {
+        return Mono.error(new SubwayApiException("조회 가능한 지하철 운행 경로가 없습니다."));
+    }
+
+    private record RouteQuery(String departureCode, String arrivalCode) {
     }
 }
