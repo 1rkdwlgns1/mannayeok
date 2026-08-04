@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Mail } from 'lucide-react'
+import { requestPasswordReset } from '../../services/authApi'
 import AuthCard from './AuthCard'
 import AuthField from './AuthField'
 import AuthLayout from './AuthLayout'
@@ -9,18 +10,30 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [notice, setNotice] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const emailValid = EMAIL_PATTERN.test(email.trim())
 
   const handleChange = (event) => {
     setEmail(event.target.value)
     setNotice('')
+    setError('')
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!emailValid) return
+    if (!emailValid || submitting) return
 
-    setNotice('비밀번호 재설정 메일 기능을 준비하고 있어요. 긴급한 계정 문의는 문의하기를 이용해 주세요.')
+    setSubmitting(true)
+    setError('')
+    try {
+      const response = await requestPasswordReset(email.trim())
+      setNotice(response.message)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -47,26 +60,29 @@ function ForgotPasswordPage() {
           />
           <button
             type="submit"
-            disabled={!emailValid}
+            disabled={!emailValid || submitting}
             className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
-              emailValid
+              emailValid && !submitting
                 ? 'bg-[#6548E8] hover:bg-[#5639DC]'
                 : 'cursor-not-allowed bg-[#CFC5FF]'
             }`}
           >
-            재설정 안내 받기
+            {submitting ? '메일 보내는 중...' : '재설정 안내 받기'}
           </button>
         </form>
+
+        {error && (
+          <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-3 text-xs font-bold leading-5 text-red-600" role="alert">
+            {error}
+          </p>
+        )}
 
         {notice && (
           <div className="mt-3 rounded-xl bg-[#F2EFFF] px-3.5 py-3 text-center" role="status">
             <p className="text-xs font-bold leading-5 text-[#6548E8]">{notice}</p>
-            <a
-              href="mailto:1rkdwlgns1@gmail.com"
-              className="mt-1 inline-block text-xs font-black text-[#5639DC] underline underline-offset-2"
-            >
-              계정 문의하기
-            </a>
+            <p className="mt-1 text-[11px] font-semibold leading-5 text-slate-500">
+              메일이 보이지 않으면 스팸함을 확인해 주세요.
+            </p>
           </div>
         )}
 

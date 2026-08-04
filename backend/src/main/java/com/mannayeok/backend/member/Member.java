@@ -75,6 +75,10 @@ public class Member {
         return passwordHash;
     }
 
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public String getNickname() {
         return nickname;
     }

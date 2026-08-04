@@ -8,7 +8,9 @@ import AuthLayout from './AuthLayout'
 import SocialLoginButtons from './SocialLoginButtons'
 
 function LoginPage() {
-  const signupComplete = new URLSearchParams(window.location.search).get('signup') === 'complete'
+  const searchParams = new URLSearchParams(window.location.search)
+  const signupComplete = searchParams.get('signup') === 'complete'
+  const passwordResetComplete = searchParams.get('passwordReset') === 'complete'
   const [form, setForm] = useState({ email: '', password: '', remember: true })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -46,6 +48,11 @@ function LoginPage() {
         {signupComplete && (
           <p className="mt-5 rounded-xl bg-emerald-50 px-3.5 py-3 text-sm font-bold text-emerald-700" role="status">
             회원가입이 완료됐어요. 로그인해 주세요.
+          </p>
+        )}
+        {passwordResetComplete && (
+          <p className="mt-5 rounded-xl bg-emerald-50 px-3.5 py-3 text-sm font-bold text-emerald-700" role="status">
+            비밀번호가 변경됐어요. 새 비밀번호로 로그인해 주세요.
           </p>
         )}
         <form className="mt-4 space-y-3 text-left" onSubmit={handleSubmit} noValidate>

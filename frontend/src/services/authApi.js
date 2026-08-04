@@ -44,3 +44,17 @@ export function checkEmailAvailability(email) {
     body: JSON.stringify({ email }),
   })
 }
+
+export function requestPasswordReset(email) {
+  return request('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export function resetPassword(payload) {
+  return request('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}

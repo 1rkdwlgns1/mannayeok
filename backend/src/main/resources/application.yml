@@ -19,6 +19,18 @@ spring:
           time_zone: Asia/Seoul
   jackson:
     default-property-inclusion: non_null
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
 
 server:
   port: ${SERVER_PORT:8080}
@@ -34,6 +46,12 @@ app:
     jwt-secret: ${JWT_SECRET:local-development-jwt-secret-change-me-1234567890}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}
     issuer: ${JWT_ISSUER:mannayeok}
+    password-reset:
+      enabled: ${MAIL_ENABLED:false}
+      frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+      token-minutes: ${PASSWORD_RESET_TOKEN_MINUTES:30}
+      cooldown-seconds: ${PASSWORD_RESET_COOLDOWN_SECONDS:60}
+      mail-from: ${MAIL_FROM:${MAIL_USERNAME:}}
   cors:
     allowed-origins: ${FRONTEND_ALLOWED_ORIGINS:http://localhost:5173}
   subway:
