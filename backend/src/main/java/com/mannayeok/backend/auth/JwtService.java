@@ -38,7 +38,8 @@ public class JwtService {
             .subject(member.getId().toString())
             .issuedAt(issuedAt)
             .expiresAt(expiresAt)
-            .claim("email", member.getEmail());
+            .claim("email", member.getEmail())
+            .claim("tokenVersion", member.getTokenVersion());
         if (member.getNickname() != null && !member.getNickname().isBlank()) {
             claimsBuilder.claim("nickname", member.getNickname());
         }

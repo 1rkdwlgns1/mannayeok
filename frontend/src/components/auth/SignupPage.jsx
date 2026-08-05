@@ -22,7 +22,15 @@ function PasswordToggle({ visible, onToggle, label }) {
 }
 
 function SignupPage() {
-  const [form, setForm] = useState({ email: '', password: '', passwordConfirm: '' })
+  const [step, setStep] = useState('consent')
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    passwordConfirm: '',
+    termsAccepted: false,
+    privacyAccepted: false,
+    ageConfirmed: false,
+  })
   const [requestError, setRequestError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [emailStatus, setEmailStatus] = useState('idle')
@@ -32,7 +40,13 @@ function SignupPage() {
   const emailValid = EMAIL_PATTERN.test(form.email.trim())
   const passwordValid = PASSWORD_PATTERN.test(form.password)
   const passwordConfirmValid = Boolean(form.passwordConfirm) && form.password === form.passwordConfirm
-  const formValid = emailStatus === 'available' && passwordValid && passwordConfirmValid
+  const formValid = emailStatus === 'available'
+    && passwordValid
+    && passwordConfirmValid
+    && form.termsAccepted
+    && form.privacyAccepted
+    && form.ageConfirmed
+  const consentValid = form.termsAccepted && form.privacyAccepted && form.ageConfirmed
 
   useEffect(() => {
     if (!emailValid) return undefined
@@ -94,8 +108,11 @@ function SignupPage() {
   ])
 
   const handleChange = (event) => {
-    const { name, value } = event.target
-    setForm((current) => ({ ...current, [name]: value }))
+    const { name, value, checked, type } = event.target
+    setForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
     if (name === 'email') {
       setEmailStatus(EMAIL_PATTERN.test(value.trim()) ? 'checking' : 'idle')
     }
@@ -108,7 +125,13 @@ function SignupPage() {
 
     setSubmitting(true)
     try {
-      await signup({ email: form.email.trim(), password: form.password })
+      await signup({
+        email: form.email.trim(),
+        password: form.password,
+        termsAccepted: form.termsAccepted,
+        privacyAccepted: form.privacyAccepted,
+        ageConfirmed: form.ageConfirmed,
+      })
       window.location.replace('/login?signup=complete')
     } catch (error) {
       if (error.message === '이미 가입된 이메일이에요.') {
@@ -121,8 +144,110 @@ function SignupPage() {
     }
   }
 
+  const handleConsentChange = (event) => {
+    const { name, checked } = event.target
+    setForm((current) => ({ ...current, [name]: checked }))
+    setRequestError('')
+  }
+
+  const handleAllConsentChange = (event) => {
+    const checked = event.target.checked
+    setForm((current) => ({
+      ...current,
+      termsAccepted: checked,
+      privacyAccepted: checked,
+      ageConfirmed: checked,
+    }))
+    setRequestError('')
+  }
+
+  if (step === 'consent') {
+    return (
+      <AuthLayout backTo="/login" wide compactFooter>
+        <AuthCard
+          eyebrow="만나역 회원가입"
+          title="가입을 위해 확인해 주세요"
+          description="필수 내용을 확인하면 계정 정보를 입력할 수 있어요."
+          wide
+          centered
+        >
+          <div className="mt-4 text-left">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#DDD6FF] bg-[#F8F6FF] px-4 py-3 text-sm font-black text-slate-800">
+              <input
+                type="checkbox"
+                checked={consentValid}
+                onChange={handleAllConsentChange}
+                className="h-5 w-5 shrink-0 accent-[#6548E8]"
+              />
+              전체 동의하기
+            </label>
+
+            <div className="mt-3 space-y-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5">
+              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  name="termsAccepted"
+                  checked={form.termsAccepted}
+                  onChange={handleConsentChange}
+                  className="h-4 w-4 shrink-0 accent-[#6548E8]"
+                />
+                <span className="min-w-0 flex-1"><span className="text-[#6548E8]">[필수]</span> 서비스 이용약관 동의</span>
+                <a href="/terms" target="_blank" rel="noreferrer" className="shrink-0 text-xs font-extrabold text-slate-500 underline underline-offset-2">보기</a>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  name="privacyAccepted"
+                  checked={form.privacyAccepted}
+                  onChange={handleConsentChange}
+                  className="h-4 w-4 shrink-0 accent-[#6548E8]"
+                />
+                <span className="min-w-0 flex-1"><span className="text-[#6548E8]">[필수]</span> 개인정보 수집·이용 동의</span>
+                <a href="/privacy" target="_blank" rel="noreferrer" className="shrink-0 text-xs font-extrabold text-slate-500 underline underline-offset-2">보기</a>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  name="ageConfirmed"
+                  checked={form.ageConfirmed}
+                  onChange={handleConsentChange}
+                  className="h-4 w-4 shrink-0 accent-[#6548E8]"
+                />
+                <span><span className="text-[#6548E8]">[필수]</span> 만 14세 이상입니다</span>
+              </label>
+            </div>
+
+            <div className="mt-3 space-y-1 rounded-xl bg-slate-50 px-3.5 py-3 text-[11px] font-semibold leading-5 text-slate-500 sm:text-xs">
+              <p><strong className="text-slate-600">수집 항목</strong> 이메일, 암호화된 비밀번호, 약관 동의 기록</p>
+              <p><strong className="text-slate-600">이용 목적</strong> 회원 식별, 로그인, 비밀번호 재설정, 약관 동의 확인</p>
+              <p><strong className="text-slate-600">보유 기간</strong> 회원 탈퇴 시까지</p>
+            </div>
+
+            <button
+              type="button"
+              disabled={!consentValid}
+              onClick={() => setStep('account')}
+              className={`mt-4 h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
+                consentValid
+                  ? 'bg-[#6548E8] hover:bg-[#5639DC]'
+                  : 'cursor-default bg-[#CFC5FF]'
+              }`}
+            >
+              확인
+            </button>
+          </div>
+        </AuthCard>
+      </AuthLayout>
+    )
+  }
+
   return (
-    <AuthLayout backTo="/login" wide compactFooter>
+    <AuthLayout
+      backTo="/login"
+      onBack={() => setStep('consent')}
+      wide
+      compactFooter
+    >
       <AuthCard
         eyebrow="만나역 회원가입"
         title="새 계정을 만들어요"
@@ -130,7 +255,7 @@ function SignupPage() {
         wide
         centered
       >
-        <form className="mt-4 space-y-3 text-left" onSubmit={handleSubmit} noValidate>
+        <form className="mt-3 space-y-2.5 text-left" onSubmit={handleSubmit} noValidate>
           <AuthField
             label="이메일"
             icon={Mail}
@@ -195,19 +320,12 @@ function SignupPage() {
             className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
               formValid && !submitting
                 ? 'bg-[#6548E8] hover:bg-[#5639DC]'
-                : 'cursor-not-allowed bg-[#CFC5FF]'
+                : 'cursor-default bg-[#CFC5FF]'
             }`}
           >
             {submitting ? '가입 처리 중...' : '회원가입'}
           </button>
         </form>
-        <p className="mt-3 text-center text-[11px] font-semibold leading-5 text-slate-600 md:text-xs">
-          가입을 계속하면 만나역{' '}
-          <a href="/#terms" className="font-extrabold text-[#6548E8] hover:underline">이용약관</a>
-          {' '}및{' '}
-          <a href="/#privacy" className="font-extrabold text-[#6548E8] hover:underline">개인정보처리방침</a>
-          에 동의하게 됩니다.
-        </p>
         <p className="mt-2.5 text-center text-sm font-medium text-slate-600">
           이미 회원이신가요? <a href="/login" className="font-black text-[#6548E8] hover:underline">로그인</a>
         </p>

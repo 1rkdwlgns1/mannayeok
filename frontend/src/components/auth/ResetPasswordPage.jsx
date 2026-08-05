@@ -134,7 +134,7 @@ function ResetPasswordPage() {
               className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
                 formValid && !submitting
                   ? 'bg-[#6548E8] hover:bg-[#5639DC]'
-                  : 'cursor-not-allowed bg-[#CFC5FF]'
+                  : 'cursor-default bg-[#CFC5FF]'
               }`}
             >
               {submitting ? '변경 처리 중...' : '비밀번호 변경'}

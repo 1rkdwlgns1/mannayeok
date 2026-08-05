@@ -3,6 +3,7 @@ import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate'
 import AddressInput from './components/AddressInput'
 import {
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
@@ -11,13 +12,15 @@ import {
   Menu,
   Megaphone,
   MessageCircle,
+  LogOut,
   Send,
   Share2,
+  UserRound,
   X,
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import KakaoMap from './components/KakaoMap'
-import { clearAuth, getStoredMember } from './services/authStorage'
+import { clearAuth, getStoredMember, watchAuthChanges } from './services/authStorage'
 import {
   createKakaoDirectionUrl,
   createNaverSearchUrl,
@@ -157,9 +160,12 @@ function App() {
   )
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [currentMember, setCurrentMember] = useState(getStoredMember)
   const [guideOpen, setGuideOpen] = useState(false)
   const [noticeOpen, setNoticeOpen] = useState(() => initialDialogHash === '#notice')
+
+  useEffect(() => watchAuthChanges(() => setCurrentMember(getStoredMember())), [])
   const [inquiryOpen, setInquiryOpen] = useState(() => initialDialogHash === '#inquiry')
   const [privacyOpen, setPrivacyOpen] = useState(() => initialDialogHash === '#privacy')
   const [serviceInfoOpen, setServiceInfoOpen] = useState(() => initialDialogHash === '#terms')
@@ -818,6 +824,20 @@ function App() {
     handleOpenLogin()
   }
 
+  const handleOpenAccount = () => {
+    window.sessionStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
+    setAccountMenuOpen(false)
+    setMobileMenuOpen(false)
+    window.location.assign('/account')
+  }
+
+  const handleLogout = () => {
+    clearAuth()
+    setCurrentMember(null)
+    setAccountMenuOpen(false)
+    setMobileMenuOpen(false)
+  }
+
   const handleInquirySubmit = async ({ type, message, replyEmail, website }) => {
     const lastSubmittedAt = getLastInquirySubmittedAt()
     const elapsedTime = Date.now() - lastSubmittedAt
@@ -893,15 +913,35 @@ function App() {
               <HeaderAction icon={Megaphone} label="공지사항" onClick={handleNotice} />
               <HeaderAction icon={Mail} label="문의하기" onClick={handleInquiry} />
               <HeaderAction icon={CircleHelp} label="이용안내" onClick={() => setGuideOpen(true)} />
-              <button
-                type="button"
-                onClick={handleAuthAction}
-                className="ml-1 inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3.5 text-sm font-black text-[#5A45E8] shadow-sm transition hover:border-[#BFB3FF] hover:bg-violet-50 active:scale-[0.98]"
-              >
-                {currentMember
-                  ? `${currentMember.nickname ? `${currentMember.nickname}님 · ` : ''}로그아웃`
-                  : '로그인'}
-              </button>
+              {currentMember ? (
+                <div className="relative ml-1">
+                  <button
+                    type="button"
+                    onClick={() => setAccountMenuOpen((open) => !open)}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#DCD5FF] bg-white px-3.5 text-sm font-black text-[#5A45E8] shadow-sm transition hover:border-[#BFB3FF] hover:bg-violet-50 active:scale-[0.98]"
+                    aria-expanded={accountMenuOpen}
+                    aria-haspopup="menu"
+                  >
+                    <UserRound className="h-4 w-4" strokeWidth={2.3} aria-hidden="true" />
+                    내 계정
+                    <ChevronDown className={`h-3.5 w-3.5 transition ${accountMenuOpen ? 'rotate-180' : ''}`} strokeWidth={2.4} aria-hidden="true" />
+                  </button>
+                  {accountMenuOpen ? (
+                    <div className="absolute right-0 top-12 z-[120] w-44 overflow-hidden rounded-xl border border-slate-100 bg-white p-1.5 shadow-xl" role="menu">
+                      <MobileMenuAction icon={UserRound} label="계정 관리" onClick={handleOpenAccount} />
+                      <MobileMenuAction icon={LogOut} label="로그아웃" onClick={handleLogout} danger />
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAuthAction}
+                  className="ml-1 inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3.5 text-sm font-black text-[#5A45E8] shadow-sm transition hover:border-[#BFB3FF] hover:bg-violet-50 active:scale-[0.98]"
+                >
+                  로그인
+                </button>
+              )}
             </nav>
 
             <div className="relative mt-2.5 flex shrink-0 items-center gap-1 md:hidden">
@@ -912,10 +952,10 @@ function App() {
               />
               <button
                 type="button"
-                onClick={handleAuthAction}
+                onClick={currentMember ? handleOpenAccount : handleAuthAction}
                 className="inline-flex h-10 items-center rounded-xl border border-[#DCD5FF] bg-white px-3 text-xs font-black text-[#5A45E8] shadow-sm transition active:scale-[0.98]"
               >
-                {currentMember ? '로그아웃' : '로그인'}
+                {currentMember ? '내 계정' : '로그인'}
               </button>
               <HeaderIconButton
                 icon={mobileMenuOpen ? X : Menu}
@@ -933,6 +973,9 @@ function App() {
                       setMobileMenuOpen(false)
                     }}
                   />
+                  {currentMember ? (
+                    <MobileMenuAction icon={LogOut} label="로그아웃" onClick={handleLogout} danger />
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -986,7 +1029,7 @@ function App() {
               type="button"
               onClick={handleCalculate}
               disabled={loading}
-              className="mt-3 w-full rounded-2xl bg-[#5A45E8] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-violet-200 sm:mt-3.5 sm:py-4 sm:text-base"
+              className="mt-3 w-full rounded-2xl bg-[#5A45E8] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-default disabled:bg-violet-200 sm:mt-3.5 sm:py-4 sm:text-base"
             >
               {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
             </button>
@@ -1137,7 +1180,7 @@ function App() {
                         )
                       }
                       disabled={visibleAlternativeIndex === 0}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm active:bg-violet-50 active:text-[#5A45E8] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm active:bg-violet-50 active:text-[#5A45E8] disabled:cursor-default disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
                       aria-label="이전 추천 후보"
                     >
                       <ChevronLeft className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
@@ -1150,7 +1193,7 @@ function App() {
                         )
                       }
                       disabled={visibleAlternativeIndex === alternativeStations.length - 1}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm active:bg-violet-50 active:text-[#5A45E8] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm active:bg-violet-50 active:text-[#5A45E8] disabled:cursor-default disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
                       aria-label="다음 추천 후보"
                     >
                       <ChevronRight className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
@@ -1225,7 +1268,7 @@ function App() {
                       type="button"
                       onClick={() => handlePlaceRecommendation(category)}
                       disabled={placeLoading}
-                      className={`relative inline-flex shrink-0 items-center justify-center gap-1.5 py-3 text-[15px] font-black leading-none transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60 ${
+                      className={`relative inline-flex shrink-0 items-center justify-center gap-1.5 py-3 text-[15px] font-black leading-none transition-colors duration-200 ease-out disabled:cursor-default disabled:opacity-60 ${
                         selectedPlaceCategory === category
                           ? 'text-[#5A45E8] after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-[#5A45E8] after:transition-all after:duration-200'
                           : 'text-slate-500 hover:text-slate-700'
@@ -1316,7 +1359,7 @@ function App() {
           <p className="mt-2 font-medium text-slate-400">
             국토교통부·서울교통공사 공공데이터와 카카오맵 API를 활용합니다.
           </p>
-          <p className="mt-2 font-medium text-slate-400">운영 문의: 1rkdwlgns1@gmail.com</p>
+          <p className="mt-2 font-medium text-slate-400">운영 문의: mannayeok.help@gmail.com</p>
         </footer>
       </div>
 
@@ -2048,12 +2091,12 @@ function HeaderIconButton({ icon: ActionIcon, label, onClick }) {
   )
 }
 
-function MobileMenuAction({ icon: ActionIcon, label, onClick }) {
+function MobileMenuAction({ icon: ActionIcon, label, onClick, danger = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-bold text-slate-700 transition hover:bg-violet-50 hover:text-[#5A45E8]"
+      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-bold transition ${danger ? 'text-red-600 hover:bg-red-50 hover:text-red-700' : 'text-slate-700 hover:bg-violet-50 hover:text-[#5A45E8]'}`}
     >
       <ActionIcon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
       {label}
@@ -2428,7 +2471,7 @@ function InquiryDialog({ hasResult, onClose, onOpenPrivacy, onSubmit }) {
             <button
               type="submit"
               disabled={status.phase === 'sending' || !privacyConsent}
-              className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4] disabled:cursor-not-allowed disabled:bg-slate-300 md:sticky md:bottom-0 md:mt-4 md:h-11 md:shadow-[0_-8px_18px_rgba(255,255,255,0.96)]"
+              className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4] disabled:cursor-default disabled:bg-slate-300 md:sticky md:bottom-0 md:mt-4 md:h-11 md:shadow-[0_-8px_18px_rgba(255,255,255,0.96)]"
             >
               <Send className="h-4 w-4" aria-hidden="true" />
               {status.phase === 'sending' ? '보내는 중...' : '문의 보내기'}
@@ -2510,8 +2553,8 @@ function ServiceInfoContent() {
         <p>서비스 품질 개선을 위해 추천 기준과 제공 기능은 변경될 수 있습니다.</p>
         <p>
           오류 제보와 이용 문의는 서비스 내 문의하기 또는{' '}
-          <a href="mailto:1rkdwlgns1@gmail.com" className="font-bold text-[#5A45E8] underline underline-offset-2">
-            1rkdwlgns1@gmail.com
+          <a href="mailto:mannayeok.help@gmail.com" className="font-bold text-[#5A45E8] underline underline-offset-2">
+            mannayeok.help@gmail.com
           </a>
           으로 보내주세요.
         </p>
@@ -2673,8 +2716,8 @@ function PrivacyPolicyDialog({ onClose }) {
             <p><strong>담당:</strong> 만나역 운영자</p>
             <p>
               <strong>이메일:</strong>{' '}
-              <a href="mailto:1rkdwlgns1@gmail.com" className="font-bold text-[#5A45E8] underline underline-offset-2">
-                1rkdwlgns1@gmail.com
+              <a href="mailto:mannayeok.help@gmail.com" className="font-bold text-[#5A45E8] underline underline-offset-2">
+                mannayeok.help@gmail.com
               </a>
             </p>
           </PrivacyPolicySection>

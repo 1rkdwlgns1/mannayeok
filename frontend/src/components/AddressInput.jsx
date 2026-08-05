@@ -80,8 +80,6 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
 
   useEffect(() => {
     if (query.length < 2 || origin.selected?.address === query) {
-      setHasSearched(false)
-      setSearchError('')
       return undefined
     }
 

@@ -23,6 +23,7 @@ backend/build/
 backend/out/
 backend/bin/
 backend/.env
+backend/application-local.properties
 
 # Environment variables
 .env

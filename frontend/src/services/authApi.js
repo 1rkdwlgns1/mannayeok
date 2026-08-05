@@ -9,11 +9,11 @@ async function request(path, options) {
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
       },
-      ...options,
     })
   } catch {
     throw new Error('서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.')
@@ -55,6 +55,26 @@ export function requestPasswordReset(email) {
 export function resetPassword(payload) {
   return request('/api/auth/reset-password', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function changePassword(payload, accessToken) {
+  return request('/api/members/me/password', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteMember(payload, accessToken) {
+  return request('/api/members/me', {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: JSON.stringify(payload),
   })
 }

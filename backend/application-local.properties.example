@@ -1,0 +1,17 @@
+# Copy this file to application-local.properties and replace every CHANGE_ME value.
+# application-local.properties is ignored by Git and is only for local development.
+
+spring.datasource.url=jdbc:mysql://localhost:3306/mannayeok?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+spring.datasource.username=mannayeok_local
+spring.datasource.password=CHANGE_ME_DB_PASSWORD
+
+app.auth.jwt-secret=CHANGE_ME_WITH_A_FIXED_SECRET_OF_AT_LEAST_32_BYTES
+app.cors.allowed-origins=http://localhost:5173
+
+app.auth.password-reset.enabled=true
+app.auth.password-reset.frontend-base-url=http://localhost:5173
+app.auth.password-reset.token-minutes=30
+app.auth.password-reset.cooldown-seconds=60
+spring.mail.username=mannayeok.help@gmail.com
+spring.mail.password=CHANGE_ME_GMAIL_APP_PASSWORD_WITHOUT_SPACES
+app.auth.password-reset.mail-from=mannayeok.help@gmail.com

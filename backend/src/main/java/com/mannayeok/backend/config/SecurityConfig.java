@@ -9,10 +9,16 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.OctetSequenceKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.mannayeok.backend.member.Member;
+import com.mannayeok.backend.member.MemberRepository;
+
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -20,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -50,10 +57,33 @@ public class SecurityConfig {
     }
 
     @Bean
-    ReactiveJwtDecoder jwtDecoder(SecretKey jwtSecretKey) {
-        return NimbusReactiveJwtDecoder.withSecretKey(jwtSecretKey)
+    ReactiveJwtDecoder jwtDecoder(
+        SecretKey jwtSecretKey,
+        MemberRepository memberRepository
+    ) {
+        ReactiveJwtDecoder delegate = NimbusReactiveJwtDecoder.withSecretKey(jwtSecretKey)
             .macAlgorithm(MacAlgorithm.HS256)
             .build();
+
+        return token -> delegate.decode(token).flatMap(jwt ->
+            Mono.fromCallable(() -> {
+                Long memberId;
+                try {
+                    memberId = Long.valueOf(jwt.getSubject());
+                } catch (NumberFormatException exception) {
+                    throw new BadJwtException("Invalid member subject.");
+                }
+
+                Member member = memberRepository.findById(memberId)
+                    .orElseThrow(() -> new BadJwtException("Member no longer exists."));
+                Number tokenVersionClaim = jwt.getClaim("tokenVersion");
+                long tokenVersion = tokenVersionClaim == null ? 0 : tokenVersionClaim.longValue();
+                if (member.getTokenVersion() != tokenVersion) {
+                    throw new BadJwtException("Token is no longer valid.");
+                }
+                return jwt;
+            }).subscribeOn(Schedulers.boundedElastic())
+        );
     }
 
     @Bean
@@ -66,6 +96,7 @@ public class SecurityConfig {
             .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
             .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
             .authorizeExchange(exchange -> exchange
+                .pathMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                 .pathMatchers("/api/auth/**", "/api/health", "/actuator/health").permitAll()
                 .pathMatchers("/api/members/**").authenticated()
                 .anyExchange().permitAll()

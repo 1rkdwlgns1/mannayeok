@@ -64,7 +64,7 @@ function ForgotPasswordPage() {
             className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
               emailValid && !submitting
                 ? 'bg-[#6548E8] hover:bg-[#5639DC]'
-                : 'cursor-not-allowed bg-[#CFC5FF]'
+                : 'cursor-default bg-[#CFC5FF]'
             }`}
           >
             {submitting ? '메일 보내는 중...' : '재설정 안내 받기'}

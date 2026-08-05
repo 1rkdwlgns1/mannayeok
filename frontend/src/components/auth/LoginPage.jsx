@@ -11,6 +11,7 @@ function LoginPage() {
   const searchParams = new URLSearchParams(window.location.search)
   const signupComplete = searchParams.get('signup') === 'complete'
   const passwordResetComplete = searchParams.get('passwordReset') === 'complete'
+  const passwordChangedComplete = searchParams.get('passwordChanged') === 'complete'
   const [form, setForm] = useState({ email: '', password: '', remember: true })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -55,6 +56,11 @@ function LoginPage() {
             비밀번호가 변경됐어요. 새 비밀번호로 로그인해 주세요.
           </p>
         )}
+        {passwordChangedComplete && (
+          <p className="mt-5 rounded-xl bg-emerald-50 px-3.5 py-3 text-sm font-bold text-emerald-700" role="status">
+            비밀번호가 변경됐어요. 새 비밀번호로 로그인해 주세요.
+          </p>
+        )}
         <form className="mt-4 space-y-3 text-left" onSubmit={handleSubmit} noValidate>
           <AuthField label="이메일" icon={Mail} type="email" name="email" value={form.email} onChange={handleChange} placeholder="이메일 주소를 입력해 주세요" autoComplete="email" required />
           <AuthField
@@ -78,6 +84,7 @@ function LoginPage() {
               </button>
             )}
           />
+          {error && <p className="text-xs font-bold text-red-600" role="alert">{error}</p>}
           <div className="flex items-center justify-between gap-3">
             <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-600">
               <input type="checkbox" name="remember" checked={form.remember} onChange={handleChange} className="h-4 w-4 accent-[#6548E8]" />
@@ -85,7 +92,6 @@ function LoginPage() {
             </label>
             <a href="/forgot-password" className="text-xs font-extrabold text-[#6548E8] hover:underline">비밀번호 찾기</a>
           </div>
-          {error && <p className="text-xs font-bold text-red-600" role="alert">{error}</p>}
           <button type="submit" disabled={submitting} className="h-11 w-full rounded-xl bg-[#6548E8] text-[15px] font-black text-white shadow-sm transition hover:bg-[#5639DC] disabled:cursor-wait disabled:opacity-60">
             {submitting ? '로그인 중...' : '로그인'}
           </button>
@@ -96,9 +102,9 @@ function LoginPage() {
         <SocialLoginButtons />
         <p className="mt-3 text-center text-[11px] font-semibold leading-5 text-slate-600 md:text-xs">
           계속 진행하면 만나역{' '}
-          <a href="/#terms" className="font-extrabold text-[#6548E8] hover:underline">이용약관</a>
+          <a href="/terms" target="_blank" rel="noreferrer" className="font-extrabold text-[#6548E8] hover:underline">이용약관</a>
           {' '}및{' '}
-          <a href="/#privacy" className="font-extrabold text-[#6548E8] hover:underline">개인정보처리방침</a>
+          <a href="/privacy" target="_blank" rel="noreferrer" className="font-extrabold text-[#6548E8] hover:underline">개인정보처리방침</a>
           에 동의하게 됩니다.
         </p>
       </AuthCard>

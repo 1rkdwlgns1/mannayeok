@@ -53,13 +53,17 @@ class AuthServiceTest {
         when(passwordEncoder.encode("password1")).thenReturn("bcrypt-hash");
         when(memberRepository.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        authService.signup(new SignupRequest(" User@Example.COM ", "password1"));
+        authService.signup(new SignupRequest(" User@Example.COM ", "password1", true, true, true));
 
         ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
         verify(memberRepository).save(memberCaptor.capture());
         assertThat(memberCaptor.getValue().getEmail()).isEqualTo("user@example.com");
         assertThat(memberCaptor.getValue().getPasswordHash()).isEqualTo("bcrypt-hash");
         assertThat(memberCaptor.getValue().getNickname()).isNull();
+        assertThat(memberCaptor.getValue().getTermsVersion()).isEqualTo("2026-08-04");
+        assertThat(memberCaptor.getValue().getTermsAgreedAt()).isNotNull();
+        assertThat(memberCaptor.getValue().getPrivacyAgreedAt()).isNotNull();
+        assertThat(memberCaptor.getValue().getAgeConfirmedAt()).isNotNull();
     }
 
     @Test
@@ -67,7 +71,7 @@ class AuthServiceTest {
         when(memberRepository.existsByEmail("user@example.com")).thenReturn(true);
 
         assertThatThrownBy(() ->
-            authService.signup(new SignupRequest("user@example.com", "password1"))
+            authService.signup(new SignupRequest("user@example.com", "password1", true, true, true))
         )
             .isInstanceOf(AuthException.class)
             .satisfies(exception -> {

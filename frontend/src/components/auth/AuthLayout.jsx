@@ -5,11 +5,17 @@ function AuthLayout({
   children,
   backTo = '/',
   backLabel = '메인 화면으로 돌아가기',
+  onBack,
   wide = false,
   compactFooter = false,
 }) {
   const contentWidth = wide ? 'max-w-[520px]' : 'max-w-[390px]'
   const handleBack = () => {
+    if (onBack) {
+      onBack()
+      return
+    }
+
     const hasSameOriginReferrer = document.referrer
       && new URL(document.referrer).origin === window.location.origin
 
@@ -23,7 +29,7 @@ function AuthLayout({
 
   return (
     <main
-      className="min-h-dvh bg-[#F8FAFC] px-4 py-4 text-slate-950 md:h-dvh md:overflow-hidden md:px-6 md:py-4"
+      className="min-h-dvh bg-[#F8FAFC] px-3 py-3 text-slate-950 sm:px-4 sm:py-4 md:h-dvh md:overflow-hidden md:px-6 md:py-4"
       style={{
         backgroundImage: `radial-gradient(circle at 50% 42%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.28) 30%, transparent 58%), linear-gradient(180deg, rgba(248,250,252,0.24), rgba(248,250,252,0.48)), url(${backgroundImage})`,
         backgroundPosition: 'center, center, center bottom',
@@ -31,7 +37,7 @@ function AuthLayout({
         backgroundSize: 'cover, cover, cover',
       }}
     >
-      <div className="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col md:h-[calc(100dvh-2rem)] md:min-h-0">
+      <div className="mx-auto flex min-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col sm:min-h-[calc(100dvh-2rem)] md:h-[calc(100dvh-2rem)] md:min-h-0">
         <header className={`mx-auto flex min-h-10 w-full shrink-0 items-center ${contentWidth}`}>
           <button
             type="button"
@@ -55,7 +61,7 @@ function AuthLayout({
           {!compactFooter && (
             <a href="/#terms" className="whitespace-nowrap transition hover:text-[#6548E8]">서비스 이용안내</a>
           )}
-          <a href="/#privacy" className="whitespace-nowrap transition hover:text-[#6548E8]">개인정보처리방침</a>
+          <a href="/privacy" className="whitespace-nowrap transition hover:text-[#6548E8]">개인정보처리방침</a>
           {!compactFooter && (
             <a href="/#sources" className="whitespace-nowrap transition hover:text-[#6548E8]">데이터 출처</a>
           )}

@@ -31,6 +31,21 @@ public class Member {
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified;
 
+    @Column(name = "terms_version", length = 20)
+    private String termsVersion;
+
+    @Column(name = "terms_agreed_at")
+    private LocalDateTime termsAgreedAt;
+
+    @Column(name = "privacy_agreed_at")
+    private LocalDateTime privacyAgreedAt;
+
+    @Column(name = "age_confirmed_at")
+    private LocalDateTime ageConfirmedAt;
+
+    @Column(name = "token_version", nullable = false)
+    private long tokenVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -75,8 +90,16 @@ public class Member {
         return passwordHash;
     }
 
+    public void recordSignupConsent(String termsVersion, LocalDateTime agreedAt) {
+        this.termsVersion = termsVersion;
+        this.termsAgreedAt = agreedAt;
+        this.privacyAgreedAt = agreedAt;
+        this.ageConfirmedAt = agreedAt;
+    }
+
     public void changePassword(String passwordHash) {
         this.passwordHash = passwordHash;
+        this.tokenVersion++;
     }
 
     public String getNickname() {
@@ -85,5 +108,25 @@ public class Member {
 
     public boolean isEmailVerified() {
         return emailVerified;
+    }
+
+    public String getTermsVersion() {
+        return termsVersion;
+    }
+
+    public LocalDateTime getTermsAgreedAt() {
+        return termsAgreedAt;
+    }
+
+    public LocalDateTime getPrivacyAgreedAt() {
+        return privacyAgreedAt;
+    }
+
+    public LocalDateTime getAgeConfirmedAt() {
+        return ageConfirmedAt;
+    }
+
+    public long getTokenVersion() {
+        return tokenVersion;
     }
 }

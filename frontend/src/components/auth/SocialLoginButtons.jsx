@@ -26,10 +26,10 @@ const providers = [
   {
     name: 'Apple',
     label: 'Apple로 로그인',
-    icon: '/auth/apple-logo-black-button.png',
+    icon: '/auth/apple-login-symbol.png',
     button: 'bg-black text-white',
-    iconSize: 'h-11 w-11',
-    iconPosition: 'left-0 top-0',
+    iconSize: 'h-5 w-5',
+    iconPosition: 'left-4 top-1/2 -translate-y-1/2',
   },
 ]
 

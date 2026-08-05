@@ -38,3 +38,10 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+tasks.named('bootRun') {
+    def localConfig = file('application-local.properties')
+    if (localConfig.exists()) {
+        args '--spring.config.additional-location=optional:file:./application-local.properties'
+    }
+}

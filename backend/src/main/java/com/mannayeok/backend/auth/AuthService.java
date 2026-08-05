@@ -1,5 +1,6 @@
 package com.mannayeok.backend.auth;
 
+import java.time.LocalDateTime;
 import java.util.Locale;
 
 import com.mannayeok.backend.auth.dto.AuthResponse;
@@ -18,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+
+    private static final String TERMS_VERSION = "2026-08-04";
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
@@ -49,6 +52,7 @@ public class AuthService {
             email,
             passwordEncoder.encode(request.password())
         );
+        member.recordSignupConsent(TERMS_VERSION, LocalDateTime.now());
 
         try {
             return MemberResponse.from(memberRepository.save(member));
