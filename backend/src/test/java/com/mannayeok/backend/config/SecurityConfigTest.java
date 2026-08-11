@@ -33,11 +33,18 @@ class SecurityConfigTest {
     }
 
     @Test
-    void oauthAccountLinkRequiresAuthentication() {
+    void oauthAccountLinksReachPasswordAndTicketVerificationWithoutJwt() {
+        // This slice only loads HealthController, so 404 proves the request passed
+        // the security chain; 401 would mean the link flow still requires a JWT.
         webTestClient.post()
             .uri("/api/auth/oauth/kakao/link")
             .exchange()
-            .expectStatus().isUnauthorized();
+            .expectStatus().isNotFound();
+
+        webTestClient.post()
+            .uri("/api/auth/oauth/naver/link")
+            .exchange()
+            .expectStatus().isNotFound();
     }
 
     @Test

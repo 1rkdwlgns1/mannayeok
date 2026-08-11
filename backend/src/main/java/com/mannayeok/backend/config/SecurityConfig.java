@@ -100,11 +100,6 @@ public class SecurityConfig {
             .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
             .authorizeExchange(exchange -> exchange
                 .pathMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
-                .pathMatchers(
-                    HttpMethod.POST,
-                    "/api/auth/oauth/kakao/link",
-                    "/api/auth/oauth/naver/link"
-                ).authenticated()
                 .pathMatchers("/api/auth/**").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/health", "/actuator/health", "/actuator/health/**").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/notices").permitAll()
