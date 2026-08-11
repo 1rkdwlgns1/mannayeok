@@ -9,6 +9,15 @@ app.auth.jwt-secret=CHANGE_ME_WITH_A_FIXED_SECRET_OF_AT_LEAST_32_BYTES
 app.auth.admin-secondary.verification-minutes=15
 app.cors.allowed-origins=http://localhost:5173
 app.features.collaborative-meetings-enabled=false
+app.security.rate-limit.enabled=true
+app.security.rate-limit.login-requests=10
+app.security.rate-limit.login-window-seconds=60
+app.security.rate-limit.auth-requests=30
+app.security.rate-limit.auth-window-seconds=60
+app.security.rate-limit.proxy-requests=120
+app.security.rate-limit.proxy-window-seconds=60
+app.security.rate-limit.share-create-requests=20
+app.security.rate-limit.share-create-window-seconds=3600
 
 app.auth.password-reset.enabled=true
 app.auth.password-reset.frontend-base-url=http://localhost:5173

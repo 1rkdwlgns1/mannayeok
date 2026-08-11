@@ -100,16 +100,26 @@ public class SecurityConfig {
             .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
             .authorizeExchange(exchange -> exchange
                 .pathMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
-                .pathMatchers("/api/auth/**", "/api/health", "/actuator/health").permitAll()
+                .pathMatchers(
+                    HttpMethod.POST,
+                    "/api/auth/oauth/kakao/link",
+                    "/api/auth/oauth/naver/link"
+                ).authenticated()
+                .pathMatchers("/api/auth/**").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/health", "/actuator/health", "/actuator/health/**").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/notices").permitAll()
-                .pathMatchers("/api/shares/**").permitAll()
+                .pathMatchers(HttpMethod.POST, "/api/shares").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/shares/*").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/kakao/**", "/api/transit/routes").permitAll()
                 .pathMatchers("/api/meetings/owned/**").authenticated()
                 .pathMatchers(HttpMethod.POST, "/api/meetings").authenticated()
-                .pathMatchers("/api/meetings/**").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/meetings/*").permitAll()
+                .pathMatchers(HttpMethod.POST, "/api/meetings/*/participants").permitAll()
+                .pathMatchers(HttpMethod.PUT, "/api/meetings/*/participants/*").permitAll()
                 .pathMatchers("/api/admin/**").authenticated()
                 .pathMatchers("/api/members/**").authenticated()
                 .pathMatchers("/api/saved-recommendations/**").authenticated()
-                .anyExchange().permitAll()
+                .anyExchange().denyAll()
             )
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtDecoder(jwtDecoder)))
             .build();
