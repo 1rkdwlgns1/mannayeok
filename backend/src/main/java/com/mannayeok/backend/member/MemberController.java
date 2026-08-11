@@ -3,6 +3,7 @@ package com.mannayeok.backend.member;
 import com.mannayeok.backend.auth.dto.MessageResponse;
 import com.mannayeok.backend.member.dto.PasswordChangeRequest;
 import com.mannayeok.backend.member.dto.MemberDeleteRequest;
+import com.mannayeok.backend.member.dto.SocialMemberDeleteRequest;
 
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
@@ -46,6 +47,18 @@ public class MemberController {
         Long memberId = Long.valueOf(jwt.getSubject());
         return Mono.fromCallable(() -> {
             memberAccountService.deleteMember(memberId, request);
+            return new MessageResponse("회원탈퇴가 완료됐어요.");
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @DeleteMapping("/me/social")
+    Mono<MessageResponse> deleteSocialMember(
+        @AuthenticationPrincipal Jwt jwt,
+        @Valid @RequestBody SocialMemberDeleteRequest request
+    ) {
+        Long memberId = Long.valueOf(jwt.getSubject());
+        return Mono.fromCallable(() -> {
+            memberAccountService.deleteSocialMember(memberId, request);
             return new MessageResponse("회원탈퇴가 완료됐어요.");
         }).subscribeOn(Schedulers.boundedElastic());
     }

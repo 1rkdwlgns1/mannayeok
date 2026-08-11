@@ -5,6 +5,7 @@ import AuthField from '../auth/AuthField.jsx'
 import AuthLayout from '../auth/AuthLayout.jsx'
 import { changePassword } from '../../services/authApi.js'
 import { clearAuth, getAccessToken, getStoredMember } from '../../services/authStorage.js'
+import AnimatedLoadingDots from '../AnimatedLoadingDots.jsx'
 
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/
 
@@ -95,7 +96,7 @@ function ChangePasswordPage() {
             </div>
             <a
               href="/login?passwordChanged=complete"
-              className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#6548E8] text-[15px] font-black text-white shadow-sm transition hover:bg-[#5639DC]"
+              className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#6548E8] text-sm font-black text-white shadow-sm transition hover:bg-[#5639DC] sm:h-11 sm:text-[15px]"
             >
               로그인하러 가기
             </a>
@@ -186,13 +187,13 @@ function ChangePasswordPage() {
           <button
             type="submit"
             disabled={!formValid || submitting}
-            className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
+            className={`h-10 w-full rounded-xl text-sm font-black text-white shadow-sm transition sm:h-11 sm:text-[15px] ${
               formValid && !submitting
                 ? 'bg-[#6548E8] hover:bg-[#5639DC]'
                 : 'cursor-default bg-[#CFC5FF]'
             }`}
           >
-            {submitting ? '변경 처리 중...' : '비밀번호 변경'}
+            {submitting ? <>변경 처리 중<AnimatedLoadingDots /></> : '비밀번호 변경'}
           </button>
         </form>
       </AuthCard>

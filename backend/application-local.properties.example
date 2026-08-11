@@ -6,6 +6,7 @@ spring.datasource.username=mannayeok_local
 spring.datasource.password=CHANGE_ME_DB_PASSWORD
 
 app.auth.jwt-secret=CHANGE_ME_WITH_A_FIXED_SECRET_OF_AT_LEAST_32_BYTES
+app.auth.admin-secondary.verification-minutes=15
 app.cors.allowed-origins=http://localhost:5173
 
 app.auth.password-reset.enabled=true
@@ -15,3 +16,14 @@ app.auth.password-reset.cooldown-seconds=60
 spring.mail.username=mannayeok.help@gmail.com
 spring.mail.password=CHANGE_ME_GMAIL_APP_PASSWORD_WITHOUT_SPACES
 app.auth.password-reset.mail-from=mannayeok.help@gmail.com
+
+app.auth.kakao.client-id=CHANGE_ME_KAKAO_REST_API_KEY
+app.auth.kakao.client-secret=CHANGE_ME_KAKAO_CLIENT_SECRET
+app.auth.kakao.admin-key=CHANGE_ME_KAKAO_ADMIN_KEY
+app.auth.kakao.redirect-uri=http://localhost:8080/api/auth/oauth/kakao/callback
+app.auth.kakao.frontend-base-url=http://localhost:5173
+
+app.auth.naver.client-id=CHANGE_ME_NAVER_CLIENT_ID
+app.auth.naver.client-secret=CHANGE_ME_NAVER_CLIENT_SECRET
+app.auth.naver.redirect-uri=http://localhost:8080/api/auth/oauth/naver/callback
+app.auth.naver.frontend-base-url=http://localhost:5173

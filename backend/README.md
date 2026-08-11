@@ -13,6 +13,10 @@ React/Vite 프런트엔드는 `frontend`에서, Spring Boot 백엔드는 이
 - `POST /api/auth/login`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
+- `GET /api/auth/oauth/kakao/start`
+- `GET /api/auth/oauth/kakao/callback`
+- `POST /api/auth/oauth/kakao/exchange`
+- `POST /api/auth/oauth/kakao/signup`
 - `PUT /api/members/me/password`
 - `DELETE /api/members/me`
 - 서울교통공사 최단경로이동정보 API 프록시
@@ -41,6 +45,9 @@ $env:MAIL_USERNAME='mannayeok.help@gmail.com'
 $env:MAIL_PASSWORD='Gmail 앱 비밀번호'
 $env:MAIL_FROM='mannayeok.help@gmail.com'
 $env:FRONTEND_BASE_URL='http://localhost:5173'
+$env:KAKAO_OAUTH_CLIENT_ID='카카오 REST API 키'
+$env:KAKAO_OAUTH_CLIENT_SECRET='카카오 Client Secret'
+$env:KAKAO_OAUTH_REDIRECT_URI='http://localhost:8080/api/auth/oauth/kakao/callback'
 ```
 
 로컬 개발에서는 `application-local.properties.example`을

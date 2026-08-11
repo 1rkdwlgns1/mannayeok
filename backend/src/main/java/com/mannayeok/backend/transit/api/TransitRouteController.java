@@ -31,7 +31,7 @@ public class TransitRouteController {
         @RequestParam @NotBlank String departure,
         @RequestParam @NotBlank String arrival,
         @RequestParam(defaultValue = "duration")
-        @Pattern(regexp = "duration|distance|transfer") String searchType,
+        @Pattern(regexp = "optimal|balanced|duration|distance|transfer") String searchType,
         @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime departureAt
     ) {

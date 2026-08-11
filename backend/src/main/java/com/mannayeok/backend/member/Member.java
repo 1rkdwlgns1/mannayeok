@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -45,6 +47,16 @@ public class Member {
 
     @Column(name = "token_version", nullable = false)
     private long tokenVersion;
+
+    @Column(name = "admin_secondary_password_hash", length = 255)
+    private String adminSecondaryPasswordHash;
+
+    @Column(name = "admin_secondary_password_set_at")
+    private LocalDateTime adminSecondaryPasswordSetAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private MemberRole role = MemberRole.USER;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -128,5 +140,29 @@ public class Member {
 
     public long getTokenVersion() {
         return tokenVersion;
+    }
+
+    public MemberRole getRole() {
+        return role;
+    }
+
+    public boolean hasAdminSecondaryPassword() {
+        return adminSecondaryPasswordHash != null && !adminSecondaryPasswordHash.isBlank();
+    }
+
+    public String getAdminSecondaryPasswordHash() {
+        return adminSecondaryPasswordHash;
+    }
+
+    public LocalDateTime getAdminSecondaryPasswordSetAt() {
+        return adminSecondaryPasswordSetAt;
+    }
+
+    public void setInitialAdminSecondaryPassword(String passwordHash) {
+        if (hasAdminSecondaryPassword()) {
+            throw new IllegalStateException("Admin secondary password is already configured.");
+        }
+        this.adminSecondaryPasswordHash = passwordHash;
+        this.adminSecondaryPasswordSetAt = LocalDateTime.now();
     }
 }

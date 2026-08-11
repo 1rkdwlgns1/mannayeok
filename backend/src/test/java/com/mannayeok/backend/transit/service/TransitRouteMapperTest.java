@@ -10,6 +10,31 @@ import org.junit.jupiter.api.Test;
 
 class TransitRouteMapperTest {
 
+    @Test
+    void doesNotCountDestinationLineCodeSwitchAsPassengerTransfer() {
+        PublicSubwayResponse.Body body = new PublicSubwayResponse.Body(
+            13477,
+            1319,
+            1650,
+            1,
+            List.of(new PublicSubwayResponse.TransferStation("건대입구", "7호선", "2호선")),
+            List.of(path(
+                station("2715", "노원", "7호선"),
+                station("0212", "건대입구", "2호선"),
+                "Y"
+            ))
+        );
+
+        TransitRouteResponse result = mapper.toResponse(body);
+
+        assertThat(result.transfers()).isZero();
+        assertThat(result.transferStations()).isEmpty();
+        assertThat(result.routeSteps())
+            .extracting(step -> step.station() + ":" + step.line() + ":" + step.transfer())
+            .containsExactly("노원:7호선:false", "건대입구:7호선:false");
+        assertThat(result.durationSeconds()).isEqualTo(1319);
+    }
+
     private final TransitRouteMapper mapper = new TransitRouteMapper();
 
     @Test
@@ -23,7 +48,7 @@ class TransitRouteMapperTest {
             27551,
             3030,
             1950,
-            1,
+            2,
             List.of(new PublicSubwayResponse.TransferStation(
                 "온수",
                 "1호선 경인선",

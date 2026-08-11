@@ -4,6 +4,7 @@ import { checkEmailAvailability, signup } from '../../services/authApi'
 import AuthCard from './AuthCard'
 import AuthField from './AuthField'
 import AuthLayout from './AuthLayout'
+import AnimatedLoadingDots from '../AnimatedLoadingDots'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/
@@ -172,18 +173,21 @@ function SignupPage() {
           centered
         >
           <div className="mt-4 text-left">
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#DDD6FF] bg-[#F8F6FF] px-4 py-3 text-sm font-black text-slate-800">
-              <input
-                type="checkbox"
-                checked={consentValid}
-                onChange={handleAllConsentChange}
-                className="h-5 w-5 shrink-0 accent-[#6548E8]"
-              />
-              전체 동의하기
-            </label>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <label className="flex cursor-pointer items-center gap-3 px-4 py-3 text-[13px] font-black text-slate-800 sm:text-sm">
+                <input
+                  type="checkbox"
+                  checked={consentValid}
+                  onChange={handleAllConsentChange}
+                  className="h-5 w-5 shrink-0 accent-[#6548E8]"
+                />
+                전체 동의하기
+              </label>
 
-            <div className="mt-3 space-y-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5">
-              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm font-bold text-slate-700">
+              <div className="mx-4 h-px bg-slate-200" aria-hidden="true" />
+
+              <div className="space-y-1 px-4 py-2.5">
+              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-[13px] font-bold text-slate-700 sm:text-sm">
                 <input
                   type="checkbox"
                   name="termsAccepted"
@@ -194,7 +198,7 @@ function SignupPage() {
                 <span className="min-w-0 flex-1"><span className="text-[#6548E8]">[필수]</span> 서비스 이용약관 동의</span>
                 <a href="/terms" target="_blank" rel="noreferrer" className="shrink-0 text-xs font-extrabold text-slate-500 underline underline-offset-2">보기</a>
               </label>
-              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm font-bold text-slate-700">
+              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-[13px] font-bold text-slate-700 sm:text-sm">
                 <input
                   type="checkbox"
                   name="privacyAccepted"
@@ -205,7 +209,7 @@ function SignupPage() {
                 <span className="min-w-0 flex-1"><span className="text-[#6548E8]">[필수]</span> 개인정보 수집·이용 동의</span>
                 <a href="/privacy" target="_blank" rel="noreferrer" className="shrink-0 text-xs font-extrabold text-slate-500 underline underline-offset-2">보기</a>
               </label>
-              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm font-bold text-slate-700">
+              <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-[13px] font-bold text-slate-700 sm:text-sm">
                 <input
                   type="checkbox"
                   name="ageConfirmed"
@@ -215,19 +219,21 @@ function SignupPage() {
                 />
                 <span><span className="text-[#6548E8]">[필수]</span> 만 14세 이상입니다</span>
               </label>
+              </div>
             </div>
 
             <div className="mt-3 space-y-1 rounded-xl bg-slate-50 px-3.5 py-3 text-[11px] font-semibold leading-5 text-slate-500 sm:text-xs">
-              <p><strong className="text-slate-600">수집 항목</strong> 이메일, 암호화된 비밀번호, 약관 동의 기록</p>
+              <p><strong className="text-slate-600">수집 항목</strong> 이메일, 일방향 암호화된 비밀번호, 약관 동의 기록</p>
               <p><strong className="text-slate-600">이용 목적</strong> 회원 식별, 로그인, 비밀번호 재설정, 약관 동의 확인</p>
               <p><strong className="text-slate-600">보유 기간</strong> 회원 탈퇴 시까지</p>
+              <p><strong className="text-slate-600">동의 거부</strong> 거부할 수 있으나 회원가입이 제한됩니다.</p>
             </div>
 
             <button
               type="button"
               disabled={!consentValid}
               onClick={() => setStep('account')}
-              className={`mt-4 h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
+              className={`mt-4 h-10 w-full rounded-xl text-sm font-black text-white shadow-sm transition sm:h-11 sm:text-[15px] ${
                 consentValid
                   ? 'bg-[#6548E8] hover:bg-[#5639DC]'
                   : 'cursor-default bg-[#CFC5FF]'
@@ -310,23 +316,23 @@ function SignupPage() {
             required
           />
           {requestError && (
-            <p className="rounded-xl bg-red-50 px-3.5 py-3 text-sm font-bold text-red-600" role="alert">
+            <p className="rounded-xl bg-red-50 px-3.5 py-3 text-xs font-bold text-red-600 sm:text-sm" role="alert">
               {requestError}
             </p>
           )}
           <button
             type="submit"
             disabled={!formValid || submitting}
-            className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
+            className={`h-10 w-full rounded-xl text-sm font-black text-white shadow-sm transition sm:h-11 sm:text-[15px] ${
               formValid && !submitting
                 ? 'bg-[#6548E8] hover:bg-[#5639DC]'
                 : 'cursor-default bg-[#CFC5FF]'
             }`}
           >
-            {submitting ? '가입 처리 중...' : '회원가입'}
+            {submitting ? <>가입 처리 중<AnimatedLoadingDots /></> : '회원가입'}
           </button>
         </form>
-        <p className="mt-2.5 text-center text-sm font-medium text-slate-600">
+        <p className="mt-2.5 text-center text-[13px] font-medium text-slate-600 sm:text-sm">
           이미 회원이신가요? <a href="/login" className="font-black text-[#6548E8] hover:underline">로그인</a>
         </p>
       </AuthCard>

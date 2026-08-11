@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
     ],
     server: {
+      host: '0.0.0.0',
       proxy: {
         '/api/transit': {
           target: env.BACKEND_API_URL || 'http://localhost:8080',

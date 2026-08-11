@@ -524,7 +524,9 @@ async function searchNearbyPlacesByKeyword(kakao, center, placeCategory) {
 
 export async function searchRecommendedStations(center, origins = [], limit = 3) {
   const kakao = await loadKakaoMapSdk()
-  const enrichedOrigins = await enrichOriginsWithNearbyStations(origins)
+  const enrichedOrigins = origins.every(hasTransitAccessMetadata)
+    ? origins
+    : await enrichOriginsWithNearbyStations(origins)
   const candidateMap = new Map()
 
   const nearbyCandidateGroups = await mapWithConcurrency(getStationSearchAreas(center), LOCAL_SEARCH_CONCURRENCY, (
@@ -599,6 +601,10 @@ export async function searchRecommendedStations(center, origins = [], limit = 3)
   )
 
   return rankMeetingStations(scoredStations, enrichedOrigins, limit)
+}
+
+function hasTransitAccessMetadata(origin) {
+  return typeof origin?.hasSupportedTransitAccess === 'boolean'
 }
 
 function selectCandidatesForCommercialScoring(candidates, origins) {

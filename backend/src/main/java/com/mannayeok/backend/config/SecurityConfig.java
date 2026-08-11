@@ -30,6 +30,7 @@ import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -89,16 +90,25 @@ public class SecurityConfig {
     @Bean
     SecurityWebFilterChain securityWebFilterChain(
         ServerHttpSecurity http,
-        ReactiveJwtDecoder jwtDecoder
+        ReactiveJwtDecoder jwtDecoder,
+        CorsConfigurationSource corsConfigurationSource
     ) {
         return http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
             .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
             .authorizeExchange(exchange -> exchange
                 .pathMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                 .pathMatchers("/api/auth/**", "/api/health", "/actuator/health").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/notices").permitAll()
+                .pathMatchers("/api/shares/**").permitAll()
+                .pathMatchers("/api/meetings/owned/**").authenticated()
+                .pathMatchers(HttpMethod.POST, "/api/meetings").authenticated()
+                .pathMatchers("/api/meetings/**").permitAll()
+                .pathMatchers("/api/admin/**").authenticated()
                 .pathMatchers("/api/members/**").authenticated()
+                .pathMatchers("/api/saved-recommendations/**").authenticated()
                 .anyExchange().permitAll()
             )
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtDecoder(jwtDecoder)))

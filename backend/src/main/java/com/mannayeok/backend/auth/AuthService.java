@@ -8,6 +8,8 @@ import com.mannayeok.backend.auth.dto.LoginRequest;
 import com.mannayeok.backend.auth.dto.MemberResponse;
 import com.mannayeok.backend.auth.dto.SignupRequest;
 import com.mannayeok.backend.auth.error.AuthException;
+import com.mannayeok.backend.auth.oauth.MemberSocialAccount;
+import com.mannayeok.backend.auth.oauth.MemberSocialAccountRepository;
 import com.mannayeok.backend.member.Member;
 import com.mannayeok.backend.member.MemberRepository;
 
@@ -20,20 +22,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
-    private static final String TERMS_VERSION = "2026-08-04";
+    private static final String TERMS_VERSION = "2026-08-10";
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final MemberSocialAccountRepository socialAccountRepository;
 
     public AuthService(
         MemberRepository memberRepository,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService
+        JwtService jwtService,
+        MemberSocialAccountRepository socialAccountRepository
     ) {
         this.memberRepository = memberRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.socialAccountRepository = socialAccountRepository;
     }
 
     @Transactional(readOnly = true)
@@ -75,7 +80,14 @@ public class AuthService {
             token.value(),
             "Bearer",
             token.expiresIn(),
-            MemberResponse.from(member)
+            MemberResponse.from(
+                member,
+                "EMAIL",
+                socialAccountRepository.findAllByMember_IdOrderByIdAsc(member.getId()).stream()
+                    .map(MemberSocialAccount::getProvider)
+                    .map(Enum::name)
+                    .toList()
+            )
         );
     }
 

@@ -4,6 +4,7 @@ import { resetPassword } from '../../services/authApi'
 import AuthCard from './AuthCard'
 import AuthField from './AuthField'
 import AuthLayout from './AuthLayout'
+import AnimatedLoadingDots from '../AnimatedLoadingDots'
 
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/
 
@@ -69,7 +70,7 @@ function ResetPasswordPage() {
       >
         {!token ? (
           <div className="mt-4 rounded-xl bg-red-50 px-4 py-4 text-center">
-            <p className="text-sm font-bold text-red-600">재설정 링크가 올바르지 않아요.</p>
+            <p className="text-[13px] font-bold text-red-600 sm:text-sm">재설정 링크가 올바르지 않아요.</p>
             <a
               href="/forgot-password"
               className="mt-2 inline-block text-xs font-black text-[#6548E8] underline underline-offset-2"
@@ -131,13 +132,13 @@ function ResetPasswordPage() {
             <button
               type="submit"
               disabled={!formValid || submitting}
-              className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
+              className={`h-10 w-full rounded-xl text-sm font-black text-white shadow-sm transition sm:h-11 sm:text-[15px] ${
                 formValid && !submitting
                   ? 'bg-[#6548E8] hover:bg-[#5639DC]'
                   : 'cursor-default bg-[#CFC5FF]'
               }`}
             >
-              {submitting ? '변경 처리 중...' : '비밀번호 변경'}
+              {submitting ? <>변경 처리 중<AnimatedLoadingDots /></> : '비밀번호 변경'}
             </button>
           </form>
         )}

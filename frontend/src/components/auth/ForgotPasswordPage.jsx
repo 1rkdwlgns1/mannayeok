@@ -4,6 +4,7 @@ import { requestPasswordReset } from '../../services/authApi'
 import AuthCard from './AuthCard'
 import AuthField from './AuthField'
 import AuthLayout from './AuthLayout'
+import AnimatedLoadingDots from '../AnimatedLoadingDots'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -61,13 +62,13 @@ function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={!emailValid || submitting}
-            className={`h-11 w-full rounded-xl text-[15px] font-black text-white shadow-sm transition ${
+            className={`h-10 w-full rounded-xl text-sm font-black text-white shadow-sm transition sm:h-11 sm:text-[15px] ${
               emailValid && !submitting
                 ? 'bg-[#6548E8] hover:bg-[#5639DC]'
                 : 'cursor-default bg-[#CFC5FF]'
             }`}
           >
-            {submitting ? '메일 보내는 중...' : '재설정 안내 받기'}
+            {submitting ? <>메일 보내는 중<AnimatedLoadingDots /></> : '재설정 안내 받기'}
           </button>
         </form>
 
@@ -86,7 +87,7 @@ function ForgotPasswordPage() {
           </div>
         )}
 
-        <p className="mt-4 text-center text-sm font-medium text-slate-600">
+        <p className="mt-4 text-center text-[13px] font-medium text-slate-600 sm:text-sm">
           비밀번호가 기억나셨나요?{' '}
           <a href="/login" className="font-black text-[#6548E8] hover:underline">로그인</a>
         </p>

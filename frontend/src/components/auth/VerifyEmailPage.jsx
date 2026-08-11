@@ -15,9 +15,9 @@ function VerifyEmailPage() {
       >
         <div className="mt-6 rounded-2xl bg-[#F2EFFF] p-5 text-center">
           <MailCheck className="mx-auto text-[#6548E8]" size={34} strokeWidth={2} />
-          <p className="mt-3 text-sm font-bold leading-6 text-slate-700">이메일 발송과 인증 API는 다음 단계에서 연결됩니다.</p>
+          <p className="mt-3 text-[13px] font-bold leading-5 text-slate-700 sm:text-sm sm:leading-6">이메일 발송과 인증 API는 다음 단계에서 연결됩니다.</p>
         </div>
-        <a href="/login" className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-[#6548E8] text-sm font-black text-white shadow-sm transition hover:bg-[#5639DC]">
+        <a href="/login" className="mt-5 flex h-10 w-full items-center justify-center rounded-xl bg-[#6548E8] text-sm font-black text-white shadow-sm transition hover:bg-[#5639DC] sm:h-11">
           로그인으로 이동
         </a>
       </AuthCard>

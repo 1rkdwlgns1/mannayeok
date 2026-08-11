@@ -46,12 +46,25 @@ app:
     jwt-secret: ${JWT_SECRET:local-development-jwt-secret-change-me-1234567890}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}
     issuer: ${JWT_ISSUER:mannayeok}
+    admin-secondary:
+      verification-minutes: ${ADMIN_VERIFICATION_MINUTES:15}
     password-reset:
       enabled: ${MAIL_ENABLED:false}
       frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
       token-minutes: ${PASSWORD_RESET_TOKEN_MINUTES:30}
       cooldown-seconds: ${PASSWORD_RESET_COOLDOWN_SECONDS:60}
       mail-from: ${MAIL_FROM:${MAIL_USERNAME:}}
+    kakao:
+      client-id: ${KAKAO_OAUTH_CLIENT_ID:}
+      client-secret: ${KAKAO_OAUTH_CLIENT_SECRET:}
+      admin-key: ${KAKAO_ADMIN_KEY:}
+      redirect-uri: ${KAKAO_OAUTH_REDIRECT_URI:http://localhost:8080/api/auth/oauth/kakao/callback}
+      frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+    naver:
+      client-id: ${NAVER_OAUTH_CLIENT_ID:}
+      client-secret: ${NAVER_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${NAVER_OAUTH_REDIRECT_URI:http://localhost:8080/api/auth/oauth/naver/callback}
+      frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
   cors:
     allowed-origins: ${FRONTEND_ALLOWED_ORIGINS:http://localhost:5173}
   subway:

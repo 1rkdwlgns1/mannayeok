@@ -21,31 +21,39 @@ public class TransitRouteMapper {
             PublicSubwayResponse.Station start = paths.get(0).dptreStn();
             routeSteps.add(toStep(start, false));
 
-            paths.stream()
-                .filter(PublicSubwayResponse.Path::isTransfer)
-                .map(PublicSubwayResponse.Path::arvlStn)
-                .map(station -> toStep(station, true))
-                .forEach(routeSteps::add);
+            int lastPathIndex = paths.size() - 1;
 
-            PublicSubwayResponse.Station end =
-                paths.get(paths.size() - 1).arvlStn();
-            RouteStep endStep = toStep(end, false);
+            for (int index = 0; index < paths.size(); index++) {
+                PublicSubwayResponse.Path path = paths.get(index);
+                if (path.isTransfer() && index != lastPathIndex) {
+                    routeSteps.add(toStep(path.arvlStn(), true));
+                }
+            }
+
+            PublicSubwayResponse.Path lastPath = paths.get(lastPathIndex);
+            RouteStep endStep = toEndStep(lastPath);
             RouteStep lastStep = routeSteps.get(routeSteps.size() - 1);
             if (!sameStep(lastStep, endStep)) {
                 routeSteps.add(endStep);
             }
         }
 
-        List<String> transferStations = body.trfstnNms() == null
-            ? List.of()
-            : body.trfstnNms().stream()
-                .map(PublicSubwayResponse.TransferStation::stnNm)
-                .toList();
+        List<String> transferStations = routeSteps.stream()
+            .filter(RouteStep::transfer)
+            .map(RouteStep::station)
+            .distinct()
+            .toList();
+        int displayedTransfers = routeSteps.isEmpty()
+            ? body.trsitNmtm()
+            : (int) routeSteps.stream()
+                .filter(RouteStep::transfer)
+                .distinct()
+                .count();
 
         return new TransitRouteResponse(
             (int) Math.ceil(body.totalReqHr() / 60.0),
             body.totalReqHr(),
-            body.trsitNmtm(),
+            displayedTransfers,
             body.totalCardCrg(),
             body.totalDstc(),
             transferStations,
@@ -60,6 +68,20 @@ public class TransitRouteMapper {
             station == null ? null : station.stnNm(),
             station == null ? null : station.lineNm(),
             transfer
+        );
+    }
+
+    private RouteStep toEndStep(PublicSubwayResponse.Path lastPath) {
+        PublicSubwayResponse.Station end = lastPath.arvlStn();
+        if (!lastPath.isTransfer()) return toStep(end, false);
+
+        // 환승역은 노선별 역 코드가 다르다. 도착역의 다른 노선 코드를 조회한
+        // 응답은 하차 후 코드 전환까지 환승으로 표시하지만 승객은 환승하지 않는다.
+        PublicSubwayResponse.Station arrivingLine = lastPath.dptreStn();
+        return new RouteStep(
+            end == null ? null : end.stnNm(),
+            arrivingLine == null ? null : arrivingLine.lineNm(),
+            false
         );
     }
 

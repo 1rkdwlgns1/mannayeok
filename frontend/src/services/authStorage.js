@@ -2,6 +2,38 @@ const ACCESS_TOKEN_KEY = 'mannayeok.accessToken'
 const MEMBER_KEY = 'mannayeok.member'
 const AUTH_CHANNEL_NAME = 'mannayeok-auth'
 
+function isExpiredAccessToken(accessToken) {
+  if (!accessToken) return true
+
+  try {
+    const payloadBase64 = accessToken.split('.')[1]
+    if (!payloadBase64) return true
+    const normalized = payloadBase64.replaceAll('-', '+').replaceAll('_', '/')
+    const payload = JSON.parse(window.atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')))
+    return !Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()
+  } catch {
+    return true
+  }
+}
+
+function getValidStoredAuth() {
+  for (const storage of [localStorage, sessionStorage]) {
+    const accessToken = storage.getItem(ACCESS_TOKEN_KEY)
+    const serializedMember = storage.getItem(MEMBER_KEY)
+    if (!accessToken && !serializedMember) continue
+
+    if (!accessToken || !serializedMember || isExpiredAccessToken(accessToken)) {
+      storage.removeItem(ACCESS_TOKEN_KEY)
+      storage.removeItem(MEMBER_KEY)
+      continue
+    }
+
+    return { accessToken, serializedMember }
+  }
+
+  return null
+}
+
 function broadcastAuthChange(type) {
   if (!('BroadcastChannel' in window)) return
   const channel = new BroadcastChannel(AUTH_CHANNEL_NAME)
@@ -22,15 +54,17 @@ export function clearAuth() {
   localStorage.removeItem(MEMBER_KEY)
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
   sessionStorage.removeItem(MEMBER_KEY)
+  sessionStorage.removeItem('mannayeok.adminAccessToken')
+  sessionStorage.removeItem('mannayeok.adminAccessTokenExpiresAt')
   broadcastAuthChange('logout')
 }
 
 export function getStoredMember() {
-  const serializedMember = localStorage.getItem(MEMBER_KEY) || sessionStorage.getItem(MEMBER_KEY)
-  if (!serializedMember) return null
+  const storedAuth = getValidStoredAuth()
+  if (!storedAuth) return null
 
   try {
-    return JSON.parse(serializedMember)
+    return JSON.parse(storedAuth.serializedMember)
   } catch {
     clearAuth()
     return null
@@ -38,7 +72,7 @@ export function getStoredMember() {
 }
 
 export function getAccessToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY) || sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  return getValidStoredAuth()?.accessToken || null
 }
 
 export function watchAuthChanges(onChange) {

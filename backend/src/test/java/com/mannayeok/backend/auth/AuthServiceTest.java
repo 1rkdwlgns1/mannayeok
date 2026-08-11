@@ -13,6 +13,7 @@ import com.mannayeok.backend.auth.dto.AuthResponse;
 import com.mannayeok.backend.auth.dto.LoginRequest;
 import com.mannayeok.backend.auth.dto.SignupRequest;
 import com.mannayeok.backend.auth.error.AuthException;
+import com.mannayeok.backend.auth.oauth.MemberSocialAccountRepository;
 import com.mannayeok.backend.member.Member;
 import com.mannayeok.backend.member.MemberRepository;
 
@@ -28,13 +29,15 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     private JwtService jwtService;
     private AuthService authService;
+    private MemberSocialAccountRepository socialAccountRepository;
 
     @BeforeEach
     void setUp() {
         memberRepository = mock(MemberRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         jwtService = mock(JwtService.class);
-        authService = new AuthService(memberRepository, passwordEncoder, jwtService);
+        socialAccountRepository = mock(MemberSocialAccountRepository.class);
+        authService = new AuthService(memberRepository, passwordEncoder, jwtService, socialAccountRepository);
     }
 
     @Test
@@ -60,7 +63,7 @@ class AuthServiceTest {
         assertThat(memberCaptor.getValue().getEmail()).isEqualTo("user@example.com");
         assertThat(memberCaptor.getValue().getPasswordHash()).isEqualTo("bcrypt-hash");
         assertThat(memberCaptor.getValue().getNickname()).isNull();
-        assertThat(memberCaptor.getValue().getTermsVersion()).isEqualTo("2026-08-04");
+        assertThat(memberCaptor.getValue().getTermsVersion()).isEqualTo("2026-08-10");
         assertThat(memberCaptor.getValue().getTermsAgreedAt()).isNotNull();
         assertThat(memberCaptor.getValue().getPrivacyAgreedAt()).isNotNull();
         assertThat(memberCaptor.getValue().getAgeConfirmedAt()).isNotNull();

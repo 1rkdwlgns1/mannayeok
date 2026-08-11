@@ -20,7 +20,11 @@ async function request(path, options) {
   }
 
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.message || '요청을 처리하지 못했어요.')
+  if (!response.ok) {
+    const error = new Error(body.message || '요청을 처리하지 못했어요.')
+    error.code = body.code
+    throw error
+  }
   return body
 }
 
@@ -75,6 +79,66 @@ export function deleteMember(payload, accessToken) {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSocialMember(payload, accessToken) {
+  return request('/api/members/me/social', {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getKakaoLoginUrl() {
+  return `${API_BASE_URL}/api/auth/oauth/kakao/start`
+}
+
+export function getNaverLoginUrl() {
+  return `${API_BASE_URL}/api/auth/oauth/naver/start`
+}
+
+export function exchangeKakaoLogin(ticket) {
+  return request('/api/auth/oauth/kakao/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ ticket }),
+  })
+}
+
+export function exchangeNaverLogin(ticket) {
+  return request('/api/auth/oauth/naver/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ ticket }),
+  })
+}
+
+export function signupWithKakao(payload) {
+  return request('/api/auth/oauth/kakao/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function linkKakaoAccount(payload) {
+  return request('/api/auth/oauth/kakao/link', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function signupWithNaver(payload) {
+  return request('/api/auth/oauth/naver/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function linkNaverAccount(payload) {
+  return request('/api/auth/oauth/naver/link', {
+    method: 'POST',
     body: JSON.stringify(payload),
   })
 }
