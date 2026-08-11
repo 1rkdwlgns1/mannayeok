@@ -42,6 +42,8 @@ management:
         include: health,info
 
 app:
+  features:
+    collaborative-meetings-enabled: ${COLLABORATIVE_MEETINGS_ENABLED:false}
   auth:
     jwt-secret: ${JWT_SECRET:local-development-jwt-secret-change-me-1234567890}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}

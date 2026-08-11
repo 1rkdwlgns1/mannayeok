@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,6 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/meetings")
+@ConditionalOnProperty(
+    prefix = "app.features",
+    name = "collaborative-meetings-enabled",
+    havingValue = "true"
+)
 public class CollaborativeMeetingController {
 
     private final CollaborativeMeetingService meetingService;

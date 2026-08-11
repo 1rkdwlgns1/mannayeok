@@ -8,6 +8,7 @@ spring.datasource.password=CHANGE_ME_DB_PASSWORD
 app.auth.jwt-secret=CHANGE_ME_WITH_A_FIXED_SECRET_OF_AT_LEAST_32_BYTES
 app.auth.admin-secondary.verification-minutes=15
 app.cors.allowed-origins=http://localhost:5173
+app.features.collaborative-meetings-enabled=false
 
 app.auth.password-reset.enabled=true
 app.auth.password-reset.frontend-base-url=http://localhost:5173
