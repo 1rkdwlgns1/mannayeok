@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import backgroundImage from '../assets/background.png'
-import logoImage from '../assets/rogo.png'
+import backgroundImage from '../assets/background.webp'
+import logoImage from '../assets/rogo-optimized.png'
 
 const TRUST_ITEMS = [
   {

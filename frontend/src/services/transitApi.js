@@ -10,7 +10,7 @@ export async function fetchTransitRoute(departure, arrival) {
     throw new Error('출발역과 도착역 정보가 필요합니다.')
   }
 
-  const cacheKey = `${normalizedDeparture}:${normalizedArrival}:duration`
+  const cacheKey = `${normalizedDeparture}:${normalizedArrival}:optimal`
   const cachedEntry = transitRouteCache.get(cacheKey)
   if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
     return cachedEntry.routePromise
@@ -57,7 +57,7 @@ async function requestTransitRoute(departure, arrival) {
   const params = new URLSearchParams({
     departure,
     arrival,
-    searchType: 'duration',
+    searchType: 'optimal',
   })
   const response = await fetch(
     `${BACKEND_API_BASE_URL}/api/transit/routes?${params.toString()}`,

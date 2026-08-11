@@ -6,6 +6,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,11 +32,20 @@ public class TransitRouteService {
     private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
     private static final LocalTime FALLBACK_SEARCH_TIME = LocalTime.of(13, 0);
     private static final LocalTime FIRST_TRAIN_REFERENCE_TIME = LocalTime.of(5, 0);
+    private static final int TRANSFER_BURDEN_SECONDS = 5 * 60;
+    private static final int OPTIMAL_TRANSFER_BURDEN_SECONDS = 6 * 60;
+    private static final int OPTIMAL_DISTANCE_DIVISOR = 200;
+    private static final int NEARBY_ROUTE_DURATION_SECONDS = 2 * 60;
+    private static final java.time.Duration ROUTE_CACHE_TTL = java.time.Duration.ofMinutes(5);
+    private static final java.time.Duration NO_CACHE = java.time.Duration.ZERO;
+    private static final int MAX_ROUTE_CACHE_ENTRIES = 500;
 
     private final WebClient subwayWebClient;
     private final SubwayApiProperties properties;
     private final TransitRouteMapper mapper;
     private final StationCodeResolver stationCodeResolver;
+    private final ConcurrentMap<String, Mono<TransitRouteResponse>> routeCache =
+        new ConcurrentHashMap<>();
 
     public TransitRouteService(
         @Qualifier("subwayWebClient") WebClient subwayWebClient,
@@ -60,6 +71,28 @@ public class TransitRouteService {
             ));
         }
 
+        String cacheKey = routeCacheKey(departure, arrival, searchType, departureAt);
+        trimRouteCache();
+        return routeCache.computeIfAbsent(cacheKey, ignored -> findRouteUncached(
+                departure,
+                arrival,
+                searchType,
+                departureAt
+            )
+            .cache(
+                ignoredResult -> ROUTE_CACHE_TTL,
+                ignoredError -> NO_CACHE,
+                () -> NO_CACHE
+            ));
+    }
+
+    private Mono<TransitRouteResponse> findRouteUncached(
+        String departure,
+        String arrival,
+        String searchType,
+        LocalDateTime departureAt
+    ) {
+
         LocalDateTime searchDateTime = departureAt == null
             ? LocalDateTime.now(SEOUL_ZONE)
             : departureAt;
@@ -67,7 +100,7 @@ public class TransitRouteService {
         List<String> arrivalCodes = resolveStationCodes(arrival);
 
         if (isOvernight(searchDateTime)) {
-            return findBestRoute(
+            return findBestRouteForSearchType(
                 departureCodes,
                 arrivalCodes,
                 searchType,
@@ -76,14 +109,14 @@ public class TransitRouteService {
             ).switchIfEmpty(noRouteError());
         }
 
-        return findBestRoute(
+        return findBestRouteForSearchType(
             departureCodes,
             arrivalCodes,
             searchType,
             searchDateTime,
             false
         ).switchIfEmpty(
-            findBestRoute(
+            findBestRouteForSearchType(
                     departureCodes,
                     arrivalCodes,
                     searchType,
@@ -92,6 +125,99 @@ public class TransitRouteService {
                 )
                 .switchIfEmpty(noRouteError())
         );
+    }
+
+    private String routeCacheKey(
+        String departure,
+        String arrival,
+        String searchType,
+        LocalDateTime departureAt
+    ) {
+        String scheduleKey = departureAt == null ? "current" : departureAt.toString();
+        return departure.trim() + '|' + arrival.trim() + '|' + searchType + '|' + scheduleKey;
+    }
+
+    private void trimRouteCache() {
+        if (routeCache.size() < MAX_ROUTE_CACHE_ENTRIES) return;
+        var iterator = routeCache.keySet().iterator();
+        if (iterator.hasNext()) routeCache.remove(iterator.next());
+    }
+
+    private Mono<TransitRouteResponse> findBestRouteForSearchType(
+        List<String> departureCodes,
+        List<String> arrivalCodes,
+        String searchType,
+        LocalDateTime searchDateTime,
+        boolean fallbackSchedule
+    ) {
+        if ("optimal".equals(searchType)) {
+            return findOptimalRoute(
+                departureCodes,
+                arrivalCodes,
+                searchDateTime,
+                fallbackSchedule
+            );
+        }
+
+        if (!"balanced".equals(searchType)) {
+            return findBestRoute(
+                departureCodes,
+                arrivalCodes,
+                searchType,
+                searchDateTime,
+                fallbackSchedule
+            );
+        }
+
+        Mono<TransitRouteResponse> fastest = findBestRoute(
+            departureCodes,
+            arrivalCodes,
+            "duration",
+            searchDateTime,
+            fallbackSchedule
+        ).onErrorResume(SubwayApiException.class, ignored -> Mono.empty());
+        Mono<TransitRouteResponse> fewestTransfers = findBestRoute(
+            departureCodes,
+            arrivalCodes,
+            "transfer",
+            searchDateTime,
+            fallbackSchedule
+        ).onErrorResume(SubwayApiException.class, ignored -> Mono.empty());
+
+        return Flux.concat(fastest, fewestTransfers)
+            .reduce(this::betterBalancedRoute);
+    }
+
+    private Mono<TransitRouteResponse> findOptimalRoute(
+        List<String> departureCodes,
+        List<String> arrivalCodes,
+        LocalDateTime searchDateTime,
+        boolean fallbackSchedule
+    ) {
+        Mono<TransitRouteResponse> fastest = findBestRoute(
+            departureCodes,
+            arrivalCodes,
+            "duration",
+            searchDateTime,
+            fallbackSchedule
+        ).onErrorResume(SubwayApiException.class, ignored -> Mono.empty());
+        Mono<TransitRouteResponse> fewestTransfers = findBestRoute(
+            departureCodes,
+            arrivalCodes,
+            "transfer",
+            searchDateTime,
+            fallbackSchedule
+        ).onErrorResume(SubwayApiException.class, ignored -> Mono.empty());
+        Mono<TransitRouteResponse> shortestDistance = findBestRoute(
+            departureCodes,
+            arrivalCodes,
+            "distance",
+            searchDateTime,
+            fallbackSchedule
+        ).onErrorResume(SubwayApiException.class, ignored -> Mono.empty());
+
+        return Flux.concat(fastest, fewestTransfers, shortestDistance)
+            .reduce(this::betterOptimalRoute);
     }
 
     private Mono<TransitRouteResponse> findBestRoute(
@@ -257,6 +383,55 @@ public class TransitRouteService {
                 .thenComparingInt(TransitRouteResponse::transfers);
         };
         return comparator.compare(left, right) <= 0 ? left : right;
+    }
+
+    private TransitRouteResponse betterBalancedRoute(
+        TransitRouteResponse left,
+        TransitRouteResponse right
+    ) {
+        long leftScore = balancedScore(left);
+        long rightScore = balancedScore(right);
+        if (leftScore != rightScore) return leftScore < rightScore ? left : right;
+        if (left.transfers() != right.transfers()) {
+            return left.transfers() < right.transfers() ? left : right;
+        }
+        return left.durationSeconds() <= right.durationSeconds() ? left : right;
+    }
+
+    private long balancedScore(TransitRouteResponse route) {
+        return route.durationSeconds()
+            + (long) route.transfers() * TRANSFER_BURDEN_SECONDS;
+    }
+
+    private TransitRouteResponse betterOptimalRoute(
+        TransitRouteResponse left,
+        TransitRouteResponse right
+    ) {
+        if (
+            left.transfers() == right.transfers()
+                && Math.abs(left.durationSeconds() - right.durationSeconds())
+                    <= NEARBY_ROUTE_DURATION_SECONDS
+                && left.distanceMeters() != right.distanceMeters()
+        ) {
+            return left.distanceMeters() < right.distanceMeters() ? left : right;
+        }
+
+        long leftScore = optimalScore(left);
+        long rightScore = optimalScore(right);
+        if (leftScore != rightScore) return leftScore < rightScore ? left : right;
+        if (left.transfers() != right.transfers()) {
+            return left.transfers() < right.transfers() ? left : right;
+        }
+        if (left.durationSeconds() != right.durationSeconds()) {
+            return left.durationSeconds() < right.durationSeconds() ? left : right;
+        }
+        return left.distanceMeters() <= right.distanceMeters() ? left : right;
+    }
+
+    private long optimalScore(TransitRouteResponse route) {
+        return route.durationSeconds()
+            + (long) route.transfers() * OPTIMAL_TRANSFER_BURDEN_SECONDS
+            + route.distanceMeters() / OPTIMAL_DISTANCE_DIVISOR;
     }
 
     private Mono<TransitRouteResponse> noRouteError() {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { isBlockedOrigin, searchAddressSuggestions } from '../services/kakaoApi'
+import AnimatedLoadingDots from './AnimatedLoadingDots'
 
 const RECENT_ORIGINS_KEY = 'mannayeok:recent-origins'
 const RECENT_ORIGIN_LIMIT = 6
@@ -80,8 +81,6 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
 
   useEffect(() => {
     if (query.length < 2 || origin.selected?.address === query) {
-      setHasSearched(false)
-      setSearchError('')
       return undefined
     }
 
@@ -211,7 +210,9 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
       {showRecentOrigins || showSuggestions ? (
         <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[100] max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
           {loading ? (
-            <div className="px-4 py-3 text-sm text-slate-500">주소 검색 중...</div>
+            <div className="px-4 py-3 text-sm text-slate-500">
+              주소 검색 중<AnimatedLoadingDots />
+            </div>
           ) : showRecentOrigins ? (
             <>
               <div className="border-b border-slate-100 px-4 py-2 text-xs font-bold text-slate-500">최근 선택한 출발지</div>
