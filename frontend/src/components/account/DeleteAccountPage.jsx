@@ -21,6 +21,21 @@ function DeleteAccountPage() {
   const [submitting, setSubmitting] = useState(false)
   const isSocialMember = ['KAKAO', 'NAVER'].includes(member?.loginProvider)
 
+  const handleBackToAccount = () => {
+    try {
+      if (document.referrer) {
+        const referrerUrl = new URL(document.referrer)
+        if (referrerUrl.origin === window.location.origin && referrerUrl.pathname === '/account') {
+          window.history.back()
+          return
+        }
+      }
+    } catch {
+      // 내 계정에서 이동한 기록을 확인할 수 없으면 계정 화면으로 이동한다.
+    }
+    window.location.assign('/account')
+  }
+
   if (!member || !accessToken) {
     window.location.replace('/login')
     return null
@@ -96,7 +111,7 @@ function DeleteAccountPage() {
   }
 
   return (
-    <AuthLayout backTo="/account" backLabel="계정 관리로 돌아가기" wide compactFooter>
+    <AuthLayout onBack={handleBackToAccount} backLabel="계정 관리로 돌아가기" wide compactFooter>
       <section className="w-full max-w-[520px] rounded-[22px] border border-red-100 bg-white/95 p-3.5 shadow-[0_18px_55px_rgba(75,55,160,0.11)] backdrop-blur sm:rounded-[26px] sm:p-4">
           <header className="text-center">
             <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600">
@@ -199,12 +214,13 @@ function DeleteAccountPage() {
                 )}
 
                 <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-                  <a
-                    href="/account"
+                  <button
+                    type="button"
+                    onClick={handleBackToAccount}
                     className="flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-700 transition hover:bg-slate-50 sm:text-sm"
                   >
                     취소
-                  </a>
+                  </button>
                   <button
                     type="submit"
                     disabled={!formValid}
