@@ -1,5 +1,7 @@
 package com.mannayeok.backend.transit.service;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -19,6 +21,7 @@ import com.mannayeok.backend.transit.error.SubwayApiException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -36,27 +39,50 @@ public class TransitRouteService {
     private static final int OPTIMAL_TRANSFER_BURDEN_SECONDS = 6 * 60;
     private static final int OPTIMAL_DISTANCE_DIVISOR = 200;
     private static final int NEARBY_ROUTE_DURATION_SECONDS = 2 * 60;
-    private static final java.time.Duration ROUTE_CACHE_TTL = java.time.Duration.ofMinutes(5);
-    private static final java.time.Duration NO_CACHE = java.time.Duration.ZERO;
+    private static final Duration ROUTE_CACHE_TTL = Duration.ofMinutes(5);
+    private static final Duration NO_CACHE = Duration.ZERO;
     private static final int MAX_ROUTE_CACHE_ENTRIES = 500;
 
     private final WebClient subwayWebClient;
     private final SubwayApiProperties properties;
     private final TransitRouteMapper mapper;
     private final StationCodeResolver stationCodeResolver;
+    private final Clock clock;
+    private final Duration routeCacheTtl;
     private final ConcurrentMap<String, Mono<TransitRouteResponse>> routeCache =
         new ConcurrentHashMap<>();
 
+    @Autowired
     public TransitRouteService(
         @Qualifier("subwayWebClient") WebClient subwayWebClient,
         SubwayApiProperties properties,
         TransitRouteMapper mapper,
         StationCodeResolver stationCodeResolver
     ) {
+        this(
+            subwayWebClient,
+            properties,
+            mapper,
+            stationCodeResolver,
+            Clock.system(SEOUL_ZONE),
+            ROUTE_CACHE_TTL
+        );
+    }
+
+    TransitRouteService(
+        WebClient subwayWebClient,
+        SubwayApiProperties properties,
+        TransitRouteMapper mapper,
+        StationCodeResolver stationCodeResolver,
+        Clock clock,
+        Duration routeCacheTtl
+    ) {
         this.subwayWebClient = subwayWebClient;
         this.properties = properties;
         this.mapper = mapper;
         this.stationCodeResolver = stationCodeResolver;
+        this.clock = clock;
+        this.routeCacheTtl = routeCacheTtl;
     }
 
     public Mono<TransitRouteResponse> findRoute(
@@ -73,14 +99,11 @@ public class TransitRouteService {
 
         String cacheKey = routeCacheKey(departure, arrival, searchType, departureAt);
         trimRouteCache();
-        return routeCache.computeIfAbsent(cacheKey, ignored -> findRouteUncached(
-                departure,
-                arrival,
-                searchType,
-                departureAt
+        return routeCache.computeIfAbsent(cacheKey, ignored -> Mono.defer(() ->
+                findRouteUncached(departure, arrival, searchType, departureAt)
             )
             .cache(
-                ignoredResult -> ROUTE_CACHE_TTL,
+                ignoredResult -> routeCacheTtl,
                 ignoredError -> NO_CACHE,
                 () -> NO_CACHE
             ));
@@ -94,7 +117,7 @@ public class TransitRouteService {
     ) {
 
         LocalDateTime searchDateTime = departureAt == null
-            ? LocalDateTime.now(SEOUL_ZONE)
+            ? LocalDateTime.now(clock)
             : departureAt;
         List<String> departureCodes = resolveStationCodes(departure);
         List<String> arrivalCodes = resolveStationCodes(arrival);

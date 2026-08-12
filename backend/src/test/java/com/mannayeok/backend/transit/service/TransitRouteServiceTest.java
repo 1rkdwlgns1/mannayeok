@@ -3,7 +3,11 @@ package com.mannayeok.backend.transit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URI;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -200,6 +204,63 @@ class TransitRouteServiceTest {
             .verifyComplete();
 
         assertThat(requestCount).hasValue(3);
+    }
+
+    @Test
+    void refreshesCurrentSeoulTimeWhenRouteCacheExpires() {
+        AtomicReference<Instant> currentInstant = new AtomicReference<>(
+            Instant.parse("2026-08-11T19:00:00Z")
+        );
+        Clock clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.of("Asia/Seoul");
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return currentInstant.get();
+            }
+        };
+        AtomicReference<String> requestedSearchTime = new AtomicReference<>();
+        WebClient webClient = WebClient.builder()
+            .baseUrl("https://example.test")
+            .exchangeFunction(request -> {
+                requestedSearchTime.set(UriComponentsBuilder.fromUri(request.url())
+                    .build()
+                    .getQueryParams()
+                    .getFirst("searchDt"));
+                return Mono.just(ClientResponse.create(HttpStatus.OK)
+                    .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                    .body(successResponse())
+                    .build());
+            })
+            .build();
+        TransitRouteService service = new TransitRouteService(
+            webClient,
+            new SubwayApiProperties("https://example.test", "test-key", 5),
+            new TransitRouteMapper(),
+            resolver,
+            clock,
+            Duration.ZERO
+        );
+
+        StepVerifier.create(service.findRoute("덕정", "녹양", "duration", null))
+            .assertNext(route -> assertThat(route.fallbackSchedule()).isTrue())
+            .verifyComplete();
+        assertThat(requestedSearchTime.get()).isEqualTo("2026-08-12%2013:00:00");
+
+        currentInstant.set(Instant.parse("2026-08-12T05:00:00Z"));
+
+        StepVerifier.create(service.findRoute("덕정", "녹양", "duration", null))
+            .assertNext(route -> assertThat(route.fallbackSchedule()).isFalse())
+            .verifyComplete();
+        assertThat(requestedSearchTime.get()).isEqualTo("2026-08-12%2014:00:00");
     }
 
     private String successResponse() {
