@@ -42,6 +42,8 @@ management:
         include: health
 
 app:
+  observability:
+    external-api-report-interval-ms: ${EXTERNAL_API_REPORT_INTERVAL_MS:60000}
   features:
     collaborative-meetings-enabled: ${COLLABORATIVE_MEETINGS_ENABLED:false}
   security:

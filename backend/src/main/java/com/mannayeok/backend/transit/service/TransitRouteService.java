@@ -18,6 +18,7 @@ import com.mannayeok.backend.transit.config.SubwayApiProperties;
 import com.mannayeok.backend.transit.dto.PublicSubwayResponse;
 import com.mannayeok.backend.transit.dto.TransitRouteResponse;
 import com.mannayeok.backend.transit.error.SubwayApiException;
+import com.mannayeok.backend.observability.ExternalApiMetrics;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -49,6 +50,7 @@ public class TransitRouteService {
     private final StationCodeResolver stationCodeResolver;
     private final Clock clock;
     private final Duration routeCacheTtl;
+    private final ExternalApiMetrics metrics;
     private final ConcurrentMap<String, Mono<TransitRouteResponse>> routeCache =
         new ConcurrentHashMap<>();
 
@@ -57,7 +59,8 @@ public class TransitRouteService {
         @Qualifier("subwayWebClient") WebClient subwayWebClient,
         SubwayApiProperties properties,
         TransitRouteMapper mapper,
-        StationCodeResolver stationCodeResolver
+        StationCodeResolver stationCodeResolver,
+        ExternalApiMetrics metrics
     ) {
         this(
             subwayWebClient,
@@ -65,7 +68,8 @@ public class TransitRouteService {
             mapper,
             stationCodeResolver,
             Clock.system(SEOUL_ZONE),
-            ROUTE_CACHE_TTL
+            ROUTE_CACHE_TTL,
+            metrics
         );
     }
 
@@ -75,7 +79,8 @@ public class TransitRouteService {
         TransitRouteMapper mapper,
         StationCodeResolver stationCodeResolver,
         Clock clock,
-        Duration routeCacheTtl
+        Duration routeCacheTtl,
+        ExternalApiMetrics metrics
     ) {
         this.subwayWebClient = subwayWebClient;
         this.properties = properties;
@@ -83,6 +88,7 @@ public class TransitRouteService {
         this.stationCodeResolver = stationCodeResolver;
         this.clock = clock;
         this.routeCacheTtl = routeCacheTtl;
+        this.metrics = metrics;
     }
 
     public Mono<TransitRouteResponse> findRoute(
@@ -91,6 +97,7 @@ public class TransitRouteService {
         String searchType,
         LocalDateTime departureAt
     ) {
+        metrics.recordClientRequest("seoul_subway", "route");
         if (!properties.hasServiceKey()) {
             return Mono.error(new SubwayApiException(
                 "SUBWAY_API_SERVICE_KEY 환경변수가 설정되지 않았습니다."
@@ -99,14 +106,32 @@ public class TransitRouteService {
 
         String cacheKey = routeCacheKey(departure, arrival, searchType, departureAt);
         trimRouteCache();
-        return routeCache.computeIfAbsent(cacheKey, ignored -> Mono.defer(() ->
-                findRouteUncached(departure, arrival, searchType, departureAt)
-            )
-            .cache(
-                ignoredResult -> routeCacheTtl,
-                ignoredError -> NO_CACHE,
-                () -> NO_CACHE
-            ));
+        AtomicBoolean cacheEntryCreated = new AtomicBoolean(false);
+        Mono<TransitRouteResponse> result = routeCache.computeIfAbsent(
+            cacheKey,
+            ignored -> {
+                cacheEntryCreated.set(true);
+                return Mono.defer(() ->
+                        findRouteUncached(
+                            departure,
+                            arrival,
+                            searchType,
+                            departureAt
+                        )
+                    )
+                    .cache(
+                        ignoredResult -> routeCacheTtl,
+                        ignoredError -> NO_CACHE,
+                        () -> NO_CACHE
+                    );
+            }
+        );
+        metrics.recordCacheLookup(
+            "seoul_subway",
+            "route",
+            cacheEntryCreated.get()
+        );
+        return result;
     }
 
     private Mono<TransitRouteResponse> findRouteUncached(
@@ -123,6 +148,7 @@ public class TransitRouteService {
         List<String> arrivalCodes = resolveStationCodes(arrival);
 
         if (isOvernight(searchDateTime)) {
+            metrics.recordFallback("seoul_subway", "route");
             return findBestRouteForSearchType(
                 departureCodes,
                 arrivalCodes,
@@ -138,16 +164,17 @@ public class TransitRouteService {
             searchType,
             searchDateTime,
             false
-        ).switchIfEmpty(
-            findBestRouteForSearchType(
+        ).switchIfEmpty(Mono.defer(() -> {
+            metrics.recordFallback("seoul_subway", "route");
+            return findBestRouteForSearchType(
                     departureCodes,
                     arrivalCodes,
                     searchType,
                     fallbackSearchDateTime(searchDateTime),
                     true
                 )
-                .switchIfEmpty(noRouteError())
-        );
+                .switchIfEmpty(noRouteError());
+        }));
     }
 
     private String routeCacheKey(
@@ -285,7 +312,7 @@ public class TransitRouteService {
         String searchType,
         LocalDateTime searchDateTime
     ) {
-        return subwayWebClient.get()
+        Mono<PublicSubwayResponse> request = subwayWebClient.get()
             .uri(uriBuilder -> uriBuilder
                 .path("/getShtrmPath2")
                 .queryParam("serviceKey", properties.serviceKey())
@@ -309,11 +336,17 @@ public class TransitRouteService {
             )
             .bodyToMono(PublicSubwayResponse.class)
             .timeout(properties.timeout())
+            .flatMap(this::validateResponse);
+        return metrics.observeOutbound(
+                "seoul_subway",
+                "route." + searchType,
+                request,
+                ignored -> "success"
+            )
             .onErrorMap(
                 TimeoutException.class,
                 ignored -> new SubwayApiException("공공 지하철 API 응답 시간이 초과되었습니다.")
-            )
-            .flatMap(this::validateResponse);
+            );
     }
 
     private TransitRouteResponse toResponse(

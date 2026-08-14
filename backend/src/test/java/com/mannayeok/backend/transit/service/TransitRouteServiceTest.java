@@ -14,7 +14,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mannayeok.backend.observability.ExternalApiMetrics;
 import com.mannayeok.backend.transit.config.SubwayApiProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -65,7 +67,8 @@ class TransitRouteServiceTest {
             webClient,
             new SubwayApiProperties("https://example.test", "test-key", 5),
             new TransitRouteMapper(),
-            resolver
+            resolver,
+            metrics()
         );
 
         StepVerifier.create(service.findRoute(
@@ -111,7 +114,8 @@ class TransitRouteServiceTest {
             webClient,
             new SubwayApiProperties("https://example.test", "test-key", 5),
             new TransitRouteMapper(),
-            resolver
+            resolver,
+            metrics()
         );
 
         StepVerifier.create(service.findRoute(
@@ -155,7 +159,8 @@ class TransitRouteServiceTest {
             webClient,
             new SubwayApiProperties("https://example.test", "test-key", 5),
             new TransitRouteMapper(),
-            resolver
+            resolver,
+            metrics()
         );
 
         StepVerifier.create(service.findRoute(
@@ -178,6 +183,7 @@ class TransitRouteServiceTest {
     @Test
     void reusesSuccessfulIdenticalRouteRequests() {
         AtomicInteger requestCount = new AtomicInteger();
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
         WebClient webClient = WebClient.builder()
             .baseUrl("https://example.test")
             .exchangeFunction(request -> {
@@ -192,7 +198,8 @@ class TransitRouteServiceTest {
             webClient,
             new SubwayApiProperties("https://example.test", "test-key", 5),
             new TransitRouteMapper(),
-            resolver
+            resolver,
+            new ExternalApiMetrics(meterRegistry)
         );
         LocalDateTime departureAt = LocalDateTime.of(2026, 8, 11, 14, 0);
 
@@ -204,10 +211,39 @@ class TransitRouteServiceTest {
             .verifyComplete();
 
         assertThat(requestCount).hasValue(3);
+        assertThat(meterRegistry.get("mannayeok.external.api.client.requests")
+            .tags("provider", "seoul_subway", "operation", "route")
+            .counter()
+            .count()).isEqualTo(2);
+        assertThat(meterRegistry.get("mannayeok.external.api.cache.lookups")
+            .tags(
+                "provider", "seoul_subway",
+                "operation", "route",
+                "result", "entry_created"
+            )
+            .counter()
+            .count()).isEqualTo(1);
+        assertThat(meterRegistry.get("mannayeok.external.api.cache.lookups")
+            .tags(
+                "provider", "seoul_subway",
+                "operation", "route",
+                "result", "entry_reused"
+            )
+            .counter()
+            .count()).isEqualTo(1);
+        double outboundRequests = meterRegistry
+            .find("mannayeok.external.api.requests.started")
+            .tag("provider", "seoul_subway")
+            .counters()
+            .stream()
+            .mapToDouble(counter -> counter.count())
+            .sum();
+        assertThat(outboundRequests).isEqualTo(3);
     }
 
     @Test
     void refreshesCurrentSeoulTimeWhenRouteCacheExpires() {
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
         AtomicReference<Instant> currentInstant = new AtomicReference<>(
             Instant.parse("2026-08-11T19:00:00Z")
         );
@@ -247,7 +283,8 @@ class TransitRouteServiceTest {
             new TransitRouteMapper(),
             resolver,
             clock,
-            Duration.ZERO
+            Duration.ZERO,
+            new ExternalApiMetrics(meterRegistry)
         );
 
         StepVerifier.create(service.findRoute("덕정", "녹양", "duration", null))
@@ -261,6 +298,14 @@ class TransitRouteServiceTest {
             .assertNext(route -> assertThat(route.fallbackSchedule()).isFalse())
             .verifyComplete();
         assertThat(requestedSearchTime.get()).isEqualTo("2026-08-12%2014:00:00");
+        assertThat(meterRegistry.get("mannayeok.external.api.fallbacks")
+            .tags("provider", "seoul_subway", "operation", "route")
+            .counter()
+            .count()).isEqualTo(1);
+    }
+
+    private ExternalApiMetrics metrics() {
+        return new ExternalApiMetrics(new SimpleMeterRegistry());
     }
 
     private String successResponse() {
