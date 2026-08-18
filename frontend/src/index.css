@@ -36,6 +36,12 @@ label {
   select {
     font-size: 16px;
   }
+
+  .app-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .onboarding-screen {
