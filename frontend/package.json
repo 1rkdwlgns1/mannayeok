@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "vite build",
     "test:regression": "node --test tests/recommendationRegression.test.js",
-    "sync:font-css": "node scripts/syncPretendardCss.js",
     "generate:hub-coordinates": "node scripts/generateHubStationCoordinates.js",
     "generate:commercial-metrics": "node scripts/generateHubStationCommercialMetrics.js",
     "lint": "eslint .",
