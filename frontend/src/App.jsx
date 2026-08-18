@@ -170,14 +170,14 @@ function App() {
   const [alternativeStationIndex, setAlternativeStationIndex] = useState(0)
   const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
   const [hasStarted, setHasStarted] = useState(
-    () => Boolean(
-      sharedResult
-      || sharedResultCode
-      || collaborativeRecalculation
-      || getStoredMember()
-      || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
-      || ['#terms', '#privacy', '#sources', '#inquiry', '#notice'].includes(window.location.hash)
-    ),
+    () => window.matchMedia('(max-width: 767px)').matches || Boolean(
+        sharedResult
+        || sharedResultCode
+        || collaborativeRecalculation
+        || getStoredMember()
+        || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
+        || ['#terms', '#privacy', '#sources', '#inquiry', '#notice'].includes(window.location.hash)
+      ),
   )
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
