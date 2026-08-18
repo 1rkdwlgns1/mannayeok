@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import backgroundImage from '../assets/background.webp'
-import logoImage from '../assets/rogo-optimized.png'
+import logoImage from '../assets/rogo-display.webp'
+import logoImage2x from '../assets/rogo-display-2x.webp'
 
 const TRUST_ITEMS = [
   {
@@ -202,7 +203,15 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
 function LogoMark({ className, imageClassName = '' }) {
   return (
     <span className={`relative block ${className}`} aria-label="만나역" role="img">
-      <img src={logoImage} alt="" className={`h-full w-full object-contain object-left ${imageClassName}`} />
+      <img
+        src={logoImage}
+        srcSet={`${logoImage} 1x, ${logoImage2x} 2x`}
+        width="384"
+        height="256"
+        fetchPriority="high"
+        alt=""
+        className={`h-full w-full object-contain object-left ${imageClassName}`}
+      />
     </span>
   )
 }

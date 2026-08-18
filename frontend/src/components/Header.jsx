@@ -11,7 +11,8 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import logoImage from '../assets/rogo-optimized.png'
+import logoImage from '../assets/rogo-display.webp'
+import logoImage2x from '../assets/rogo-display-2x.webp'
 
 function Header({
   currentMember,
@@ -42,6 +43,10 @@ function Header({
         >
           <img
             src={logoImage}
+            srcSet={`${logoImage} 1x, ${logoImage2x} 2x`}
+            width="384"
+            height="256"
+            fetchPriority="high"
             alt="만나역"
             className="h-full w-full origin-left -translate-x-7 translate-y-1 scale-[1.6] object-contain object-left sm:-translate-x-10 sm:scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
           />
