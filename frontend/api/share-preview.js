@@ -25,7 +25,8 @@ export default async function handler(request, response) {
   const canonicalUrl = `${APP_URL}/s/${code}`
 
   response.setHeader('Content-Type', 'text/html; charset=utf-8')
-  response.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600')
+  response.setHeader('Cache-Control', 'private, no-store')
+  response.setHeader('Vary', 'User-Agent')
   return response.status(200).send(createPreviewHtml({ ...preview, canonicalUrl }))
 }
 

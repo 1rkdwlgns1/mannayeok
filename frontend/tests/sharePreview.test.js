@@ -55,6 +55,26 @@ test('카카오 미리보기 요청을 식별한다', () => {
   assert.equal(isPreviewCrawler('Mozilla/5.0 Chrome/140.0'), false)
 })
 
+test('미리보기 응답은 일반 브라우저에 재사용되지 않도록 캐시하지 않는다', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () => ({ ok: false })
+  const response = createMockResponse()
+
+  try {
+    await handler({
+      method: 'GET',
+      query: { code: '0123456789abcdefabcd' },
+      headers: { 'user-agent': 'kakaotalk-scrap/1.0' },
+    }, response)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+
+  assert.equal(response.statusCode, 200)
+  assert.equal(response.headers['Cache-Control'], 'private, no-store')
+  assert.equal(response.headers.Vary, 'User-Agent')
+})
+
 function createMockResponse() {
   return {
     headers: {},
