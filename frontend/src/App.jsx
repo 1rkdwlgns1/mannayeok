@@ -2679,7 +2679,8 @@ function createShortShareUrl(code) {
 
 function readSharedResultCode() {
   const match = window.location.pathname.match(/^\/s\/([a-f0-9]{20})\/?$/)
-  return match?.[1] || ''
+  const queryCode = new URLSearchParams(window.location.search).get('share') || ''
+  return match?.[1] || (/^[a-f0-9]{20}$/.test(queryCode) ? queryCode : '')
 }
 
 function readCollaborativeRecalculation() {
