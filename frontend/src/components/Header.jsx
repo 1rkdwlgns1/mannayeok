@@ -36,21 +36,23 @@ function Header({
   return (
     <div className="relative z-[130] flex min-h-16 items-start justify-between px-0 py-0 md:min-h-20">
       <div className="relative flex min-w-0 items-start">
-        <a
-          href="/"
-          className="block h-16 w-44 overflow-visible focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:w-64 md:h-20 md:w-72"
-          aria-label="만나역 메인 화면으로 이동"
-        >
+        <div className="relative h-16 w-44 overflow-visible sm:w-64 md:h-20 md:w-72">
           <img
             src={logoImage}
             srcSet={`${logoImage} 1x, ${logoImage2x} 2x`}
             width="384"
             height="256"
             fetchPriority="high"
-            alt="만나역"
-            className="h-full w-full origin-left -translate-x-7 translate-y-1 scale-[1.6] object-contain object-left sm:-translate-x-10 sm:scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none h-full w-full origin-left -translate-x-7 translate-y-1 scale-[1.6] object-contain object-left sm:-translate-x-10 sm:scale-[1.95] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
           />
-        </a>
+          <a
+            href="/"
+            className="absolute left-3 top-4 h-9 w-[4.5rem] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:left-2 sm:top-3 sm:h-11 sm:w-[5.5rem] md:left-6 md:top-3 md:h-14 md:w-[7.5rem]"
+            aria-label="만나역 메인 화면으로 이동"
+          />
+        </div>
         <BetaBadge className="absolute left-24 top-3 md:left-36 md:top-4" />
       </div>
 
