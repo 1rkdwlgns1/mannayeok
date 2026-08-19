@@ -2674,7 +2674,9 @@ function getMaximumOriginDistance(origins) {
 
 function createShortShareUrl(code) {
   const baseUrl = window.location.hostname === 'localhost' ? window.location.origin : PUBLIC_APP_URL
-  return new URL(`/s/${code}`, baseUrl).toString()
+  const shareUrl = new URL(`/s/${code}`, baseUrl)
+  shareUrl.searchParams.set('v', '2')
+  return shareUrl.toString()
 }
 
 function readSharedResultCode() {
