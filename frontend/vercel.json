@@ -41,6 +41,10 @@
   ],
   "rewrites": [
     {
+      "source": "/s/:code",
+      "destination": "/api/share-preview?code=:code"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

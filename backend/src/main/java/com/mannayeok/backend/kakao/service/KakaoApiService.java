@@ -4,14 +4,15 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.mannayeok.backend.kakao.config.KakaoApiProperties;
 import com.mannayeok.backend.kakao.error.KakaoApiException;
+import com.mannayeok.backend.observability.ExternalApiMetrics;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class KakaoApiService {
     private final WebClient kakaoMobilityWebClient;
     private final KakaoApiProperties properties;
     private final KakaoLocalRequestValidator localRequestValidator;
+    private final ExternalApiMetrics metrics;
     private final ConcurrentMap<String, Mono<ResponseEntity<String>>> localRequestCache =
         new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Mono<ResponseEntity<String>>> directionsRequestCache =
@@ -40,12 +42,14 @@ public class KakaoApiService {
         @Qualifier("kakaoLocalWebClient") WebClient kakaoLocalWebClient,
         @Qualifier("kakaoMobilityWebClient") WebClient kakaoMobilityWebClient,
         KakaoApiProperties properties,
-        KakaoLocalRequestValidator localRequestValidator
+        KakaoLocalRequestValidator localRequestValidator,
+        ExternalApiMetrics metrics
     ) {
         this.kakaoLocalWebClient = kakaoLocalWebClient;
         this.kakaoMobilityWebClient = kakaoMobilityWebClient;
         this.properties = properties;
         this.localRequestValidator = localRequestValidator;
+        this.metrics = metrics;
     }
 
     public Mono<ResponseEntity<String>> searchLocal(
@@ -59,23 +63,35 @@ public class KakaoApiService {
         }
 
         String endpoint = localRequestValidator.validate(type, params);
+        String operation = "local." + type;
+        metrics.recordClientRequest("kakao", operation);
         String cacheKey = localCacheKey(type, params);
         trimCache(localRequestCache, MAX_LOCAL_CACHE_ENTRIES);
-        return localRequestCache.computeIfAbsent(cacheKey, ignored -> requestLocal(endpoint, params)
-            .cache(
-                response -> response.getStatusCode().is2xxSuccessful()
-                    ? LOCAL_CACHE_TTL
-                    : NO_CACHE,
-                ignoredError -> NO_CACHE,
-                () -> NO_CACHE
-            ));
+        AtomicBoolean cacheEntryCreated = new AtomicBoolean(false);
+        Mono<ResponseEntity<String>> result = localRequestCache.computeIfAbsent(
+            cacheKey,
+            ignored -> {
+                cacheEntryCreated.set(true);
+                return requestLocal(endpoint, operation, params)
+                    .cache(
+                        response -> response.getStatusCode().is2xxSuccessful()
+                            ? LOCAL_CACHE_TTL
+                            : NO_CACHE,
+                        ignoredError -> NO_CACHE,
+                        () -> NO_CACHE
+                    );
+            }
+        );
+        metrics.recordCacheLookup("kakao", operation, cacheEntryCreated.get());
+        return result;
     }
 
     private Mono<ResponseEntity<String>> requestLocal(
         String endpoint,
+        String operation,
         MultiValueMap<String, String> params
     ) {
-        return kakaoLocalWebClient.get()
+        Mono<ResponseEntity<String>> request = kakaoLocalWebClient.get()
             .uri(uriBuilder -> {
                 uriBuilder.pathSegment(endpoint);
                 params.forEach((key, values) ->
@@ -95,6 +111,12 @@ public class KakaoApiService {
                         .orElse(MediaType.APPLICATION_JSON))
                     .body(body)))
             .timeout(properties.timeout());
+        return metrics.observeOutbound(
+            "kakao",
+            operation,
+            request,
+            response -> ExternalApiMetrics.httpOutcome(response.getStatusCode())
+        );
     }
 
     public Mono<ResponseEntity<String>> findDirections(
@@ -102,6 +124,7 @@ public class KakaoApiService {
         String destination,
         String priority
     ) {
+        metrics.recordClientRequest("kakao", "directions");
         if (!properties.hasDirectionsKey()) {
             return Mono.error(new KakaoApiException(
                 "카카오 길찾기 API 인증키가 설정되지 않았습니다."
@@ -110,18 +133,27 @@ public class KakaoApiService {
 
         String cacheKey = origin + '|' + destination + '|' + priority;
         trimCache(directionsRequestCache, MAX_DIRECTIONS_CACHE_ENTRIES);
-        return directionsRequestCache.computeIfAbsent(cacheKey, ignored -> requestDirections(
-                origin,
-                destination,
-                priority
-            )
-            .cache(
-                response -> response.getStatusCode().is2xxSuccessful()
-                    ? DIRECTIONS_CACHE_TTL
-                    : NO_CACHE,
-                ignoredError -> NO_CACHE,
-                () -> NO_CACHE
-            ));
+        AtomicBoolean cacheEntryCreated = new AtomicBoolean(false);
+        Mono<ResponseEntity<String>> result = directionsRequestCache.computeIfAbsent(
+            cacheKey,
+            ignored -> {
+                cacheEntryCreated.set(true);
+                return requestDirections(origin, destination, priority)
+                    .cache(
+                        response -> response.getStatusCode().is2xxSuccessful()
+                            ? DIRECTIONS_CACHE_TTL
+                            : NO_CACHE,
+                        ignoredError -> NO_CACHE,
+                        () -> NO_CACHE
+                    );
+            }
+        );
+        metrics.recordCacheLookup(
+            "kakao",
+            "directions",
+            cacheEntryCreated.get()
+        );
+        return result;
     }
 
     private Mono<ResponseEntity<String>> requestDirections(
@@ -129,7 +161,7 @@ public class KakaoApiService {
         String destination,
         String priority
     ) {
-        return kakaoMobilityWebClient.get()
+        Mono<ResponseEntity<String>> request = kakaoMobilityWebClient.get()
             .uri(uriBuilder -> uriBuilder
                 .path("/v1/directions")
                 .queryParam("origin", origin)
@@ -148,7 +180,13 @@ public class KakaoApiService {
                     .contentType(response.headers().contentType()
                         .orElse(MediaType.APPLICATION_JSON))
                     .body(body)))
-            .timeout(properties.timeout())
+            .timeout(properties.timeout());
+        return metrics.observeOutbound(
+                "kakao",
+                "directions",
+                request,
+                response -> ExternalApiMetrics.httpOutcome(response.getStatusCode())
+            )
             .onErrorMap(
                 exception -> exception instanceof KakaoApiException
                     ? exception

@@ -36,6 +36,9 @@ import org.springframework.web.cors.reactive.CorsConfigurationSource;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
+    private static final String LEGACY_DEVELOPMENT_JWT_SECRET =
+        "local-development-jwt-secret-change-me-1234567890";
+
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -43,6 +46,14 @@ public class SecurityConfig {
 
     @Bean
     SecretKey jwtSecretKey(@Value("${app.auth.jwt-secret}") String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET must be configured.");
+        }
+        if (LEGACY_DEVELOPMENT_JWT_SECRET.equals(secret)) {
+            throw new IllegalStateException(
+                "JWT_SECRET must not use the legacy development default."
+            );
+        }
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             throw new IllegalStateException("JWT_SECRET must be at least 32 bytes.");

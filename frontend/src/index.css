@@ -72,6 +72,14 @@ label {
   animation: app-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@media (max-width: 767px) {
+  .app-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .reveal-on-scroll {
   opacity: 0;
   transform: translateY(18px) scale(0.985);

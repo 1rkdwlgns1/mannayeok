@@ -170,14 +170,14 @@ function App() {
   const [alternativeStationIndex, setAlternativeStationIndex] = useState(0)
   const [fairStationCollapsed, setFairStationCollapsed] = useState(true)
   const [hasStarted, setHasStarted] = useState(
-    () => Boolean(
-      sharedResult
-      || sharedResultCode
-      || collaborativeRecalculation
-      || getStoredMember()
-      || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
-      || ['#terms', '#privacy', '#sources', '#inquiry', '#notice'].includes(window.location.hash)
-    ),
+    () => window.matchMedia('(max-width: 767px)').matches || Boolean(
+        sharedResult
+        || sharedResultCode
+        || collaborativeRecalculation
+        || getStoredMember()
+        || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
+        || ['#terms', '#privacy', '#sources', '#inquiry', '#notice'].includes(window.location.hash)
+      ),
   )
   const [isOnboardingLeaving, setIsOnboardingLeaving] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -2674,12 +2674,15 @@ function getMaximumOriginDistance(origins) {
 
 function createShortShareUrl(code) {
   const baseUrl = window.location.hostname === 'localhost' ? window.location.origin : PUBLIC_APP_URL
-  return new URL(`/s/${code}`, baseUrl).toString()
+  const shareUrl = new URL(`/s/${code}`, baseUrl)
+  shareUrl.searchParams.set('v', '2')
+  return shareUrl.toString()
 }
 
 function readSharedResultCode() {
   const match = window.location.pathname.match(/^\/s\/([a-f0-9]{20})\/?$/)
-  return match?.[1] || ''
+  const queryCode = new URLSearchParams(window.location.search).get('share') || ''
+  return match?.[1] || (/^[a-f0-9]{20}$/.test(queryCode) ? queryCode : '')
 }
 
 function readCollaborativeRecalculation() {
