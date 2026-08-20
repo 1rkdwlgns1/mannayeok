@@ -91,6 +91,16 @@ test('고정된 외부 API 응답에서 추천 결과 전체가 유지된다', a
   assert.equal(requests.filter((request) => request.startsWith('/api/transit/routes?')).length, 2)
 })
 
+test('카카오 지하철 검색 결과의 노선 접미사를 역 코드 조회용 이름에서 제거한다', () => {
+  assert.equal(transitApi.normalizeStationName('평내호평역 경춘선'), '평내호평')
+  assert.equal(transitApi.normalizeStationName('덕정역 1호선'), '덕정')
+  assert.equal(transitApi.normalizeStationName('판교역 신분당선'), '판교')
+  assert.equal(transitApi.normalizeStationName('서울역 GTX-A'), '서울')
+  assert.equal(transitApi.normalizeStationName('계양역 인천선'), '계양')
+  assert.equal(transitApi.normalizeStationName('홍대입구역 경의·중앙선'), '홍대입구')
+  assert.equal(transitApi.normalizeStationName('강남역'), '강남')
+})
+
 function assertClose(actual, expected, label) {
   assert.ok(
     Number.isFinite(actual) && Math.abs(actual - expected) <= SCORE_TOLERANCE,

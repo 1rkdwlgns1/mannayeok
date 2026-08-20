@@ -20,7 +20,10 @@ import {
   joinCollaborativeMeeting,
   updateMeetingParticipant,
 } from '../../services/meetingApi.js'
-import { getLineChipStyle } from '../../utils/subwayLineTheme.js'
+import {
+  getLineChipStyle,
+  getSubwayLineDisplayName,
+} from '../../utils/subwayLineTheme.js'
 
 const PARTICIPANT_STORAGE_PREFIX = 'mannayeok.meetingParticipant.'
 
@@ -213,7 +216,7 @@ function MeetingInvitePage() {
             </button>
           </div>
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {meeting.stationLines.map((line) => <span key={line} style={getLineChipStyle(line)} className="rounded-full border px-2.5 py-1 text-[10px] font-black">{line}</span>)}
+            {meeting.stationLines.map((line) => <span key={line} style={getLineChipStyle(line)} className="rounded-full border px-2.5 py-1 text-[10px] font-black">{getSubwayLineDisplayName(line)}</span>)}
           </div>
         </header>
 

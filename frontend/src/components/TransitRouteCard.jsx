@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { getStationDisplayTransitTimeProfile } from '../data/subwayTravelTimeGraph'
 import { fetchTransitRouteWithRetry } from '../services/transitApi'
 import { createKakaoDirectionUrl, createNaverSearchUrl } from '../utils/mapDirectionUrls'
-import { getLineChipStyle, getSubwayLineTheme } from '../utils/subwayLineTheme'
+import {
+  getLineChipStyle,
+  getSubwayLineDisplayName,
+  getSubwayLineTheme,
+} from '../utils/subwayLineTheme'
 import { isSameTransitStation } from '../utils/transitStation'
 
 function TransitTimeEstimateCard({ origins, station }) {
@@ -399,7 +403,7 @@ function TransitRoutePreview({ routeSteps, showMobile = false }) {
                   ...getLineChipStyle(step.line),
                 }}
               >
-                <span className="truncate">{step.line}</span>
+                <span className="truncate">{getSubwayLineDisplayName(step.line)}</span>
               </span>
             </span>
           ) : null,

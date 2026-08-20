@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +18,13 @@ import org.springframework.stereotype.Component;
 public class StationCodeResolver {
 
     private static final String STATION_DATA_PATH = "data/subway-stations.json";
+    private static final Pattern LINE_SUFFIX_PATTERN = Pattern.compile(
+        "\\s*(?:0?\\d+호선|인천(?:\\d+호선|선)|경의(?:·)?중앙선|경의선|경춘선|경강선|"
+            + "서해선|수인분당선|신분당선|GTX-A|공항철도|김포골드라인|"
+            + "김포도시철도|용인경전철|에버라인|우이신설경전철|우이신설선|"
+            + "신림선|의정부경전철|경전철의정부)$",
+        Pattern.CASE_INSENSITIVE
+    );
 
     private final Map<String, List<String>> codesByStationName;
 
@@ -34,6 +42,7 @@ public class StationCodeResolver {
 
     static String normalizeStationName(String stationName) {
         String normalized = stationName == null ? "" : stationName.trim();
+        normalized = LINE_SUFFIX_PATTERN.matcher(normalized).replaceFirst("").trim();
         if ("서울".equals(normalized) || "서울역".equals(normalized)) {
             return "서울역";
         }
