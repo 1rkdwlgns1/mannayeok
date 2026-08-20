@@ -51,6 +51,22 @@ class TransitRouteServiceTest {
     }
 
     @Test
+    void resolvesKakaoStationNamesWithLineSuffixes() {
+        assertThat(resolver.resolve("평내호평역 경춘선"))
+            .containsExactly("1317");
+        assertThat(resolver.resolve("덕정역 1호선"))
+            .containsExactly("1911");
+        assertThat(resolver.resolve("판교역 신분당선"))
+            .contains("4311");
+        assertThat(resolver.resolve("서울역 GTX-A"))
+            .containsExactlyInAnyOrder("0150", "0426", "1251", "4201");
+        assertThat(StationCodeResolver.normalizeStationName("계양역 인천선"))
+            .isEqualTo("계양");
+        assertThat(StationCodeResolver.normalizeStationName("홍대입구역 경의·중앙선"))
+            .isEqualTo("홍대입구");
+    }
+
+    @Test
     void requestsThePublicApiWithOfficialStationCodes() {
         AtomicReference<URI> requestedUri = new AtomicReference<>();
         WebClient webClient = WebClient.builder()
@@ -72,8 +88,8 @@ class TransitRouteServiceTest {
         );
 
         StepVerifier.create(service.findRoute(
-                "덕정역",
-                "녹양",
+                "평내호평역 경춘선",
+                "갈매역 경춘선",
                 "duration",
                 LocalDateTime.of(2026, 8, 3, 13, 0)
             ))
@@ -83,8 +99,8 @@ class TransitRouteServiceTest {
         var queryParams = UriComponentsBuilder.fromUri(requestedUri.get())
             .build()
             .getQueryParams();
-        assertThat(queryParams.getFirst("dptreStn")).isEqualTo("1911");
-        assertThat(queryParams.getFirst("arvlStn")).isEqualTo("1908");
+        assertThat(queryParams.getFirst("dptreStn")).isEqualTo("1317");
+        assertThat(queryParams.getFirst("arvlStn")).isEqualTo("1312");
         assertThat(queryParams.getFirst("stationValueType")).isEqualTo("code");
         assertThat(queryParams.getFirst("searchDt"))
             .isEqualTo("2026-08-03%2013:00:00");

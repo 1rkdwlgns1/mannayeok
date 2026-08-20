@@ -8,6 +8,17 @@ function getLineChipStyle(line) {
   }
 }
 
+function getSubwayLineDisplayName(line = '') {
+  const displayName = String(line).trim()
+  const compactName = displayName.replace(/[·\s]+/g, '')
+
+  if (compactName === '경의선' || compactName === '경의중앙선') {
+    return '경의·중앙선'
+  }
+
+  return displayName
+}
+
 function mixLineColorWithWhite(hexColor, strength) {
   const normalizedHex = hexColor.replace('#', '')
   const channels = [0, 2, 4].map((offset) => Number.parseInt(normalizedHex.slice(offset, offset + 2), 16))
@@ -21,7 +32,7 @@ function mixLineColorWithWhite(hexColor, strength) {
 }
 
 function getSubwayLineTheme(line = '') {
-  const normalizedLine = String(line).replace(/\s+/g, '')
+  const normalizedLine = getSubwayLineDisplayName(line).replace(/[·\s]+/g, '')
   const themes = [
     ['인천1호선', '#7CA8D5'],
     ['인천2호선', '#ED8B00'],
@@ -60,4 +71,4 @@ function getSubwayLineTheme(line = '') {
   }
 }
 
-export { getLineChipStyle, getSubwayLineTheme }
+export { getLineChipStyle, getSubwayLineDisplayName, getSubwayLineTheme }

@@ -80,6 +80,14 @@ async function requestTransitRoute(departure, arrival) {
   return route
 }
 
-function normalizeStationName(stationName) {
-  return String(stationName || '').trim().replace(/역$/, '')
+export function normalizeStationName(stationName) {
+  const normalized = String(stationName || '')
+    .trim()
+    .replace(
+      /\s*(?:0?\d+호선|인천(?:\d+호선|선)|경의(?:·)?중앙선|경의선|경춘선|경강선|서해선|수인분당선|신분당선|GTX-A|공항철도|김포골드라인|김포도시철도|용인경전철|에버라인|우이신설경전철|우이신설선|신림선|의정부경전철|경전철의정부)$/i,
+      '',
+    )
+    .trim()
+
+  return normalized.replace(/역$/, '')
 }

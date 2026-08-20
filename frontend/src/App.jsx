@@ -42,7 +42,7 @@ import { createSavedRecommendation } from './services/savedRecommendationApi'
 import { updateCollaborativeMeetingResult } from './services/meetingApi'
 import { setAuthReturnPath } from './services/authReturn'
 import { legalDocuments } from './components/legal/LegalDocumentPage'
-import { getLineChipStyle } from './utils/subwayLineTheme'
+import { getLineChipStyle, getSubwayLineDisplayName } from './utils/subwayLineTheme'
 import { isSameTransitStation } from './utils/transitStation'
 import {
   createDefaultMeetingName,
@@ -2200,7 +2200,7 @@ function StationLineChips({ station, className = '' }) {
           className="rounded-full border px-2.5 py-0.5 text-[11px] font-black"
           style={getLineChipStyle(line)}
         >
-          {line}
+          {getSubwayLineDisplayName(line)}
         </span>
       ))}
     </div>
