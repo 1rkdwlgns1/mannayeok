@@ -5,7 +5,7 @@ const API_BASE_URL = 'https://api.mannayeok.kr'
 const APP_URL = 'https://mannayeok.kr'
 const SHARE_IMAGE_URL = `${APP_URL}/mannayeok-share-logo.png?v=2`
 const SHARE_CODE_PATTERN = /^[a-f0-9]{20}$/
-const CRAWLER_PATTERN = /bot|crawler|spider|facebookexternalhit|facebot|kakaotalk|kakao|slack|discord|telegram|whatsapp|linkedin|twitter|pinterest|skype|line\//i
+const CRAWLER_PATTERN = /bot|crawler|spider|facebookexternalhit|facebot|kakaotalk-scrap|skypeuripreview/i
 
 export default async function handler(request, response) {
   if (request.method !== 'GET') {
