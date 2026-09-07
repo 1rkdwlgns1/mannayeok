@@ -52,7 +52,37 @@ test('일반 브라우저는 결과 화면 URL로 이동시키고 API를 호출�
 
 test('카카오 미리보기 요청을 식별한다', () => {
   assert.equal(isPreviewCrawler('kakaotalk-scrap/1.0'), true)
+  assert.equal(
+    isPreviewCrawler('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 KAKAOTALK 25.7.1'),
+    false,
+  )
   assert.equal(isPreviewCrawler('Mozilla/5.0 Chrome/140.0'), false)
+})
+
+test('카카오톡 인앱 브라우저는 공유 결과 화면으로 이동시킨다', async () => {
+  let fetchCalled = false
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () => {
+    fetchCalled = true
+    throw new Error('unexpected fetch')
+  }
+
+  const response = createMockResponse()
+  try {
+    await handler({
+      method: 'GET',
+      query: { code: '0123456789abcdefabcd' },
+      headers: {
+        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 KAKAOTALK 25.7.1',
+      },
+    }, response)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+
+  assert.equal(fetchCalled, false)
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.redirectUrl, '/?share=0123456789abcdefabcd')
 })
 
 test('미리보기 응답은 일반 브라우저에 재사용되지 않도록 캐시하지 않는다', async () => {
