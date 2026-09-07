@@ -123,12 +123,12 @@ function NoticeDialog({ onClose }) {
       }}
     >
       <section
-        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-white/60 bg-white p-4 shadow-2xl sm:p-6"
+        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="notice-title"
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex shrink-0 items-start justify-between gap-4 px-4 pt-4 sm:px-6 sm:pt-6">
           <div className="min-w-0">
             <p className="text-xs font-black text-[#5A45E8]">만나역 소식</p>
             <h2 id="notice-title" className="mt-1 text-lg font-black tracking-tight text-slate-950 sm:text-xl">
@@ -148,9 +148,9 @@ function NoticeDialog({ onClose }) {
           </button>
         </div>
 
-        {noticeLoadError ? <p className="mt-3 text-[11px] font-semibold text-amber-600">{noticeLoadError}</p> : null}
+        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+          {noticeLoadError ? <p className="text-[11px] font-semibold text-amber-600">{noticeLoadError}</p> : null}
 
-        <div className="mt-4 space-y-2.5">
           {notices.map((notice) => {
             const isOpen = openNoticeId === notice.id
             const contentId = `notice-content-${notice.id}`
@@ -217,13 +217,15 @@ function NoticeDialog({ onClose }) {
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-4 h-10 w-full rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4] active:scale-[0.99] sm:h-11"
-        >
-          닫기
-        </button>
+        <div className="shrink-0 border-t border-slate-100 bg-white px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 w-full rounded-xl bg-[#5A45E8] text-sm font-black text-white transition hover:bg-[#4D39D4] active:scale-[0.99] sm:h-11"
+          >
+            닫기
+          </button>
+        </div>
       </section>
     </div>
   )
