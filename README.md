@@ -4,7 +4,10 @@
 
 <p><strong>어디서 만날지 고민될 때, 함께 만나기 좋은 역.</strong></p>
 
-<p>여러 사람의 출발지를 바탕으로 이동 부담과 주변 상권을 비교해<br>약속역과 주변 장소를 추천하는 웹 서비스입니다.</p>
+<p>
+여러 사람의 출발지를 바탕으로 이동 부담과 주변 상권을 비교해<br>
+약속역과 주변 장소를 추천하는 웹 서비스입니다.
+</p>
 
 <p>
   <a href="https://mannayeok.kr"><strong>서비스 바로가기 ↗</strong></a>
@@ -18,7 +21,19 @@
   <a href="#실행과-검증">실행과 검증</a>
 </p>
 
-<p><code>Java 17</code> &nbsp; <code>Spring Boot</code> &nbsp; <code>MySQL</code> &nbsp; <code>React</code></p>
+<br>
+
+<p>
+  <img
+    src="https://skillicons.dev/icons?i=java,spring,mysql,react&amp;theme=dark"
+    alt="Java, Spring, MySQL, React"
+    height="48"
+  />
+</p>
+
+<p>
+  <strong>Java 17 &nbsp;·&nbsp; Spring Boot &nbsp;·&nbsp; MySQL &nbsp;·&nbsp; React</strong>
+</p>
 
 </div>
 
