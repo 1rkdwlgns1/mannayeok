@@ -68,20 +68,43 @@ Java · Spring Boot · MySQL · React · Vite · Tailwind CSS
 
 ## 기술 스택
 
-| 영역 | 사용 기술 |
-| --- | --- |
-| 언어 | Java 17, JavaScript, HTML/CSS |
-| 프런트엔드 | React 19, Vite 8, Tailwind CSS 4 |
-| UI | Framer Motion, Lucide React |
-| 백엔드 | Spring Boot 3.5, Spring WebFlux / WebClient |
-| DB·데이터 관리 | MySQL, Spring Data JPA, Flyway |
-| 인증·보안 | Spring Security, JWT, BCrypt |
-| 이메일 | Spring Mail |
-| 외부 API | Kakao Maps JavaScript SDK, Kakao Local API, Kakao 길찾기 API, 대중교통 경로 API |
-| 테스트·품질 | JUnit, Reactor Test, Node.js Test Runner, ESLint |
-| 모니터링 | Spring Boot Actuator, Micrometer |
-| 빌드·패키지 관리 | Gradle, npm |
+## 기술 스택
 
+### Backend
+
+<p>
+  <img src="https://img.shields.io/badge/Java_17-F3F4F6?style=for-the-badge" alt="Java 17" />
+  <img src="https://img.shields.io/badge/Spring_Boot-F3F4F6?style=for-the-badge&logo=springboot&logoColor=6DB33F" alt="Spring Boot" />
+  <img src="https://img.shields.io/badge/Spring_Security-F3F4F6?style=for-the-badge&logo=springsecurity&logoColor=6DB33F" alt="Spring Security" />
+  <img src="https://img.shields.io/badge/MySQL-F3F4F6?style=for-the-badge&logo=mysql&logoColor=4479A1" alt="MySQL" />
+</p>
+
+Spring WebFlux / WebClient · Spring Data JPA · Flyway · JWT · BCrypt · Spring Mail
+
+### Frontend
+
+<p>
+  <img src="https://img.shields.io/badge/JavaScript-F3F4F6?style=for-the-badge&logo=javascript&logoColor=C5A600" alt="JavaScript" />
+  <img src="https://img.shields.io/badge/React-F3F4F6?style=for-the-badge&logo=react&logoColor=149ECA" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-F3F4F6?style=for-the-badge&logo=vite&logoColor=646CFF" alt="Vite" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-F3F4F6?style=for-the-badge&logo=tailwindcss&logoColor=06B6D4" alt="Tailwind CSS" />
+</p>
+
+React 19 · Vite 8 · Tailwind CSS 4 · HTML/CSS · Framer Motion · Lucide React
+
+### Tools & Testing
+
+<p>
+  <img src="https://img.shields.io/badge/Gradle-F3F4F6?style=for-the-badge&logo=gradle&logoColor=02303A" alt="Gradle" />
+  <img src="https://img.shields.io/badge/npm-F3F4F6?style=for-the-badge&logo=npm&logoColor=CB3837" alt="npm" />
+  <img src="https://img.shields.io/badge/ESLint-F3F4F6?style=for-the-badge&logo=eslint&logoColor=4B32C3" alt="ESLint" />
+</p>
+
+JUnit · Reactor Test · Node.js Test Runner · Spring Boot Actuator · Micrometer
+
+### External APIs
+
+Kakao Maps JavaScript SDK · Kakao Local API · Kakao 길찾기 API · 대중교통 경로 API
 ## 서비스 구조
 
 ```mermaid
