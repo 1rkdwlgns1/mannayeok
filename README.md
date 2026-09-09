@@ -66,7 +66,6 @@ Java · Spring Boot · MySQL · React · Vite · Tailwind CSS
 3. 추천역까지의 이동 경로와 주변 장소를 확인합니다.
 4. 추천 결과를 공유하거나 저장합니다.
 
-## 기술 스택
 
 ## 기술 스택
 
