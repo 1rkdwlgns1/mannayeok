@@ -6,14 +6,6 @@ function AccountPage() {
   const member = getStoredMember()
 
   const handleBack = () => {
-    try {
-      if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
-        window.history.back()
-        return
-      }
-    } catch {
-      // 유효한 이전 페이지가 없으면 메인 화면으로 이동한다.
-    }
     window.location.assign('/')
   }
 
