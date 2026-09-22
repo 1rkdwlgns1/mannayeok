@@ -53,7 +53,6 @@ function Header({
             aria-label="만나역 메인 화면으로 이동"
           />
         </div>
-        <BetaBadge className="absolute left-24 top-3 md:left-36 md:top-4" />
       </div>
 
       <nav className="relative z-10 mt-5 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
@@ -178,17 +177,6 @@ function MobileMenuAction({ icon: ActionIcon, label, onClick, danger = false }) 
       <ActionIcon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
       {label}
     </button>
-  )
-}
-
-function BetaBadge({ className = '' }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-xl border border-violet-200 bg-white/95 px-2.5 py-1 text-[11px] font-black tracking-wide text-[#5A45E8] shadow-sm ring-1 ring-violet-50 ${className}`}
-      aria-label="베타 서비스"
-    >
-      BETA
-    </span>
   )
 }
 

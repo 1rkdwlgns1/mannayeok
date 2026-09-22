@@ -43,13 +43,13 @@ const FALLBACK_NOTICE_ITEMS = [
     note: '추천 알고리즘과 점수 계산식은 변경하지 않았습니다.',
   },
   {
-    id: 'beta-service',
-    title: '만나역 베타 서비스 이용 안내',
+    id: 'service-guide',
+    title: '만나역 서비스 이용 안내',
     date: '2026.08.01',
     dateTime: '2026-08-01',
     status: '안내',
     statusClass: 'bg-violet-50 text-[#5A45E8]',
-    summary: '만나역은 더 편리하고 정확한 약속역 추천을 위해 베타 서비스로 운영되고 있습니다.',
+    summary: '만나역은 더 편리하고 정확한 약속역 추천을 위해 서비스를 지속적으로 개선하고 있습니다.',
     details: [
       '서비스 이용 중 일부 기능과 화면이 변경될 수 있습니다.',
       '발견된 오류와 개선 의견은 순차적으로 서비스에 반영합니다.',

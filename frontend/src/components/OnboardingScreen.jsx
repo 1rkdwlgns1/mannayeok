@@ -66,9 +66,6 @@ function OnboardingScreen({ onStart, isLeaving = false }) {
               imageClassName="origin-left -translate-x-7 translate-y-1 scale-[1.6] md:-translate-x-11 md:translate-y-1.5 md:scale-[2.15]"
             />
           </motion.div>
-          <motion.div className="hidden md:mt-4 md:block" {...fadeIn(0.1, 0.5)}>
-            <BetaBadge />
-          </motion.div>
         </header>
 
         <section className="flex flex-1 flex-col items-center justify-center gap-4 pb-4 pt-2 text-center md:gap-5 md:pb-5 md:pt-2">
@@ -212,17 +209,6 @@ function LogoMark({ className, imageClassName = '' }) {
         alt=""
         className={`h-full w-full object-contain object-left ${imageClassName}`}
       />
-    </span>
-  )
-}
-
-function BetaBadge() {
-  return (
-    <span
-      className="inline-flex items-center rounded-xl border border-violet-200 bg-white/95 px-2.5 py-1 text-[11px] font-black tracking-wide text-[#5A45E8] shadow-sm ring-1 ring-violet-50"
-      aria-label="베타 서비스"
-    >
-      BETA
     </span>
   )
 }
