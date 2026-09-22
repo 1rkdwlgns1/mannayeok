@@ -1952,7 +1952,7 @@ function ServiceInfoContent() {
         <p>중요한 약속 전에는 연결된 지도와 해당 교통 운영기관의 최신 정보를 함께 확인해주세요.</p>
       </PrivacyPolicySection>
       <PrivacyPolicySection title="3. 지원 지역">
-        <p>현재 베타 서비스는 수도권 전철망 이용 지역을 기준으로 추천합니다.</p>
+        <p>현재 서비스는 수도권 전철망 이용 지역을 기준으로 추천합니다.</p>
         <p>선택한 출발지 주변에서 지원되는 전철역을 찾지 못하면 추천이 제한되며, 지원 지역은 차차 확대할 예정입니다.</p>
       </PrivacyPolicySection>
       <PrivacyPolicySection title="4. 서비스 변경 및 문의">
