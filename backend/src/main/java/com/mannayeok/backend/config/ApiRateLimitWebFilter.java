@@ -16,6 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
@@ -32,28 +34,35 @@ public class ApiRateLimitWebFilter implements WebFilter {
     ).getBytes(StandardCharsets.UTF_8);
 
     private final boolean enabled;
+    private final CorsConfigurationSource corsConfigurationSource;
     private final Map<String, WindowCounter> counters = new ConcurrentHashMap<>();
     private final AtomicLong cleanupCounter = new AtomicLong();
     private final LimitRule loginRule;
     private final LimitRule authRule;
-    private final LimitRule proxyRule;
+    private final LimitRule kakaoProxyRule;
+    private final LimitRule transitProxyRule;
     private final LimitRule shareCreateRule;
 
     public ApiRateLimitWebFilter(
+        CorsConfigurationSource corsConfigurationSource,
         @Value("${app.security.rate-limit.enabled:true}") boolean enabled,
         @Value("${app.security.rate-limit.login-requests:10}") int loginRequests,
         @Value("${app.security.rate-limit.login-window-seconds:60}") long loginWindowSeconds,
         @Value("${app.security.rate-limit.auth-requests:30}") int authRequests,
         @Value("${app.security.rate-limit.auth-window-seconds:60}") long authWindowSeconds,
-        @Value("${app.security.rate-limit.proxy-requests:120}") int proxyRequests,
-        @Value("${app.security.rate-limit.proxy-window-seconds:60}") long proxyWindowSeconds,
+        @Value("${app.security.rate-limit.kakao-requests:120}") int kakaoRequests,
+        @Value("${app.security.rate-limit.kakao-window-seconds:60}") long kakaoWindowSeconds,
+        @Value("${app.security.rate-limit.transit-requests:120}") int transitRequests,
+        @Value("${app.security.rate-limit.transit-window-seconds:60}") long transitWindowSeconds,
         @Value("${app.security.rate-limit.share-create-requests:20}") int shareCreateRequests,
         @Value("${app.security.rate-limit.share-create-window-seconds:3600}") long shareCreateWindowSeconds
     ) {
+        this.corsConfigurationSource = corsConfigurationSource;
         this.enabled = enabled;
         this.loginRule = new LimitRule("login", loginRequests, loginWindowSeconds);
         this.authRule = new LimitRule("auth", authRequests, authWindowSeconds);
-        this.proxyRule = new LimitRule("proxy", proxyRequests, proxyWindowSeconds);
+        this.kakaoProxyRule = new LimitRule("kakao-proxy", kakaoRequests, kakaoWindowSeconds);
+        this.transitProxyRule = new LimitRule("transit-proxy", transitRequests, transitWindowSeconds);
         this.shareCreateRule = new LimitRule("share-create", shareCreateRequests, shareCreateWindowSeconds);
     }
 
@@ -79,9 +88,27 @@ public class ApiRateLimitWebFilter implements WebFilter {
         exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
         exchange.getResponse().getHeaders().set(HttpHeaders.RETRY_AFTER, String.valueOf(decision.retryAfterSeconds()));
+        applyCorsHeaders(exchange);
         return exchange.getResponse().writeWith(Mono.just(
             exchange.getResponse().bufferFactory().wrap(TOO_MANY_REQUESTS_BODY)
         ));
+    }
+
+    private void applyCorsHeaders(ServerWebExchange exchange) {
+        String origin = exchange.getRequest().getHeaders().getOrigin();
+        if (origin == null) return;
+
+        CorsConfiguration configuration =
+            corsConfigurationSource.getCorsConfiguration(exchange);
+        if (configuration == null) return;
+
+        String allowedOrigin = configuration.checkOrigin(origin);
+        if (allowedOrigin == null) return;
+
+        HttpHeaders headers = exchange.getResponse().getHeaders();
+        headers.setAccessControlAllowOrigin(allowedOrigin);
+        headers.setAccessControlExposeHeaders(configuration.getExposedHeaders());
+        headers.add(HttpHeaders.VARY, HttpHeaders.ORIGIN);
     }
 
     private LimitRule findRule(ServerHttpRequest request) {
@@ -93,8 +120,11 @@ public class ApiRateLimitWebFilter implements WebFilter {
         if (path.startsWith("/api/auth/")) {
             return authRule;
         }
-        if (path.startsWith("/api/kakao/") || path.startsWith("/api/transit/")) {
-            return proxyRule;
+        if (path.startsWith("/api/kakao/")) {
+            return kakaoProxyRule;
+        }
+        if (path.startsWith("/api/transit/")) {
+            return transitProxyRule;
         }
         if (method == HttpMethod.POST && "/api/shares".equals(path)) {
             return shareCreateRule;
