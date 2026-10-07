@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getStationLines } from '../data/subwayStationLines'
 import { isBlockedOrigin, searchAddressSuggestions } from '../services/kakaoApi'
 import AnimatedLoadingDots from './AnimatedLoadingDots'
 
@@ -7,7 +8,16 @@ const RECENT_ORIGIN_LIMIT = 6
 
 const ORIGIN_LABELS = ['출발지 A', '출발지 B', '출발지 C', '출발지 D']
 
-function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, onRemoveOrigin, onReset, onSelect }) {
+function AddressInput({
+  origins,
+  maxOrigins,
+  minOrigins,
+  onAddOrigin,
+  onChange,
+  onRemoveOrigin,
+  onReset,
+  onSelect,
+}) {
   const canAddOrigin = origins.length < maxOrigins
   const canRemoveOrigin = origins.length > minOrigins
   const compactOrigins = origins.length >= 3
@@ -66,7 +76,16 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
   )
 }
 
-function AddressField({ canRemove, compact = false, origin, index, label, onChange, onRemove, onSelect }) {
+function AddressField({
+  canRemove,
+  compact = false,
+  origin,
+  index,
+  label,
+  onChange,
+  onRemove,
+  onSelect,
+}) {
   const [suggestions, setSuggestions] = useState([])
   const [recentOrigins, setRecentOrigins] = useState(() => getRecentOrigins())
   const [loading, setLoading] = useState(false)
@@ -201,6 +220,10 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
             }`}
           />
         </div>
+
+        {origin.selected ? (
+          <NearbyStationNotice origin={origin.selected} />
+        ) : null}
       </div>
 
       {origin.query && !origin.selected ? (
@@ -271,6 +294,41 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
       ) : null}
     </div>
   )
+}
+
+function NearbyStationNotice({ origin }) {
+  const isTransitStationOrigin = getStationLines(origin.routeName || origin.address).length > 0
+  const nearestStation = origin.nearbyStationCandidates?.[0]
+
+  if (
+    isTransitStationOrigin ||
+    origin.stationLookupStatus !== 'ready' ||
+    !origin.nearbyStationName
+  ) return null
+
+  return (
+    <p className="mt-2 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-slate-200/70 pt-2 text-[11px] font-semibold text-slate-500">
+      <span className="shrink-0">이 주소는</span>
+      <strong className="font-black text-[#5A45E8]">
+        {nearestStation?.name || origin.nearbyStationName}
+        {formatNearbyStationDistance(nearestStation?.distanceMeters)}
+      </strong>
+      <span className="shrink-0">기준으로 계산해요.</span>
+    </p>
+  )
+}
+
+function formatNearbyStationDistance(distanceMeters) {
+  if (!Number.isFinite(distanceMeters) || distanceMeters <= 0) return ''
+  return ` · 약 ${formatDistanceMeters(distanceMeters)}`
+}
+
+function formatDistanceMeters(distanceMeters) {
+  if (distanceMeters >= 1_000) {
+    return `${(distanceMeters / 1_000).toFixed(1)}km`
+  }
+
+  return `${Math.max(10, Math.round(distanceMeters / 10) * 10)}m`
 }
 
 function getRecentOrigins() {

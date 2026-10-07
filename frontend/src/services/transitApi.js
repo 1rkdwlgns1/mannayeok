@@ -2,7 +2,7 @@ const BACKEND_API_BASE_URL = String(import.meta.env.VITE_BACKEND_API_URL || '').
 const TRANSIT_ROUTE_CACHE_TTL_MS = 5 * 60 * 1000
 const transitRouteCache = new Map()
 
-export async function fetchTransitRoute(departure, arrival) {
+export async function fetchTransitRoute(departure, arrival, { searchType = 'optimal' } = {}) {
   const normalizedDeparture = normalizeStationName(departure)
   const normalizedArrival = normalizeStationName(arrival)
 
@@ -10,14 +10,14 @@ export async function fetchTransitRoute(departure, arrival) {
     throw new Error('출발역과 도착역 정보가 필요합니다.')
   }
 
-  const cacheKey = `${normalizedDeparture}:${normalizedArrival}:optimal`
+  const cacheKey = `${normalizedDeparture}:${normalizedArrival}:${searchType}`
   const cachedEntry = transitRouteCache.get(cacheKey)
   if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
     return cachedEntry.routePromise
   }
   transitRouteCache.delete(cacheKey)
 
-  const routePromise = requestTransitRoute(normalizedDeparture, normalizedArrival)
+  const routePromise = requestTransitRoute(normalizedDeparture, normalizedArrival, searchType)
     .catch((error) => {
       transitRouteCache.delete(cacheKey)
       throw error
@@ -33,19 +33,21 @@ export async function fetchTransitRoute(departure, arrival) {
 export async function fetchTransitRouteWithRetry(
   departure,
   arrival,
-  { maxAttempts = 2, retryDelayMs = 350 } = {},
+  { maxAttempts = 2, retryDelayMs = 350, searchType = 'optimal' } = {},
 ) {
   let lastError
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await fetchTransitRoute(departure, arrival)
+      return await fetchTransitRoute(departure, arrival, { searchType })
     } catch (error) {
       lastError = error
-      if (attempt < maxAttempts) {
+      if (attempt < maxAttempts && shouldRetryTransitRoute(error)) {
         await new Promise((resolve) => {
           window.setTimeout(resolve, retryDelayMs)
         })
+      } else {
+        break
       }
     }
   }
@@ -53,11 +55,11 @@ export async function fetchTransitRouteWithRetry(
   throw lastError
 }
 
-async function requestTransitRoute(departure, arrival) {
+async function requestTransitRoute(departure, arrival, searchType) {
   const params = new URLSearchParams({
     departure,
     arrival,
-    searchType: 'optimal',
+    searchType,
   })
   const response = await fetch(
     `${BACKEND_API_BASE_URL}/api/transit/routes?${params.toString()}`,
@@ -69,7 +71,11 @@ async function requestTransitRoute(departure, arrival) {
   )
 
   if (!response.ok) {
-    throw new Error('공공 지하철 경로를 불러오지 못했습니다.')
+    const errorBody = await response.json().catch(() => null)
+    const error = new Error(errorBody?.message || '공공 지하철 경로를 불러오지 못했습니다.')
+    error.status = response.status
+    error.code = errorBody?.code || 'TRANSIT_ROUTE_ERROR'
+    throw error
   }
 
   const route = await response.json()
@@ -78,6 +84,18 @@ async function requestTransitRoute(departure, arrival) {
   }
 
   return route
+}
+
+function shouldRetryTransitRoute(error) {
+  if (
+    error?.code === 'SUBWAY_API_ERROR' &&
+    String(error.message || '').includes('조회 가능한 지하철 운행 경로가 없습니다')
+  ) {
+    return false
+  }
+
+  if (!Number.isFinite(error?.status)) return true
+  return [408, 429, 500, 502, 503, 504].includes(error.status)
 }
 
 export function normalizeStationName(stationName) {

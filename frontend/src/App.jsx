@@ -28,6 +28,7 @@ import { getStationLines } from './data/subwayStationLines'
 import { getStationDisplayTransitTimeProfile } from './data/subwayTravelTimeGraph'
 import {
   enrichOriginsWithNearbyStations,
+  findNearestTransitStation,
   findPracticalReferenceAreas,
   getRegionNameByCoordinates,
   isBlockedOrigin,
@@ -57,6 +58,8 @@ const ONBOARDING_COMPLETED_KEY = 'mannayeok_onboarding_completed'
 const SAVED_RECOMMENDATION_RESTORE_KEY = 'mannayeok.savedRecommendationRestore'
 const PENDING_MEETING_SAVE_KEY = 'mannayeok.pendingMeetingSave'
 const COLLABORATIVE_RECALCULATION_KEY = 'mannayeok.collaborativeMeetingRecalculation'
+const SEARCH_SESSION_KEY = 'mannayeok.searchSession'
+const SEARCH_SESSION_VERSION = 1
 const RESULT_SHARING_ENABLED = true
 const ADMIN_INQUIRY_SHEET_URL = String(import.meta.env.VITE_ADMIN_INQUIRY_SHEET_URL || '').trim()
 
@@ -120,6 +123,11 @@ function App() {
   const [sharedResult] = useState(readSharedResult)
   const [sharedResultCode] = useState(readSharedResultCode)
   const [collaborativeRecalculation] = useState(readCollaborativeRecalculation)
+  const [restoredSearchSession] = useState(() =>
+    sharedResult || sharedResultCode || collaborativeRecalculation
+      ? null
+      : readSearchSession(),
+  )
   const [initialDialogHash] = useState(() => window.location.hash)
   const [originInputs, setOriginInputs] = useState(
     () =>
@@ -135,28 +143,44 @@ function App() {
             query: origin.address,
             selected: origin,
           }))
+        : restoredSearchSession?.originInputs?.length
+        ? restoredSearchSession.originInputs.map((originInput) => ({
+            id: createEmptyOrigin().id,
+            query: originInput.query,
+            selected: originInput.selected,
+          }))
         : Array.from({ length: MIN_ORIGIN_COUNT }, createEmptyOrigin),
   )
-  const [origins, setOrigins] = useState(() => sharedResult?.origins || [])
+  const [origins, setOrigins] = useState(
+    () => sharedResult?.origins || restoredSearchSession?.result?.origins || [],
+  )
   const [recommendedStations, setRecommendedStations] = useState(
-    () => sharedResult?.recommendedStations || [],
+    () => sharedResult?.recommendedStations || restoredSearchSession?.result?.recommendedStations || [],
   )
   const [publicTimeBalanceProfile, setPublicTimeBalanceProfile] = useState({
     requestKey: '',
     scores: {},
+    sources: {},
   })
-  const [fairStations, setFairStations] = useState(() => sharedResult?.fairStations || [])
+  const [fairStations, setFairStations] = useState(
+    () => sharedResult?.fairStations || restoredSearchSession?.result?.fairStations || [],
+  )
   const [referenceMidpoint, setReferenceMidpoint] = useState(
-    () => sharedResult?.referenceMidpoint || null,
+    () => sharedResult?.referenceMidpoint || restoredSearchSession?.result?.referenceMidpoint || null,
   )
   const [referenceMidpointVisible, setReferenceMidpointVisible] = useState(
-    () => Boolean(sharedResult?.referenceMidpoint),
+    () => Boolean(sharedResult?.referenceMidpoint || restoredSearchSession?.result?.referenceMidpoint),
   )
   const [selectedReferenceAreaId, setSelectedReferenceAreaId] = useState(
-    () => sharedResult?.selectedReferenceAreaId || null,
+    () => sharedResult?.selectedReferenceAreaId || restoredSearchSession?.result?.selectedReferenceAreaId || null,
   )
   const [selectedStationId, setSelectedStationId] = useState(
-    () => sharedResult?.selectedStationId || sharedResult?.recommendedStations?.[0]?.id || null,
+    () =>
+      sharedResult?.selectedStationId ||
+      sharedResult?.recommendedStations?.[0]?.id ||
+      restoredSearchSession?.result?.selectedStationId ||
+      restoredSearchSession?.result?.recommendedStations?.[0]?.id ||
+      null,
   )
   const [places, setPlaces] = useState([])
   const [selectedPlaceCategory, setSelectedPlaceCategory] = useState(null)
@@ -174,6 +198,7 @@ function App() {
         sharedResult
         || sharedResultCode
         || collaborativeRecalculation
+        || restoredSearchSession
         || getStoredMember()
         || window.sessionStorage.getItem(ONBOARDING_COMPLETED_KEY)
         || ['#terms', '#privacy', '#sources', '#inquiry', '#notice'].includes(window.location.hash)
@@ -231,6 +256,44 @@ function App() {
     referenceAreas.find((area) => area.id === selectedReferenceAreaId) ||
     referenceAreas[0] ||
     null
+
+  useEffect(() => {
+    if (sharedResult || sharedResultCode || collaborativeRecalculation) return
+
+    const searchSession = createSearchSessionSnapshot({
+      fairStations,
+      loading,
+      originInputs,
+      origins,
+      recommendedStations,
+      referenceMidpoint,
+      selectedReferenceAreaId,
+      selectedStationId,
+    })
+
+    if (!searchSession) {
+      window.sessionStorage.removeItem(SEARCH_SESSION_KEY)
+      return
+    }
+
+    try {
+      window.sessionStorage.setItem(SEARCH_SESSION_KEY, JSON.stringify(searchSession))
+    } catch {
+      // 임시 복원 저장 실패가 검색과 추천을 막지 않도록 합니다.
+    }
+  }, [
+    collaborativeRecalculation,
+    fairStations,
+    loading,
+    originInputs,
+    origins,
+    recommendedStations,
+    referenceMidpoint,
+    selectedReferenceAreaId,
+    selectedStationId,
+    sharedResult,
+    sharedResultCode,
+  ])
 
   const mapStations = useMemo(() => {
     const stationMap = new Map()
@@ -300,7 +363,10 @@ function App() {
 
     let active = true
 
-    timeBalanceStations.forEach(async (station) => {
+    const loadTimeBalanceProfiles = async () => {
+      let publicLookupAvailable = true
+
+      for (const station of timeBalanceStations) {
         const stationProfile = getStationDisplayTransitTimeProfile(origins, station.name)
         const profileItems = stationProfile?.items || []
 
@@ -314,37 +380,66 @@ function App() {
                 : {}),
               [getStationTimeBalanceKey(station)]: null,
             },
+            sources: {
+              ...(currentProfile.requestKey === timeBalanceRequestKey
+                ? currentProfile.sources
+                : {}),
+              [getStationTimeBalanceKey(station)]: 'unavailable',
+            },
           }))
-          return
+          continue
         }
 
-        const results = await Promise.allSettled(
-          profileItems.map((item) =>
-            isSameTransitStation(item.originName, station.name)
-              ? Promise.resolve({ minutes: 0 })
-              : fetchTransitRouteWithRetry(item.originName, station.name),
-          ),
-        )
-        const minutes = results
+        const results = publicLookupAvailable
+          ? await Promise.allSettled(
+              profileItems.map((item) =>
+                isSameTransitStation(item.originName, station.name)
+                  ? Promise.resolve({ minutes: 0 })
+                  : fetchTransitRouteWithRetry(item.originName, station.name, {
+                      searchType: 'duration',
+                    }),
+              ),
+            )
+          : []
+        const publicMinutes = results
           .map((result) => (result.status === 'fulfilled' ? result.value.minutes : null))
           .filter(Number.isFinite)
-        const score =
-          minutes.length === profileItems.length
-            ? getPublicTransitTimeBalanceScore(minutes)
+        const estimatedMinutes = profileItems.map((item) => item.minutes).filter(Number.isFinite)
+        const hasCompletePublicProfile = publicMinutes.length === profileItems.length
+        const hasCompleteEstimatedProfile = estimatedMinutes.length === profileItems.length
+        if (!hasCompletePublicProfile) publicLookupAvailable = false
+        const score = hasCompletePublicProfile
+          ? getPublicTransitTimeBalanceScore(publicMinutes)
+          : hasCompleteEstimatedProfile
+            ? getPublicTransitTimeBalanceScore(estimatedMinutes)
             : null
+        const source = hasCompletePublicProfile
+          ? 'public'
+          : hasCompleteEstimatedProfile
+            ? 'estimated'
+            : 'unavailable'
 
-      if (!active) return
+        if (!active) return
 
-      setPublicTimeBalanceProfile((currentProfile) => ({
-        requestKey: timeBalanceRequestKey,
-        scores: {
-          ...(currentProfile.requestKey === timeBalanceRequestKey
-            ? currentProfile.scores
-            : {}),
-          [getStationTimeBalanceKey(station)]: score,
-        },
-      }))
-    })
+        setPublicTimeBalanceProfile((currentProfile) => ({
+          requestKey: timeBalanceRequestKey,
+          scores: {
+            ...(currentProfile.requestKey === timeBalanceRequestKey
+              ? currentProfile.scores
+              : {}),
+            [getStationTimeBalanceKey(station)]: score,
+          },
+          sources: {
+            ...(currentProfile.requestKey === timeBalanceRequestKey
+              ? currentProfile.sources
+              : {}),
+            [getStationTimeBalanceKey(station)]: source,
+          },
+        }))
+      }
+    }
+
+    loadTimeBalanceProfiles()
 
     return () => {
       active = false
@@ -363,6 +458,14 @@ function App() {
 
     const score = publicTimeBalanceProfile.scores[stationKey]
     return Number.isFinite(score) ? getMetricStatus(score) : '확인 불가'
+  }
+
+  const getTimeBalanceSource = (station) => {
+    if (!station || publicTimeBalanceProfile.requestKey !== timeBalanceRequestKey) {
+      return 'loading'
+    }
+
+    return publicTimeBalanceProfile.sources[getStationTimeBalanceKey(station)] || 'loading'
   }
 
   useEffect(() => {
@@ -624,24 +727,63 @@ function App() {
       return
     }
 
+    const selectedOrigin = {
+      address,
+      id: suggestion.id,
+      lat: suggestion.lat,
+      lng: suggestion.lng,
+      routeName: suggestion.routeName || address,
+      stationLookupStatus: 'loading',
+    }
+
     setOriginInputs((prev) =>
       prev.map((origin, idx) =>
         idx === index
           ? {
               ...origin,
               query: address,
-              selected: {
-                address,
-                id: suggestion.id,
-                lat: suggestion.lat,
-                lng: suggestion.lng,
-                routeName: suggestion.routeName || address,
-              },
+              selected: selectedOrigin,
             }
           : origin,
       ),
     )
     setError('')
+
+    findNearestTransitStation(selectedOrigin)
+      .then((nearestStation) => {
+        setOriginInputs((prev) =>
+          prev.map((origin, idx) => {
+            if (idx !== index || origin.selected?.id !== selectedOrigin.id) return origin
+
+            return {
+              ...origin,
+              selected: {
+                ...origin.selected,
+                hasSupportedTransitAccess: Boolean(nearestStation),
+                nearbyStationName: nearestStation?.name || '',
+                nearbyStationCandidates: nearestStation ? [nearestStation] : [],
+                stationLookupStatus: nearestStation ? 'ready' : 'unavailable',
+                transitLines: nearestStation?.transitLines || [],
+              },
+            }
+          }),
+        )
+      })
+      .catch(() => {
+        setOriginInputs((prev) =>
+          prev.map((origin, idx) =>
+            idx === index && origin.selected?.id === selectedOrigin.id
+              ? {
+                  ...origin,
+                  selected: {
+                    ...origin.selected,
+                    stationLookupStatus: 'error',
+                  },
+                }
+              : origin,
+          ),
+        )
+      })
   }
 
   const handleAddOrigin = () => {
@@ -659,10 +801,16 @@ function App() {
   }
 
   const handleResetSearch = () => {
+    window.sessionStorage.removeItem(SEARCH_SESSION_KEY)
     setOriginInputs(Array.from({ length: MIN_ORIGIN_COUNT }, createEmptyOrigin))
     setOriginInputResetKey((key) => key + 1)
     clearSearchResults()
     setPlaceError('')
+  }
+
+  const handleLogoHome = () => {
+    window.sessionStorage.removeItem(SEARCH_SESSION_KEY)
+    window.sessionStorage.removeItem(COLLABORATIVE_RECALCULATION_KEY)
   }
 
   const clearSearchResults = () => {
@@ -704,6 +852,23 @@ function App() {
 
     try {
       const enrichedOrigins = await enrichOriginsWithNearbyStations(selectedOrigins)
+      setOriginInputs((prev) =>
+        prev.map((originInput, index) => {
+          const enrichedOrigin = enrichedOrigins[index]
+          if (!originInput.selected || !enrichedOrigin) return originInput
+
+          return {
+            ...originInput,
+            selected: {
+              ...originInput.selected,
+              ...enrichedOrigin,
+              stationLookupStatus: enrichedOrigin.hasSupportedTransitAccess
+                ? 'ready'
+                : 'unavailable',
+            },
+          }
+        }),
+      )
       const hasUnsupportedOrigin = enrichedOrigins.some(
         (origin) => origin.hasSupportedTransitAccess === false,
       )
@@ -1192,6 +1357,7 @@ function App() {
             onOpenAdminInquiries={handleOpenAdminInquiries}
             onLogout={handleLogout}
             onToggleMobileMenu={() => setMobileMenuOpen((open) => !open)}
+            onLogoHome={handleLogoHome}
           />
 
           <header className="hidden">
@@ -1335,6 +1501,7 @@ function App() {
                     onClick={() => handleStationSelect(primaryStation.id)}
                     primary
                     timeBalanceStatus={getTimeBalanceStatus(primaryStation)}
+                    timeBalanceSource={getTimeBalanceSource(primaryStation)}
                   />
                   <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
                     {primaryStation.id === selectedStation.id ? (
@@ -1453,6 +1620,11 @@ function App() {
                       onSave={handleMeetingSave}
                       timeBalanceStatus={getTimeBalanceStatus(visibleAlternativeStation)}
                     />
+                    <p className="mt-2 px-1 text-[11px] font-bold text-slate-400">
+                      {visibleAlternativeIndex < alternativeStations.length - 1
+                        ? `다음 후보: ${alternativeStations[visibleAlternativeIndex + 1].name}`
+                        : '마지막 후보예요.'}
+                    </p>
                   </div>
                 ) : null}
                 <div className="hidden gap-3 md:grid md:grid-cols-3">
@@ -2213,18 +2385,26 @@ function ResultTypeCard({
   onClick,
   primary = false,
   timeBalanceStatus = '조회 중',
+  timeBalanceSource = 'loading',
 }) {
   if (!station) return null
 
   const Component = onClick ? 'button' : 'div'
   const scores = getStationDisplayScores(station)
-  const reasons = getRecommendationReasons(station, scores, primary, timeBalanceStatus)
+  const reasons = getRecommendationReasons(
+    station,
+    scores,
+    primary,
+    timeBalanceStatus,
+    timeBalanceSource,
+  )
 
   if (primary) {
     return (
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
+        aria-pressed={onClick ? selected : undefined}
           className={`flex h-full w-full flex-col rounded-2xl border border-violet-100 bg-white px-4 pb-2.5 pt-4 text-left shadow-[0_14px_36px_rgba(90,69,232,0.10)] transition active:scale-[0.99] md:p-4 ${
           selected ? 'ring-2 ring-violet-100' : ''
         } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
@@ -2242,6 +2422,9 @@ function ResultTypeCard({
             <h2 className="mt-3 break-keep text-[28px] font-black tracking-tight text-slate-950 md:text-3xl">
               {station.name}
             </h2>
+            <p className="mt-1.5 text-xs font-semibold leading-5 text-slate-500">
+              이동시간·환승 부담·상권을 함께 고려한 종합 추천이에요.
+            </p>
           </div>
 
         </div>
@@ -2271,6 +2454,7 @@ function ResultTypeCard({
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
+      aria-pressed={onClick ? selected : undefined}
         className={`flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white/90 p-4 text-left shadow-sm transition active:scale-[0.99] md:p-4 ${
         selected ? 'ring-2 ring-violet-100' : ''
       } ${onClick ? 'cursor-pointer hover:border-violet-200' : ''}`}
@@ -2336,6 +2520,7 @@ function MobileFairStationCard({ station, collapsed, selected, onSelect, onToggl
           <button
             type="button"
             onClick={onSelect}
+            aria-pressed={selected}
             className="justify-self-center text-center active:opacity-70"
           >
             <span className="block whitespace-nowrap text-base font-black tracking-tight text-slate-950">
@@ -2371,6 +2556,7 @@ function MobileFairStationCard({ station, collapsed, selected, onSelect, onToggl
             <button
               type="button"
               onClick={onSelect}
+              aria-pressed={selected}
               className="min-w-0 text-left active:opacity-70"
             >
               <span className="block break-keep text-[15px] font-black tracking-tight text-slate-950 sm:text-lg">
@@ -2421,7 +2607,13 @@ function MetricSummaryItem({ label, value }) {
   )
 }
 
-function StationCard({ station, selected, onClick, onSave, timeBalanceStatus = '조회 중' }) {
+function StationCard({
+  station,
+  selected,
+  onClick,
+  onSave,
+  timeBalanceStatus = '조회 중',
+}) {
   const scores = getStationDisplayScores(station)
 
   return (
@@ -2432,7 +2624,12 @@ function StationCard({ station, selected, onClick, onSave, timeBalanceStatus = '
             : 'border-slate-100 bg-white/95 hover:border-violet-200 hover:bg-white'
         }`}
     >
-      <button type="button" onClick={onClick} className="w-full p-3 text-left active:scale-[0.99] md:p-3.5">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={selected}
+        className="w-full p-3 text-left active:scale-[0.99] md:p-3.5"
+      >
         <div className="flex items-start justify-between gap-1.5">
           <div className={`min-w-0 ${selected ? 'pr-16' : ''}`}>
             <StationLineChips station={station} />
@@ -2527,7 +2724,13 @@ function getCommercialMetricStatus(station) {
   return '적음'
 }
 
-function getRecommendationReasons(station, scores, primary = false, timeBalanceStatus = '') {
+function getRecommendationReasons(
+  station,
+  scores,
+  primary = false,
+  timeBalanceStatus = '',
+  timeBalanceSource = 'public',
+) {
   const reasons = []
   const lines = getStationLineLabels(station)
   const linesText = lines.slice(0, 2).join(' · ')
@@ -2535,8 +2738,9 @@ function getRecommendationReasons(station, scores, primary = false, timeBalanceS
   const hotPlaceSignal = station.hotPlaceSignal || 0
 
   if (primary) {
+    const timeBasis = timeBalanceSource === 'estimated' ? '내장 노선 예상 기준' : '최신 시간표 기준'
     if (timeBalanceStatus === '매우 좋음' || timeBalanceStatus === '좋음') {
-      reasons.push('최신 시간표 기준 출발지별 이동시간 차이가 크지 않아요.')
+      reasons.push(`${timeBasis} 출발지별 이동시간 차이가 크지 않아요.`)
     } else if (timeBalanceStatus === '보통') {
       reasons.push('이동시간 균형은 보통이며, 상권과 접근성이 이를 보완해요.')
     } else if (timeBalanceStatus === '아쉬움') {
@@ -2670,6 +2874,192 @@ function getMaximumOriginDistance(origins) {
   })
 
   return maximumDistance
+}
+
+function createSearchSessionSnapshot({
+  fairStations,
+  loading,
+  originInputs,
+  origins,
+  recommendedStations,
+  referenceMidpoint,
+  selectedReferenceAreaId,
+  selectedStationId,
+}) {
+  const storedOriginInputs = originInputs.map((originInput) => ({
+    query: originInput.query,
+    selected: originInput.selected ? pickSearchSessionOrigin(originInput.selected) : null,
+  }))
+  const hasInput = storedOriginInputs.some(
+    (originInput) => originInput.query.trim() || originInput.selected,
+  )
+
+  if (!hasInput) return null
+
+  const selectedOrigins = originInputs.map((originInput) => originInput.selected).filter(Boolean)
+  const hasMatchingCompletedResult =
+    !loading &&
+    selectedOrigins.length === originInputs.length &&
+    origins.length === selectedOrigins.length &&
+    origins.every((origin, index) => {
+      const selectedOrigin = selectedOrigins[index]
+      const sameNearbyStation =
+        !origin.nearbyStationName ||
+        !selectedOrigin.nearbyStationName ||
+        isSameTransitStation(origin.nearbyStationName, selectedOrigin.nearbyStationName)
+
+      return isSameOrigin(origin, selectedOrigin) && sameNearbyStation
+    }) &&
+    (recommendedStations.length > 0 || Boolean(referenceMidpoint))
+
+  return {
+    version: SEARCH_SESSION_VERSION,
+    originInputs: storedOriginInputs,
+    result: hasMatchingCompletedResult
+      ? {
+          origins: origins.map(pickSearchSessionOrigin),
+          recommendedStations: recommendedStations.slice(0, 4).map(pickSearchSessionStation),
+          fairStations: fairStations.slice(0, 1).map(pickSearchSessionStation),
+          selectedStationId,
+          referenceMidpoint: pickSearchSessionReferenceMidpoint(referenceMidpoint),
+          selectedReferenceAreaId,
+        }
+      : null,
+  }
+}
+
+function pickSearchSessionOrigin(origin) {
+  return {
+    id: origin.id,
+    address: origin.address,
+    routeName: origin.routeName,
+    nearbyStationName: origin.nearbyStationName || '',
+    lat: Number(origin.lat),
+    lng: Number(origin.lng),
+    transitLines: Array.isArray(origin.transitLines) ? origin.transitLines.slice(0, 6) : [],
+    hasSupportedTransitAccess: origin.hasSupportedTransitAccess,
+    stationLookupStatus: origin.nearbyStationName ? 'ready' : 'error',
+    nearbyStationCandidates: Array.isArray(origin.nearbyStationCandidates)
+      ? origin.nearbyStationCandidates.slice(0, 1).map((station) => ({
+          id: station.id,
+          name: station.name,
+          lat: Number(station.lat),
+          lng: Number(station.lng),
+          distanceMeters: Number(station.distanceMeters || 0),
+          transitLines: Array.isArray(station.transitLines) ? station.transitLines.slice(0, 6) : [],
+        }))
+      : [],
+  }
+}
+
+function pickSearchSessionStation(station) {
+  return {
+    id: station.id,
+    name: station.name,
+    lat: Number(station.lat),
+    lng: Number(station.lng),
+    distanceFromCenter: Number(station.distanceFromCenter || 0),
+    hotPlaceCount: Number(station.hotPlaceCount || 0),
+    hotPlaceSignal: Number(station.hotPlaceSignal || 0),
+    middleHubScore: Number(station.middleHubScore || 0),
+    fairnessScore: Number(station.fairnessScore || 0),
+    transitCompatibilityScore: Number(station.transitCompatibilityScore || 0),
+    transitLines: Array.isArray(station.transitLines) ? station.transitLines.slice(0, 6) : [],
+  }
+}
+
+function pickSearchSessionReferenceMidpoint(referenceMidpoint) {
+  if (!referenceMidpoint) return null
+
+  return {
+    id: 'reference-midpoint',
+    name: referenceMidpoint.name,
+    mapLabel: '중간',
+    lat: Number(referenceMidpoint.lat),
+    lng: Number(referenceMidpoint.lng),
+    regionName: referenceMidpoint.regionName,
+    practicalAreas: (referenceMidpoint.practicalAreas || []).slice(0, 4).map((area) => ({
+      id: area.id,
+      name: area.name,
+      address: area.address,
+      lat: Number(area.lat),
+      lng: Number(area.lng),
+      kind: area.kind,
+      commercialCount: Number(area.commercialCount || 0),
+      regionName: area.regionName,
+      distanceFromCenter: Number(area.distanceFromCenter || 0),
+      mapLabel: area.mapLabel,
+    })),
+  }
+}
+
+function readSearchSession() {
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) || 'null')
+    if (stored?.version !== SEARCH_SESSION_VERSION) {
+      window.sessionStorage.removeItem(SEARCH_SESSION_KEY)
+      return null
+    }
+
+    const originInputs = Array.isArray(stored.originInputs) ? stored.originInputs : []
+    const hasValidInputs =
+      originInputs.length >= MIN_ORIGIN_COUNT &&
+      originInputs.length <= MAX_ORIGIN_COUNT &&
+      originInputs.every((originInput) => {
+        if (!originInput || typeof originInput.query !== 'string') return false
+        if (!originInput.selected) return true
+
+        return (
+          Number.isFinite(Number(originInput.selected.lat)) &&
+          Number.isFinite(Number(originInput.selected.lng)) &&
+          !isBlockedOrigin(originInput.selected)
+        )
+      })
+
+    if (!hasValidInputs) {
+      window.sessionStorage.removeItem(SEARCH_SESSION_KEY)
+      return null
+    }
+
+    const result = isValidSearchSessionResult(stored.result, originInputs.length)
+      ? stored.result
+      : null
+
+    return { version: SEARCH_SESSION_VERSION, originInputs, result }
+  } catch {
+    window.sessionStorage.removeItem(SEARCH_SESSION_KEY)
+    return null
+  }
+}
+
+function isValidSearchSessionResult(result, originCount) {
+  if (!result) return false
+
+  const resultOrigins = Array.isArray(result.origins) ? result.origins : []
+  const recommended = Array.isArray(result.recommendedStations)
+    ? result.recommendedStations
+    : []
+  const hasValidOrigins =
+    resultOrigins.length === originCount &&
+    resultOrigins.every(
+      (origin) =>
+        Number.isFinite(Number(origin?.lat)) &&
+        Number.isFinite(Number(origin?.lng)) &&
+        !isBlockedOrigin(origin),
+    )
+  const hasValidRecommendedStations =
+    recommended.length > 0 &&
+    recommended.every(
+      (station) =>
+        typeof station?.name === 'string' &&
+        Number.isFinite(Number(station.lat)) &&
+        Number.isFinite(Number(station.lng)),
+    )
+  const hasValidReferenceMidpoint =
+    Number.isFinite(Number(result.referenceMidpoint?.lat)) &&
+    Number.isFinite(Number(result.referenceMidpoint?.lng))
+
+  return hasValidOrigins && (hasValidRecommendedStations || hasValidReferenceMidpoint)
 }
 
 function createShortShareUrl(code) {
