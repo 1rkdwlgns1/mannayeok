@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mannayeok.backend.observability.ExternalApiMetrics;
 import com.mannayeok.backend.transit.config.SubwayApiProperties;
+import com.mannayeok.backend.transit.error.TransitRouteNotFoundException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import org.junit.jupiter.api.Test;
@@ -258,6 +259,38 @@ class TransitRouteServiceTest {
     }
 
     @Test
+    void cachesMissingRoutesSeparatelyFromExternalApiFailures() {
+        AtomicInteger requestCount = new AtomicInteger();
+        WebClient webClient = WebClient.builder()
+            .baseUrl("https://example.test")
+            .exchangeFunction(request -> {
+                requestCount.incrementAndGet();
+                return Mono.just(ClientResponse.create(HttpStatus.OK)
+                    .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                    .body(emptyRouteResponse())
+                    .build());
+            })
+            .build();
+        TransitRouteService service = new TransitRouteService(
+            webClient,
+            new SubwayApiProperties("https://example.test", "test-key", 5),
+            new TransitRouteMapper(),
+            resolver,
+            metrics()
+        );
+        LocalDateTime departureAt = LocalDateTime.of(2026, 10, 9, 15, 0);
+
+        StepVerifier.create(service.findRoute("덕계", "양주", "duration", departureAt))
+            .expectError(TransitRouteNotFoundException.class)
+            .verify();
+        StepVerifier.create(service.findRoute("덕계", "양주", "duration", departureAt))
+            .expectError(TransitRouteNotFoundException.class)
+            .verify();
+
+        assertThat(requestCount).hasValue(2);
+    }
+
+    @Test
     void refreshesCurrentSeoulTimeWhenRouteCacheExpires() {
         SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
         AtomicReference<Instant> currentInstant = new AtomicReference<>(
@@ -343,6 +376,22 @@ class TransitRouteServiceTest {
                     "trsitYn": "N"
                   }
                 ]
+              }
+            }
+            """;
+    }
+
+    private String emptyRouteResponse() {
+        return """
+            {
+              "header": {"resultCode": "00", "resultMsg": "성공"},
+              "body": {
+                "totalDstc": 0,
+                "totalReqHr": 0,
+                "totalCardCrg": 0,
+                "trsitNmtm": 0,
+                "trfstnNms": [],
+                "paths": []
               }
             }
             """;

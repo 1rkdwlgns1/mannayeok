@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getStationLines } from '../data/subwayStationLines'
 import { isBlockedOrigin, searchAddressSuggestions } from '../services/kakaoApi'
 import AnimatedLoadingDots from './AnimatedLoadingDots'
 
@@ -7,7 +8,17 @@ const RECENT_ORIGIN_LIMIT = 6
 
 const ORIGIN_LABELS = ['출발지 A', '출발지 B', '출발지 C', '출발지 D']
 
-function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, onRemoveOrigin, onReset, onSelect }) {
+function AddressInput({
+  origins,
+  maxOrigins,
+  minOrigins,
+  originRestrictions = [],
+  onAddOrigin,
+  onChange,
+  onRemoveOrigin,
+  onReset,
+  onSelect,
+}) {
   const canAddOrigin = origins.length < maxOrigins
   const canRemoveOrigin = origins.length > minOrigins
   const compactOrigins = origins.length >= 3
@@ -54,6 +65,7 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
             canRemove={canRemoveOrigin}
             compact={compactOrigins}
             origin={origin}
+            restriction={originRestrictions[index]}
             index={index}
             label={ORIGIN_LABELS[index] || `출발지 ${index + 1}`}
             onChange={onChange}
@@ -66,7 +78,17 @@ function AddressInput({ origins, maxOrigins, minOrigins, onAddOrigin, onChange, 
   )
 }
 
-function AddressField({ canRemove, compact = false, origin, index, label, onChange, onRemove, onSelect }) {
+function AddressField({
+  canRemove,
+  compact = false,
+  origin,
+  restriction,
+  index,
+  label,
+  onChange,
+  onRemove,
+  onSelect,
+}) {
   const [suggestions, setSuggestions] = useState([])
   const [recentOrigins, setRecentOrigins] = useState(() => getRecentOrigins())
   const [loading, setLoading] = useState(false)
@@ -162,7 +184,11 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
             {label}
           </span>
           <span className="flex items-center gap-1.5">
-            {origin.selected ? (
+            {restriction ? (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-600">
+                일시 조회 제한
+              </span>
+            ) : origin.selected ? (
               <span className={`rounded-full bg-white px-2 py-0.5 text-xs font-bold ${theme.text}`}>선택됨</span>
             ) : null}
             {canRemove ? (
@@ -201,6 +227,12 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
             }`}
           />
         </div>
+
+        {origin.selected ? (
+          <NearbyStationNotice origin={origin.selected} />
+        ) : null}
+
+        {restriction ? <TemporaryRestrictionNotice restriction={restriction} /> : null}
       </div>
 
       {origin.query && !origin.selected ? (
@@ -271,6 +303,52 @@ function AddressField({ canRemove, compact = false, origin, index, label, onChan
       ) : null}
     </div>
   )
+}
+
+function TemporaryRestrictionNotice({ restriction }) {
+  return (
+    <p
+      className="mt-2 border-t border-amber-200/70 pt-2 text-[11px] font-bold leading-4 text-amber-700"
+      role="status"
+    >
+      {restriction.message} {restriction.suggestion}
+    </p>
+  )
+}
+
+function NearbyStationNotice({ origin }) {
+  const isTransitStationOrigin = getStationLines(origin.routeName || origin.address).length > 0
+  const nearestStation = origin.nearbyStationCandidates?.[0]
+
+  if (
+    isTransitStationOrigin ||
+    origin.stationLookupStatus !== 'ready' ||
+    !origin.nearbyStationName
+  ) return null
+
+  return (
+    <p className="mt-2 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-slate-200/70 pt-2 text-[11px] font-semibold text-slate-500">
+      <span className="shrink-0">이 주소는</span>
+      <strong className="font-black text-[#5A45E8]">
+        {nearestStation?.name || origin.nearbyStationName}
+        {formatNearbyStationDistance(nearestStation?.distanceMeters)}
+      </strong>
+      <span className="shrink-0">기준으로 계산해요.</span>
+    </p>
+  )
+}
+
+function formatNearbyStationDistance(distanceMeters) {
+  if (!Number.isFinite(distanceMeters) || distanceMeters <= 0) return ''
+  return ` · 약 ${formatDistanceMeters(distanceMeters)}`
+}
+
+function formatDistanceMeters(distanceMeters) {
+  if (distanceMeters >= 1_000) {
+    return `${(distanceMeters / 1_000).toFixed(1)}km`
+  }
+
+  return `${Math.max(10, Math.round(distanceMeters / 10) * 10)}m`
 }
 
 function getRecentOrigins() {

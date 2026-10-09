@@ -12,6 +12,7 @@ const SCORE_TOLERANCE = 1e-6
 let vite
 let kakaoApi
 let transitApi
+let temporaryTransitRestrictions
 let requests
 
 before(async () => {
@@ -23,6 +24,9 @@ before(async () => {
   })
   kakaoApi = await vite.ssrLoadModule('/src/services/kakaoApi.js')
   transitApi = await vite.ssrLoadModule('/src/services/transitApi.js')
+  temporaryTransitRestrictions = await vite.ssrLoadModule(
+    '/src/utils/temporaryTransitRestrictions.js',
+  )
 })
 
 after(async () => {
@@ -99,6 +103,135 @@ test('카카오 지하철 검색 결과의 노선 접미사를 역 코드 조회
   assert.equal(transitApi.normalizeStationName('계양역 인천선'), '계양')
   assert.equal(transitApi.normalizeStationName('홍대입구역 경의·중앙선'), '홍대입구')
   assert.equal(transitApi.normalizeStationName('강남역'), '강남')
+})
+
+test('덕계역 직접 선택과 주소의 인접역 지정에 임시 제한을 적용한다', () => {
+  const directStationRestriction = temporaryTransitRestrictions.getTemporaryOriginRestriction({
+    address: '경기 양주시 덕계로 126',
+    routeName: '덕계역 1호선',
+  })
+  const nearbyStationRestriction = temporaryTransitRestrictions.getTemporaryOriginRestriction({
+    address: '경기 양주시 평화로1570번길',
+    routeName: '양주 메이플러그',
+    nearbyStationName: '덕계역 1호선',
+  })
+
+  assert.equal(directStationRestriction?.stationName, '덕계')
+  assert.equal(nearbyStationRestriction?.stationName, '덕계')
+  assert.equal(
+    temporaryTransitRestrictions.getTemporaryOriginRestriction({
+      address: '경기 양주시 덕정동',
+      routeName: '덕정역 1호선',
+    }),
+    null,
+  )
+})
+
+test('공공 API에 경로가 없는 역 조합은 재시도하거나 반복 호출하지 않는다', async () => {
+  const originalFetch = globalThis.fetch
+  let requestCount = 0
+
+  globalThis.fetch = async () => {
+    requestCount += 1
+    return new Response(null, { status: 204 })
+  }
+
+  try {
+    for (let index = 0; index < 2; index += 1) {
+      await assert.rejects(
+        () =>
+          transitApi.fetchTransitRouteWithRetry('재시도검증출발역', '재시도검증도착역', {
+            maxAttempts: 2,
+            retryDelayMs: 0,
+            searchType: 'duration',
+          }),
+        (error) => {
+          assert.equal(error.code, 'TRANSIT_ROUTE_NOT_FOUND')
+          assert.equal(error.status, 204)
+          return true
+        },
+      )
+    }
+    assert.equal(requestCount, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('identical Kakao local requests share one in-flight response', async () => {
+  const originalFetch = globalThis.fetch
+  const requestedUrls = []
+
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(String(input))
+    return new Response(JSON.stringify({ documents: [], meta: { total_count: 0 } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const center = {
+    id: 'local-cache-center',
+    name: 'local-cache-center',
+    lat: 35.12345,
+    lng: 128.54321,
+  }
+
+  try {
+    await Promise.all([
+      kakaoApi.searchNearbyPlaces(center, 'cafe'),
+      kakaoApi.searchNearbyPlaces(center, 'cafe'),
+    ])
+    await kakaoApi.searchNearbyPlaces(center, 'cafe')
+    await kakaoApi.searchNearbyPlaces(center, 'restaurant')
+
+    assert.equal(requestedUrls.length, 2)
+    assert.equal(
+      requestedUrls.filter((url) => url.includes('category_group_code=CE7')).length,
+      1,
+    )
+    assert.equal(
+      requestedUrls.filter((url) => url.includes('category_group_code=FD6')).length,
+      1,
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('failed Kakao local requests are removed from the cache', async () => {
+  const originalFetch = globalThis.fetch
+  let requestCount = 0
+
+  globalThis.fetch = async () => {
+    requestCount += 1
+    if (requestCount === 1) {
+      return new Response(JSON.stringify({ message: 'rate limited' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    return new Response(JSON.stringify({ documents: [], meta: { total_count: 0 } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const center = {
+    id: 'local-cache-retry-center',
+    name: 'local-cache-retry-center',
+    lat: 35.33333,
+    lng: 128.77777,
+  }
+
+  try {
+    await assert.rejects(() => kakaoApi.searchNearbyPlaces(center, 'cafe'))
+    await kakaoApi.searchNearbyPlaces(center, 'cafe')
+    assert.equal(requestCount, 2)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
 function assertClose(actual, expected, label) {

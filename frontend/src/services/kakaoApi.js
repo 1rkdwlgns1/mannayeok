@@ -10,6 +10,7 @@ import {
   shouldIncludeHubStation,
 } from './meetingRecommender'
 import { getStationLines } from '../data/subwayStationLines'
+import { isSameTransitStation } from '../utils/transitStation'
 import hubStationCoordinates from '../data/hubStationCoordinates.json'
 import hubStationCommercialMetrics from '../data/hubStationCommercialMetrics.json'
 
@@ -20,6 +21,7 @@ const STATION_COUNTS_CACHE_KEY = 'mannayeok:station-counts-cache:v2'
 const STATION_COUNTS_CACHE_TTL = 1000 * 60 * 60 * 24 * 7
 const HUB_STATIONS_CACHE_KEY = 'mannayeok:hub-stations-cache'
 const HUB_STATIONS_CACHE_TTL = 1000 * 60 * 60 * 24 * 30
+const LOCAL_API_CACHE_TTL = 1000 * 60 * 10
 const LOCAL_SEARCH_CONCURRENCY = 5
 const COMMERCIAL_SCORING_CANDIDATE_LIMIT = 12
 const SUPPORTED_TRANSIT_SEARCH_RADIUS_METERS = 15_000
@@ -81,6 +83,7 @@ const BLOCKED_ORIGIN_MESSAGE =
   '제주도·울릉도·독도는 현재 출발지 검색을 지원하지 않아요.'
 
 let scriptLoadingPromise = null
+const localApiCache = new Map()
 
 export function loadKakaoMapSdk() {
   if (window.kakao?.maps?.services) {
@@ -145,13 +148,39 @@ async function requestLocalApi(type, params) {
     }
   })
 
-  const response = await fetch(`${BACKEND_API_BASE_URL}/api/kakao/local?${query.toString()}`)
-
-  if (!response.ok) {
-    throw new Error('카카오 로컬 검색에 실패했습니다.')
+  const requestUrl = `${BACKEND_API_BASE_URL}/api/kakao/local?${query.toString()}`
+  const cachedEntry = localApiCache.get(requestUrl)
+  if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
+    return cachedEntry.responsePromise
   }
+  localApiCache.delete(requestUrl)
 
-  return response.json()
+  const responsePromise = fetch(requestUrl)
+    .then(async (response) => {
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        const error = new Error(
+          response.status === 429
+            ? '요청이 잠시 몰렸어요. 잠시 후 다시 시도해주세요.'
+            : errorBody?.message || '카카오 로컬 검색에 실패했습니다.',
+        )
+        error.status = response.status
+        throw error
+      }
+
+      return response.json()
+    })
+    .catch((error) => {
+      localApiCache.delete(requestUrl)
+      if (error instanceof Error && error.status) throw error
+      throw new Error('요청이 잠시 몰렸어요. 잠시 후 다시 시도해주세요.')
+    })
+
+  localApiCache.set(requestUrl, {
+    expiresAt: Date.now() + LOCAL_API_CACHE_TTL,
+    responsePromise,
+  })
+  return responsePromise
 }
 
 function formatLocalSearchOptions(options = {}) {
@@ -199,6 +228,27 @@ export async function enrichOriginsWithNearbyStations(origins) {
   const kakao = await loadKakaoMapSdk()
 
   return Promise.all(origins.map((origin) => enrichOriginWithNearbyStation(kakao, origin)))
+}
+
+export async function findNearestTransitStation(origin) {
+  const existingLines = getStationLines(
+    origin.nearbyStationName || origin.routeName || origin.address,
+  )
+
+  if (existingLines.length) {
+    return {
+        id: origin.id || `station-${origin.routeName || origin.address}`,
+        name: origin.nearbyStationName || origin.routeName || origin.address,
+        lat: origin.lat,
+        lng: origin.lng,
+        distanceMeters: 0,
+        transitLines: existingLines,
+      }
+  }
+
+  const kakao = await loadKakaoMapSdk()
+  const stations = await searchNearbyTransitStationOptions(kakao, origin)
+  return stations[0] || null
 }
 
 export async function getRegionNameByCoordinates({ lat, lng }) {
@@ -365,18 +415,44 @@ function getReferenceRegionName(address = '') {
 
 function enrichOriginWithNearbyStation(kakao, origin) {
   if (origin.transitLines?.length) {
+    const nearestStation = [...(origin.nearbyStationCandidates || [])]
+      .sort((left, right) => (left.distanceMeters || 0) - (right.distanceMeters || 0))[0]
+    const nearbyStationName = nearestStation?.name || origin.nearbyStationName || origin.routeName || origin.address
+    const transitLines = nearestStation?.transitLines || origin.transitLines
     return Promise.resolve({
       ...origin,
       hasSupportedTransitAccess: true,
+      nearbyStationName,
+      nearbyStationCandidates: nearestStation
+        ? [nearestStation]
+        : [{
+            id: origin.id,
+            name: nearbyStationName,
+            lat: origin.lat,
+            lng: origin.lng,
+            distanceMeters: 0,
+            transitLines,
+          }],
+      transitLines,
     })
   }
 
   const existingLines = getStationLines(origin.routeName || origin.address)
 
   if (existingLines.length) {
+    const nearbyStationName = origin.routeName || origin.address
     return Promise.resolve({
       ...origin,
       hasSupportedTransitAccess: true,
+      nearbyStationName,
+      nearbyStationCandidates: [{
+        id: origin.id,
+        name: nearbyStationName,
+        lat: origin.lat,
+        lng: origin.lng,
+        distanceMeters: 0,
+        transitLines: existingLines,
+      }],
       transitLines: existingLines,
     })
   }
@@ -394,29 +470,65 @@ function enrichOriginWithNearbyStation(kakao, origin) {
     '근처 지하철역 검색에 실패했습니다.',
   )
     .then(({ documents }) => {
-      const nearestStation = documents.find(
-        (station) => getStationLines(station.place_name).length > 0,
-      )
+      const nearbyStationCandidates = createNearbyTransitStationOptions(documents)
+      const nearestStation = nearbyStationCandidates[0]
 
       if (!nearestStation) {
         return {
           ...origin,
           hasSupportedTransitAccess: false,
+          nearbyStationCandidates: [],
         }
       }
-
-      const transitLines = getStationLines(nearestStation.place_name)
 
       return {
         ...origin,
         hasSupportedTransitAccess: true,
-        nearbyStationName: nearestStation.place_name,
-        transitLines,
+        nearbyStationName: nearestStation.name,
+        nearbyStationCandidates: [nearestStation],
+        transitLines: nearestStation.transitLines,
       }
     })
     .catch(() => {
       throw new Error('현재 서비스 지원 지역인지 확인하지 못했습니다. 잠시 후 다시 시도해주세요.')
     })
+}
+
+function searchNearbyTransitStationOptions(kakao, origin) {
+  return searchLocalCategory(
+    kakao,
+    'SW8',
+    {
+      x: origin.lng,
+      y: origin.lat,
+      radius: SUPPORTED_TRANSIT_SEARCH_RADIUS_METERS,
+      sort: kakao.maps.services.SortBy.DISTANCE,
+      size: 15,
+    },
+    '근처 지하철역 검색에 실패했습니다.',
+  ).then(({ documents }) => createNearbyTransitStationOptions(documents))
+}
+
+function createNearbyTransitStationOptions(documents) {
+  const stations = []
+
+  documents.forEach((station) => {
+    const transitLines = getStationLines(station.place_name)
+    if (!transitLines.length) return
+
+    if (stations.some((candidate) => isSameTransitStation(candidate.name, station.place_name))) return
+
+    stations.push({
+      id: station.id,
+      name: station.place_name,
+      lat: Number(station.y),
+      lng: Number(station.x),
+      distanceMeters: Number(station.distance || 0),
+      transitLines,
+    })
+  })
+
+  return stations.slice(0, 4)
 }
 
 export async function searchAddressSuggestions(query) {

@@ -18,6 +18,7 @@ import com.mannayeok.backend.transit.config.SubwayApiProperties;
 import com.mannayeok.backend.transit.dto.PublicSubwayResponse;
 import com.mannayeok.backend.transit.dto.TransitRouteResponse;
 import com.mannayeok.backend.transit.error.SubwayApiException;
+import com.mannayeok.backend.transit.error.TransitRouteNotFoundException;
 import com.mannayeok.backend.observability.ExternalApiMetrics;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -41,6 +42,7 @@ public class TransitRouteService {
     private static final int OPTIMAL_DISTANCE_DIVISOR = 200;
     private static final int NEARBY_ROUTE_DURATION_SECONDS = 2 * 60;
     private static final Duration ROUTE_CACHE_TTL = Duration.ofMinutes(5);
+    private static final Duration NO_ROUTE_CACHE_TTL = Duration.ofMinutes(1);
     private static final Duration NO_CACHE = Duration.ZERO;
     private static final int MAX_ROUTE_CACHE_ENTRIES = 500;
 
@@ -121,7 +123,9 @@ public class TransitRouteService {
                     )
                     .cache(
                         ignoredResult -> routeCacheTtl,
-                        ignoredError -> NO_CACHE,
+                        error -> error instanceof TransitRouteNotFoundException
+                            ? NO_ROUTE_CACHE_TTL
+                            : NO_CACHE,
                         () -> NO_CACHE
                     );
             }
@@ -491,7 +495,9 @@ public class TransitRouteService {
     }
 
     private Mono<TransitRouteResponse> noRouteError() {
-        return Mono.error(new SubwayApiException("조회 가능한 지하철 운행 경로가 없습니다."));
+        return Mono.error(new TransitRouteNotFoundException(
+            "조회 가능한 지하철 운행 경로가 없습니다."
+        ));
     }
 
     private record RouteQuery(String departureCode, String arrivalCode) {

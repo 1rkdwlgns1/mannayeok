@@ -32,6 +32,7 @@ function Header({
   onOpenAdminInquiries,
   onLogout,
   onToggleMobileMenu,
+  onLogoHome,
 }) {
   return (
     <div className="relative z-[130] flex min-h-16 items-start justify-between px-0 py-0 md:min-h-20">
@@ -49,6 +50,7 @@ function Header({
           />
           <a
             href="/"
+            onClick={onLogoHome}
             className="absolute left-3 top-4 h-9 w-[4.5rem] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:left-2 sm:top-3 sm:h-11 sm:w-[5.5rem] md:left-6 md:top-3 md:h-14 md:w-[7.5rem]"
             aria-label="만나역 메인 화면으로 이동"
           />
