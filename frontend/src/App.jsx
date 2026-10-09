@@ -45,6 +45,7 @@ import { setAuthReturnPath } from './services/authReturn'
 import { legalDocuments } from './components/legal/LegalDocumentPage'
 import { getLineChipStyle, getSubwayLineDisplayName } from './utils/subwayLineTheme'
 import { isSameTransitStation } from './utils/transitStation'
+import { getTemporaryOriginRestriction } from './utils/temporaryTransitRestrictions'
 import {
   createDefaultMeetingName,
   createReferenceSharePayload,
@@ -322,6 +323,10 @@ function App() {
   const selectedOrigins = originInputs.map((origin) => origin.selected).filter(Boolean)
   const hasRequiredSelections = selectedOrigins.length === originInputs.length
   const hasDuplicateOrigins = hasRequiredSelections && hasSameOrigins(selectedOrigins)
+  const temporaryOriginRestrictions = originInputs.map((origin) =>
+    getTemporaryOriginRestriction(origin.selected),
+  )
+  const hasTemporaryOriginRestriction = temporaryOriginRestrictions.some(Boolean)
   const showResults = Boolean(selectedStation)
   const showLongDistanceNotice =
     showResults && getMaximumOriginDistance(origins) >= LONG_DISTANCE_NOTICE_THRESHOLD_METERS
@@ -842,6 +847,8 @@ function App() {
       return
     }
 
+    if (hasTemporaryOriginRestriction) return
+
     setLoadingDots('.')
     setLoading(true)
     setError('')
@@ -869,6 +876,8 @@ function App() {
           }
         }),
       )
+      if (enrichedOrigins.some((origin) => getTemporaryOriginRestriction(origin))) return
+
       const hasUnsupportedOrigin = enrichedOrigins.some(
         (origin) => origin.hasSupportedTransitAccess === false,
       )
@@ -1397,6 +1406,7 @@ function App() {
               origins={originInputs}
               maxOrigins={MAX_ORIGIN_COUNT}
               minOrigins={MIN_ORIGIN_COUNT}
+              originRestrictions={temporaryOriginRestrictions}
               onAddOrigin={handleAddOrigin}
               onChange={handleAddressChange}
               onRemoveOrigin={handleRemoveOrigin}
@@ -1407,10 +1417,14 @@ function App() {
             <button
               type="button"
               onClick={handleCalculate}
-              disabled={loading}
+              disabled={loading || hasTemporaryOriginRestriction}
               className="mt-3 w-full rounded-2xl bg-[#5A45E8] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#4938D1] active:scale-[0.99] disabled:cursor-default disabled:bg-violet-200 sm:mt-3.5 sm:py-4 sm:text-base"
             >
-              {loading ? `추천 후보를 찾는 중${loadingDots}` : '만나기 좋은 역 찾기'}
+              {loading
+                ? `추천 후보를 찾는 중${loadingDots}`
+                : hasTemporaryOriginRestriction
+                  ? '제한된 출발지를 변경해주세요'
+                  : '만나기 좋은 역 찾기'}
             </button>
 
             <p className="mt-2 text-center text-[11px] font-bold text-slate-400 md:text-xs">
@@ -2422,12 +2436,13 @@ function ResultTypeCard({
             <h2 className="mt-3 break-keep text-[28px] font-black tracking-tight text-slate-950 md:text-3xl">
               {station.name}
             </h2>
-            <p className="mt-1.5 text-xs font-semibold leading-5 text-slate-500">
-              이동시간·환승 부담·상권을 함께 고려한 종합 추천이에요.
-            </p>
           </div>
 
         </div>
+
+          <p className="mt-1.5 break-keep text-xs font-semibold leading-5 text-slate-500">
+            이동시간·환승 부담·상권을 함께 고려한 종합 추천이에요.
+          </p>
 
           <div className="mt-3 rounded-xl bg-slate-50/80 px-3 py-2.5">
             <p className="text-[11px] font-black text-slate-400">추천 이유</p>

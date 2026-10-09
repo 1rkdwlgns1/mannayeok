@@ -12,6 +12,7 @@ function AddressInput({
   origins,
   maxOrigins,
   minOrigins,
+  originRestrictions = [],
   onAddOrigin,
   onChange,
   onRemoveOrigin,
@@ -64,6 +65,7 @@ function AddressInput({
             canRemove={canRemoveOrigin}
             compact={compactOrigins}
             origin={origin}
+            restriction={originRestrictions[index]}
             index={index}
             label={ORIGIN_LABELS[index] || `출발지 ${index + 1}`}
             onChange={onChange}
@@ -80,6 +82,7 @@ function AddressField({
   canRemove,
   compact = false,
   origin,
+  restriction,
   index,
   label,
   onChange,
@@ -181,7 +184,11 @@ function AddressField({
             {label}
           </span>
           <span className="flex items-center gap-1.5">
-            {origin.selected ? (
+            {restriction ? (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-600">
+                일시 조회 제한
+              </span>
+            ) : origin.selected ? (
               <span className={`rounded-full bg-white px-2 py-0.5 text-xs font-bold ${theme.text}`}>선택됨</span>
             ) : null}
             {canRemove ? (
@@ -224,6 +231,8 @@ function AddressField({
         {origin.selected ? (
           <NearbyStationNotice origin={origin.selected} />
         ) : null}
+
+        {restriction ? <TemporaryRestrictionNotice restriction={restriction} /> : null}
       </div>
 
       {origin.query && !origin.selected ? (
@@ -293,6 +302,17 @@ function AddressField({
         </div>
       ) : null}
     </div>
+  )
+}
+
+function TemporaryRestrictionNotice({ restriction }) {
+  return (
+    <p
+      className="mt-2 border-t border-amber-200/70 pt-2 text-[11px] font-bold leading-4 text-amber-700"
+      role="status"
+    >
+      {restriction.message} {restriction.suggestion}
+    </p>
   )
 }
 
