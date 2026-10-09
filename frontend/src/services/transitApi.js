@@ -1,5 +1,6 @@
 const BACKEND_API_BASE_URL = String(import.meta.env.VITE_BACKEND_API_URL || '').replace(/\/$/, '')
 const TRANSIT_ROUTE_CACHE_TTL_MS = 5 * 60 * 1000
+const TRANSIT_NO_ROUTE_CACHE_TTL_MS = 60 * 1000
 const transitRouteCache = new Map()
 
 export async function fetchTransitRoute(departure, arrival, { searchType = 'optimal' } = {}) {
@@ -19,7 +20,14 @@ export async function fetchTransitRoute(departure, arrival, { searchType = 'opti
 
   const routePromise = requestTransitRoute(normalizedDeparture, normalizedArrival, searchType)
     .catch((error) => {
-      transitRouteCache.delete(cacheKey)
+      if (error?.code === 'TRANSIT_ROUTE_NOT_FOUND') {
+        const failedEntry = transitRouteCache.get(cacheKey)
+        if (failedEntry?.routePromise === routePromise) {
+          failedEntry.expiresAt = Date.now() + TRANSIT_NO_ROUTE_CACHE_TTL_MS
+        }
+      } else {
+        transitRouteCache.delete(cacheKey)
+      }
       throw error
     })
 
@@ -70,6 +78,13 @@ async function requestTransitRoute(departure, arrival, searchType) {
     },
   )
 
+  if (response.status === 204) {
+    const error = new Error('조회 가능한 지하철 운행 경로가 없습니다.')
+    error.status = response.status
+    error.code = 'TRANSIT_ROUTE_NOT_FOUND'
+    throw error
+  }
+
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null)
     const error = new Error(errorBody?.message || '공공 지하철 경로를 불러오지 못했습니다.')
@@ -87,12 +102,7 @@ async function requestTransitRoute(departure, arrival, searchType) {
 }
 
 function shouldRetryTransitRoute(error) {
-  if (
-    error?.code === 'SUBWAY_API_ERROR' &&
-    String(error.message || '').includes('조회 가능한 지하철 운행 경로가 없습니다')
-  ) {
-    return false
-  }
+  if (error?.code === 'TRANSIT_ROUTE_NOT_FOUND') return false
 
   if (!Number.isFinite(error?.status)) return true
   return [408, 429, 500, 502, 503, 504].includes(error.status)

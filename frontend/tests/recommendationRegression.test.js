@@ -101,34 +101,31 @@ test('카카오 지하철 검색 결과의 노선 접미사를 역 코드 조회
   assert.equal(transitApi.normalizeStationName('강남역'), '강남')
 })
 
-test('공공 API에 경로가 없는 역 조합은 같은 요청을 재시도하지 않는다', async () => {
+test('공공 API에 경로가 없는 역 조합은 재시도하거나 반복 호출하지 않는다', async () => {
   const originalFetch = globalThis.fetch
   let requestCount = 0
 
   globalThis.fetch = async () => {
     requestCount += 1
-    return new Response(
-      JSON.stringify({
-        code: 'SUBWAY_API_ERROR',
-        message: '조회 가능한 지하철 운행 경로가 없습니다.',
-      }),
-      {
-        status: 502,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return new Response(null, { status: 204 })
   }
 
   try {
-    await assert.rejects(
-      () =>
-        transitApi.fetchTransitRouteWithRetry('재시도검증출발역', '재시도검증도착역', {
-          maxAttempts: 2,
-          retryDelayMs: 0,
-          searchType: 'duration',
-        }),
-      /조회 가능한 지하철 운행 경로가 없습니다/,
-    )
+    for (let index = 0; index < 2; index += 1) {
+      await assert.rejects(
+        () =>
+          transitApi.fetchTransitRouteWithRetry('재시도검증출발역', '재시도검증도착역', {
+            maxAttempts: 2,
+            retryDelayMs: 0,
+            searchType: 'duration',
+          }),
+        (error) => {
+          assert.equal(error.code, 'TRANSIT_ROUTE_NOT_FOUND')
+          assert.equal(error.status, 204)
+          return true
+        },
+      )
+    }
     assert.equal(requestCount, 1)
   } finally {
     globalThis.fetch = originalFetch

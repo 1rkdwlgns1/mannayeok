@@ -104,7 +104,7 @@ function TransitTimeEstimateCard({ origins, station }) {
       <p className="mb-2 flex items-center gap-1.5 pl-0.5 text-[10px] font-bold text-slate-500 md:text-[11px]">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         {estimatedItems.some((item) => item.fallbackSchedule)
-          ? '심야 대체 조회: 다음 운행일 13시 시간표 기준'
+          ? '대체 시간표 조회: 다음 운행일 13시 기준'
           : estimatedItems.every((item) => item.source === 'SEOUL_METRO_PUBLIC_DATA')
             ? '서울교통공사 시간표 기준 · 역간 지하철 이동시간'
             : '일부 경로 임시 예상시간 기준'}

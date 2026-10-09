@@ -6,6 +6,7 @@ import java.util.Map;
 import com.mannayeok.backend.auth.error.AuthException;
 import com.mannayeok.backend.kakao.error.KakaoApiException;
 import com.mannayeok.backend.transit.error.SubwayApiException;
+import com.mannayeok.backend.transit.error.TransitRouteNotFoundException;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.support.WebExchangeBindException;
@@ -49,6 +50,13 @@ public class ApiErrorHandler {
             "message", exception.getMessage(),
             "timestamp", Instant.now().toString()
         );
+    }
+
+    @ExceptionHandler(TransitRouteNotFoundException.class)
+    ResponseEntity<Void> handleTransitRouteNotFoundException(
+        TransitRouteNotFoundException exception
+    ) {
+        return ResponseEntity.noContent().build();
     }
 
     @ExceptionHandler(KakaoApiException.class)
