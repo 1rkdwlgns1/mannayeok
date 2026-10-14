@@ -23,6 +23,7 @@ import ResultShareDialog from './dialogs/ShareResultDialog'
 import InquiryDialog from './dialogs/InquiryDialog'
 import NoticeDialog from './dialogs/NoticeDialog'
 import UsageGuideDialog from './dialogs/GuideDialog'
+import { getPublishedNotices } from './services/noticeApi'
 import backgroundImage from './assets/background.webp'
 import { getStationLines } from './data/subwayStationLines'
 import { getStationDisplayTransitTimeProfile } from './data/subwayTravelTimeGraph'
@@ -38,6 +39,7 @@ import {
 import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
 import { fetchTransitRouteWithRetry } from './services/transitApi'
+import { getRecentNoticeExpiry } from './utils/recentNotice'
 import { createSharedResult, getSharedResult } from './services/shareApi'
 import { createSavedRecommendation } from './services/savedRecommendationApi'
 import { updateCollaborativeMeetingResult } from './services/meetingApi'
@@ -212,8 +214,36 @@ function App() {
   const isAdmin = currentMember?.role === 'ADMIN'
   const [guideOpen, setGuideOpen] = useState(false)
   const [noticeOpen, setNoticeOpen] = useState(() => initialDialogHash === '#notice')
+  const [hasRecentNotice, setHasRecentNotice] = useState(false)
 
   useEffect(() => watchAuthChanges(() => setCurrentMember(getStoredMember())), [])
+
+  useEffect(() => {
+    let active = true
+    let expiryTimer
+
+    getPublishedNotices()
+      .then((notices) => {
+        if (!active) return
+        const expiresAt = getRecentNoticeExpiry(notices)
+        setHasRecentNotice(expiresAt > Date.now())
+
+        if (expiresAt > Date.now()) {
+          expiryTimer = window.setTimeout(
+            () => setHasRecentNotice(false),
+            expiresAt - Date.now() + 1000,
+          )
+        }
+      })
+      .catch(() => {
+        if (active) setHasRecentNotice(false)
+      })
+
+    return () => {
+      active = false
+      window.clearTimeout(expiryTimer)
+    }
+  }, [])
   const [inquiryOpen, setInquiryOpen] = useState(() => initialDialogHash === '#inquiry')
   const [privacyOpen, setPrivacyOpen] = useState(() => initialDialogHash === '#privacy')
   const [serviceInfoOpen, setServiceInfoOpen] = useState(() => initialDialogHash === '#terms')
@@ -1352,6 +1382,7 @@ function App() {
             mobileMenuOpen={mobileMenuOpen}
             adminInquirySheetUrl={ADMIN_INQUIRY_SHEET_URL}
             onNotice={handleNotice}
+            showNoticeDot={hasRecentNotice}
             onInquiry={handleInquiry}
             onOpenGuide={() => setGuideOpen(true)}
             onOpenMobileGuide={() => {

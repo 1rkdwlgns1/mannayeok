@@ -21,6 +21,7 @@ function Header({
   mobileMenuOpen,
   adminInquirySheetUrl,
   onNotice,
+  showNoticeDot,
   onInquiry,
   onOpenGuide,
   onOpenMobileGuide,
@@ -58,7 +59,7 @@ function Header({
       </div>
 
       <nav className="relative z-10 mt-5 hidden shrink-0 items-center gap-1 md:flex" aria-label="서비스 메뉴">
-        <HeaderAction icon={Megaphone} label="공지사항" onClick={onNotice} />
+        <HeaderAction icon={Megaphone} label="공지사항" onClick={onNotice} showNotificationDot={showNoticeDot} />
         <HeaderAction icon={Mail} label="문의하기" onClick={onInquiry} />
         <HeaderAction icon={CircleHelp} label="이용안내" onClick={onOpenGuide} />
         {currentMember ? (
@@ -102,6 +103,7 @@ function Header({
           icon={Megaphone}
           label="공지사항"
           onClick={onNotice}
+          showNotificationDot={showNoticeDot}
         />
         <button
           type="button"
@@ -142,30 +144,42 @@ function Header({
   )
 }
 
-function HeaderAction({ icon: ActionIcon, label, onClick }) {
+function HeaderAction({ icon: ActionIcon, label, onClick, showNotificationDot = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-black text-slate-600 transition hover:bg-white hover:text-[#5A45E8] hover:shadow-sm"
+      className="relative inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-black text-slate-600 transition hover:bg-white hover:text-[#5A45E8] hover:shadow-sm"
+      aria-label={showNotificationDot ? `${label}, 새 공지 있음` : label}
     >
       <ActionIcon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
       <span>{label}</span>
+      {showNotificationDot ? <NotificationDot /> : null}
     </button>
   )
 }
 
-function HeaderIconButton({ icon: ActionIcon, label, onClick }) {
+function HeaderIconButton({ icon: ActionIcon, label, onClick, showNotificationDot = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition hover:bg-white hover:text-[#5A45E8]"
-      aria-label={label}
+      className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition hover:bg-white hover:text-[#5A45E8]"
+      aria-label={showNotificationDot ? `${label}, 새 공지 있음` : label}
       title={label}
     >
       <ActionIcon className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden="true" />
+      {showNotificationDot ? <NotificationDot /> : null}
     </button>
+  )
+}
+
+function NotificationDot() {
+  return (
+    <span
+      className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"
+      aria-hidden="true"
+    />
   )
 }
 
