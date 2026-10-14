@@ -39,7 +39,7 @@ import {
 import { loadKakaoShareSdk, shareResultToKakao } from './services/kakaoShare'
 import { calculateDistanceInMeters, calculateMidpoint } from './services/midpointCalculator'
 import { fetchTransitRouteWithRetry } from './services/transitApi'
-import { getRecentNoticeExpiry } from './utils/recentNotice'
+import { getRecentNoticeIndicator } from './utils/recentNotice'
 import { createSharedResult, getSharedResult } from './services/shareApi'
 import { createSavedRecommendation } from './services/savedRecommendationApi'
 import { updateCollaborativeMeetingResult } from './services/meetingApi'
@@ -111,6 +111,7 @@ const ICON_TONES = {
 const MIN_ORIGIN_COUNT = 2
 const MAX_ORIGIN_COUNT = 4
 const LONG_DISTANCE_NOTICE_THRESHOLD_METERS = 80_000
+const NOTICE_SEEN_STORAGE_KEY = 'mannayeok:seen-notice:v1'
 const MIN_RECOMMENDATION_HOT_PLACE_COUNT = 50
 const INQUIRY_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyqk1NV6mSmOYtCL__PxAYtBxVJ8wE5usVISnbATiVv0OLzd9UOyFkI8Epiy9XjhWAS/exec'
 const INQUIRY_COOLDOWN_MS = 60_000
@@ -215,6 +216,7 @@ function App() {
   const [guideOpen, setGuideOpen] = useState(false)
   const [noticeOpen, setNoticeOpen] = useState(() => initialDialogHash === '#notice')
   const [hasRecentNotice, setHasRecentNotice] = useState(false)
+  const [recentNoticeKey, setRecentNoticeKey] = useState('')
 
   useEffect(() => watchAuthChanges(() => setCurrentMember(getStoredMember())), [])
 
@@ -225,13 +227,22 @@ function App() {
     getPublishedNotices()
       .then((notices) => {
         if (!active) return
-        const expiresAt = getRecentNoticeExpiry(notices)
-        setHasRecentNotice(expiresAt > Date.now())
+        const indicator = getRecentNoticeIndicator(notices)
+        const indicatorKey = indicator?.key || ''
+        let seenNoticeKey = ''
+        try {
+          seenNoticeKey = window.localStorage.getItem(NOTICE_SEEN_STORAGE_KEY) || ''
+        } catch {
+          // 저장소를 사용할 수 없어도 공지 표시는 정상 동작합니다.
+        }
 
-        if (expiresAt > Date.now()) {
+        setRecentNoticeKey(indicatorKey)
+        setHasRecentNotice(Boolean(indicatorKey && indicatorKey !== seenNoticeKey))
+
+        if (indicator?.expiresAt > Date.now()) {
           expiryTimer = window.setTimeout(
             () => setHasRecentNotice(false),
-            expiresAt - Date.now() + 1000,
+            indicator.expiresAt - Date.now() + 1000,
           )
         }
       })
@@ -1266,6 +1277,14 @@ function App() {
   }
 
   const handleNotice = () => {
+    if (hasRecentNotice && recentNoticeKey) {
+      try {
+        window.localStorage.setItem(NOTICE_SEEN_STORAGE_KEY, recentNoticeKey)
+      } catch {
+        // 저장소를 사용할 수 없는 환경에서는 현재 화면에서만 표시를 숨깁니다.
+      }
+      setHasRecentNotice(false)
+    }
     setNoticeOpen(true)
     setMobileMenuOpen(false)
   }

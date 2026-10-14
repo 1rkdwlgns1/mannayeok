@@ -72,6 +72,11 @@ label {
   animation: app-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.notice-notification-dot {
+  animation: notice-dot-breathe 1.8s ease-in-out infinite;
+  transform-origin: center;
+}
+
 @media (max-width: 767px) {
   .app-enter {
     animation: none;
@@ -159,6 +164,19 @@ label {
   }
 }
 
+@keyframes notice-dot-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.82);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -168,7 +186,8 @@ label {
   .onboarding-screen.is-leaving,
   .hero-preview-card,
   .hero-feature-card,
-  .app-enter {
+  .app-enter,
+  .notice-notification-dot {
     animation: none;
     opacity: 1;
     filter: none;
