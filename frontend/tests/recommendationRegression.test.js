@@ -105,7 +105,7 @@ test('카카오 지하철 검색 결과의 노선 접미사를 역 코드 조회
   assert.equal(transitApi.normalizeStationName('강남역'), '강남')
 })
 
-test('덕계역 직접 선택과 주소의 인접역 지정에 임시 제한을 적용한다', () => {
+test('덕계역 직접 선택과 주소의 인접역 지정을 허용한다', () => {
   const directStationRestriction = temporaryTransitRestrictions.getTemporaryOriginRestriction({
     address: '경기 양주시 덕계로 126',
     routeName: '덕계역 1호선',
@@ -116,8 +116,8 @@ test('덕계역 직접 선택과 주소의 인접역 지정에 임시 제한을 
     nearbyStationName: '덕계역 1호선',
   })
 
-  assert.equal(directStationRestriction?.stationName, '덕계')
-  assert.equal(nearbyStationRestriction?.stationName, '덕계')
+  assert.equal(directStationRestriction, null)
+  assert.equal(nearbyStationRestriction, null)
   assert.equal(
     temporaryTransitRestrictions.getTemporaryOriginRestriction({
       address: '경기 양주시 덕정동',
