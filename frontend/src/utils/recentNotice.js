@@ -1,15 +1,27 @@
 export const RECENT_NOTICE_DURATION_MS = 5 * 24 * 60 * 60 * 1000
 
-export function getRecentNoticeExpiry(notices, now = Date.now()) {
-  if (!Array.isArray(notices)) return 0
+export function getRecentNoticeIndicator(notices, now = Date.now()) {
+  if (!Array.isArray(notices)) return null
 
-  return notices.reduce((latestExpiry, notice) => {
+  return notices.reduce((latestIndicator, notice) => {
     const publishedAt = getPublishedTime(notice)
-    if (!Number.isFinite(publishedAt) || publishedAt > now) return latestExpiry
+    if (!Number.isFinite(publishedAt) || publishedAt > now) return latestIndicator
 
     const expiresAt = publishedAt + RECENT_NOTICE_DURATION_MS
-    return expiresAt > now ? Math.max(latestExpiry, expiresAt) : latestExpiry
-  }, 0)
+    if (expiresAt <= now || (latestIndicator && latestIndicator.publishedAt >= publishedAt)) {
+      return latestIndicator
+    }
+
+    return {
+      key: `${notice?.id ?? 'notice'}:${notice?.publishedAt ?? publishedAt}`,
+      publishedAt,
+      expiresAt,
+    }
+  }, null)
+}
+
+export function getRecentNoticeExpiry(notices, now = Date.now()) {
+  return getRecentNoticeIndicator(notices, now)?.expiresAt || 0
 }
 
 function getPublishedTime(notice) {

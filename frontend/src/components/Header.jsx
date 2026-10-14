@@ -177,7 +177,7 @@ function HeaderIconButton({ icon: ActionIcon, label, onClick, showNotificationDo
 function NotificationDot() {
   return (
     <span
-      className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"
+      className="notice-notification-dot absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-white"
       aria-hidden="true"
     />
   )
